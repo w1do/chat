@@ -1,0 +1,19 @@
+type: object
+required: [request_id, operation, original, suggestion, provider, model]
+properties:
+  request_id:
+    type: string
+    description: ULID записи аудита.
+  operation:
+    type: string
+    enum: [fix, clarify, shorten, expand, tone, custom]
+  original:
+    type: string
+    description: Текст, отправленный помощнику.
+  suggestion:
+    type: string
+    description: Предложение; публикует его пользователь сам.
+  provider:
+    type: string
+  model:
+    type: string

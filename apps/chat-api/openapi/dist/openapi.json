@@ -212,6 +212,48 @@
                     }
                 }
             },
+            "Revision": {
+                "type": "object",
+                "required": [
+                    "request_id",
+                    "operation",
+                    "original",
+                    "suggestion",
+                    "provider",
+                    "model"
+                ],
+                "properties": {
+                    "request_id": {
+                        "type": "string",
+                        "description": "ULID записи аудита."
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "fix",
+                            "clarify",
+                            "shorten",
+                            "expand",
+                            "tone",
+                            "custom"
+                        ]
+                    },
+                    "original": {
+                        "type": "string",
+                        "description": "Текст, отправленный помощнику."
+                    },
+                    "suggestion": {
+                        "type": "string",
+                        "description": "Предложение; публикует его пользователь сам."
+                    },
+                    "provider": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                }
+            },
             "Room": {
                 "type": "object",
                 "required": [
@@ -388,6 +430,120 @@
         }
     },
     "paths": {
+        "/ai/message-revisions": {
+            "post": {
+                "operationId": "reviseMessage",
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Предложить исправленный черновик (текст обрабатывает внешний ИИ)",
+                "description": "Возвращает предложение, а не публикует его. В запросе к поставщику уходит только присланный текст — история комнаты не передаётся.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "operation",
+                                    "text"
+                                ],
+                                "properties": {
+                                    "operation": {
+                                        "type": "string",
+                                        "enum": [
+                                            "fix",
+                                            "clarify",
+                                            "shorten",
+                                            "expand",
+                                            "tone",
+                                            "custom"
+                                        ]
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "maxLength": 2000
+                                    },
+                                    "tone": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "enum": [
+                                            "friendly",
+                                            "neutral",
+                                            "formal",
+                                            "softer",
+                                            null
+                                        ],
+                                        "description": "Обязателен для операции tone."
+                                    },
+                                    "instruction": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 200,
+                                        "description": "Обязательна для операции custom."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Предложение помощника.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Revision"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "description": "Исчерпана квота пользователя.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Помощник выключен администратором либо поставщик недоступен.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password": {
             "post": {
                 "operationId": "forgotPassword",

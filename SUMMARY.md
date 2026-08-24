@@ -32,7 +32,7 @@
 | chat/realtime-presence | Системные записи о членстве в истории, конфетти-приветствие, уведомления о входящих (бейджи, заголовок вкладки, тост, Notification API). Broadcast после commit (6 событий, payload по схемам contracts), авторизация приватных/presence/user каналов, Redis presence-реестр с TTL, typing endpoint; фронт: EchoAdapter, `useRealtimeRoom` с HTTP-ресинком после reconnect, TypingIndicator/PresenceDots. Проверено: 7 integration + 4 Redis + 9 contract тестов, 22 компонентных, `smoke websocket` и E2E двух пользователей | verified |
 | notifications/offline-delivery | Скелет пакетов `backend/notifications`, `frontend/notifications` | planned |
 | search/message-search | Не начато | planned |
-| ai/text-revisions | Скелет пакета `backend/ai` | planned |
+| ai/text-revisions | Помощник за контрактом `TextRevisionProvider`: Polza (OpenAI-совместимый), Null и Fake; квоты, таймаут, повтор, circuit breaker; endpoint `/ai/message-revisions`; аудит без промптов и ответов; лист помощника в композере (принять/отклонить/отменить/вернуть). 20 package-тестов, 4 интеграционных, 6 компонентных | implemented |
 | administration/system-controls | Скелет пакета `backend/administration` | planned |
 
 ## Ограничения текущего состояния

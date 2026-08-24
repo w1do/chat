@@ -7484,16 +7484,18 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/backend/ai",
-                "reference": "9e00bd6e7abbf040bad7b36e75601a8c3649ca96"
+                "reference": "de8f1b66e825f9984fe33041f818ec014252caf0"
             },
             "require": {
+                "illuminate/http": "^13.0",
                 "illuminate/support": "^13.0",
                 "php": "^8.4",
                 "vendor/shared-kernel": "^0.1"
             },
             "require-dev": {
                 "orchestra/testbench": "^11.0",
-                "pestphp/pest": "^4.0"
+                "pestphp/pest": "^4.0",
+                "vendor/identity": "^0.1"
             },
             "type": "library",
             "extra": {

@@ -1,0 +1,51 @@
+/ai/message-revisions:
+  post:
+    operationId: reviseMessage
+    tags: [ai]
+    summary: Предложить исправленный черновик (текст обрабатывает внешний ИИ)
+    description: >-
+      Возвращает предложение, а не публикует его. В запросе к поставщику уходит
+      только присланный текст — история комнаты не передаётся.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [operation, text]
+            properties:
+              operation:
+                type: string
+                enum: [fix, clarify, shorten, expand, tone, custom]
+              text: { type: string, maxLength: 2000 }
+              tone:
+                type: [string, "null"]
+                enum: [friendly, neutral, formal, softer, null]
+                description: Обязателен для операции tone.
+              instruction:
+                type: [string, "null"]
+                maxLength: 200
+                description: Обязательна для операции custom.
+    responses:
+      '200':
+        description: Предложение помощника.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Revision' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429':
+        description: Исчерпана квота пользователя.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+      '503':
+        description: Помощник выключен администратором либо поставщик недоступен.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }

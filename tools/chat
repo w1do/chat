@@ -29,6 +29,7 @@ Commands:
   deploy reload           graceful octane:reload + horizon:terminate + reverb:restart
   smoke runtime           HTTP/queue/WebSocket readiness против dev Compose стека
   smoke websocket         реальная доставка события через Reverb
+  smoke polza             необязательная проверка настоящего AI (нужен AI_API_KEY)
   up | down               локальный полный стек в браузере (http://localhost:8088)
   e2e <spec>              Playwright-сценарий против локального стека
 EOF
@@ -279,6 +280,24 @@ PY
         echo "event published\n";
       ' "$ROOT" "$ws_host" "$ws_port"
       wait $listener
+      exit $?
+    fi
+    if [[ "$sub" == "polza" ]]; then
+      # Необязательная проверка против настоящего Polza AI: включается только
+      # при заданном ключе, обычный CI её не запускает (CLAUDE.md §13).
+      if [[ -z "${AI_API_KEY:-}" ]]; then
+        echo "smoke polza: SKIP (AI_API_KEY не задан)"
+        exit 0
+      fi
+      (cd "$API_DIR" && AI_ENABLED=true AI_PROVIDER=polza php artisan tinker --execute='
+        $handler = app(Vendor\Ai\Application\Handlers\Commands\ReviseDraftHandler::class);
+        $user = config("auth.providers.users.model")::query()->firstOrFail();
+        $result = $handler->handle(new Vendor\Ai\Application\Commands\ReviseDraftCommand(
+            userId: (string) $user->getKey(), operation: "fix", text: "привет как дила",
+        ));
+        echo "provider=", $result->provider, " model=", $result->model, PHP_EOL;
+        echo "suggestion=", mb_substr($result->suggestion, 0, 120), PHP_EOL;
+      ')
       exit $?
     fi
     [[ "$sub" == "runtime" ]] || { echo "Unknown smoke target: $sub" >&2; exit 64; }

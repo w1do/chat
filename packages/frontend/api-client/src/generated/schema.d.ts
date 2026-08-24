@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/ai/message-revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Предложить исправленный черновик (текст обрабатывает внешний ИИ)
+         * @description Возвращает предложение, а не публикует его. В запросе к поставщику уходит только присланный текст — история комнаты не передаётся.
+         */
+        post: operations["reviseMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/forgot-password": {
         parameters: {
             query?: never;
@@ -411,6 +431,18 @@ export interface components {
             count: number;
             reacted_by_me: boolean;
         };
+        Revision: {
+            /** @description ULID записи аудита. */
+            request_id: string;
+            /** @enum {string} */
+            operation: "fix" | "clarify" | "shorten" | "expand" | "tone" | "custom";
+            /** @description Текст, отправленный помощнику. */
+            original: string;
+            /** @description Предложение; публикует его пользователь сам. */
+            suggestion: string;
+            provider: string;
+            model: string;
+        };
         Room: {
             /** @description ULID комнаты. */
             id: string;
@@ -492,6 +524,63 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    reviseMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    operation: "fix" | "clarify" | "shorten" | "expand" | "tone" | "custom";
+                    text: string;
+                    /**
+                     * @description Обязателен для операции tone.
+                     * @enum {string|null}
+                     */
+                    tone?: "friendly" | "neutral" | "formal" | "softer" | null;
+                    /** @description Обязательна для операции custom. */
+                    instruction?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Предложение помощника. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Revision"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            /** @description Исчерпана квота пользователя. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Помощник выключен администратором либо поставщик недоступен. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     forgotPassword: {
         parameters: {
             query?: never;

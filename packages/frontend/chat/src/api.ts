@@ -70,3 +70,15 @@ export const messagesApi = {
     );
   },
 };
+
+// --- Помощник (AI) -----------------------------------------------------------
+
+import { revisionSchema, type Revision, type RevisionRequest } from './schemas/revision';
+
+export const aiApi = {
+  async revise(client: ApiClient, input: RevisionRequest, signal?: AbortSignal): Promise<Revision> {
+    return revisionSchema.parse(
+      ((await client.post('/ai/message-revisions', { body: input, signal })) as { data: unknown }).data,
+    );
+  },
+};

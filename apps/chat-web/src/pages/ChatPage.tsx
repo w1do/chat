@@ -11,6 +11,7 @@ import {
   useNotificationPermission,
   useReactions,
   useRealtimeRoom,
+  useRevision,
   useRoom,
   useRooms,
   useSendMessage,
@@ -250,13 +251,9 @@ function ActiveRoom({
 
   const [draft, setDraft] = useState('');
   const [undoText, setUndoText] = useState<string | null>(null);
-  const [magic, setMagic] = useState<{
-    open: boolean;
-    phase: MagicPhase;
-    action: MagicAction | null;
-    suggestion: string | null;
-    error: string | null;
-  }>({ open: false, phase: 'menu', action: null, suggestion: null, error: null });
+  const [magicOpen, setMagicOpen] = useState(false);
+  const [magicPhase, setMagicPhase] = useState<MagicPhase>('menu');
+  const revision = useRevision();
 
   const flatMessages = messages.data?.pages.flatMap((page) => page.data) ?? [];
   const newestId = flatMessages[0]?.id;
@@ -313,7 +310,7 @@ function ActiveRoom({
         hasMore={messages.hasNextPage}
         aiEnabled={aiEnabled}
         undoText={undoText}
-        magicBusy={magic.open && magic.phase === 'loading'}
+        magicBusy={magicOpen && revision.state.phase === 'loading'}
         draft={draft}
         onDraftChange={(text) => {
           setDraft(text);
@@ -337,7 +334,8 @@ function ActiveRoom({
         }}
         onMagic={(text) => {
           if (!aiEnabled) {
-            setMagic({ open: true, phase: 'unavailable', action: null, suggestion: null, error: null });
+            setMagicPhase('unavailable');
+            setMagicOpen(true);
 
             return;
           }
@@ -346,7 +344,9 @@ function ActiveRoom({
 
             return;
           }
-          setMagic({ open: true, phase: 'menu', action: null, suggestion: null, error: null });
+          revision.reset();
+          setMagicPhase('menu');
+          setMagicOpen(true);
         }}
         onUndoMagic={() => {
           if (undoText === null) return;
@@ -364,30 +364,37 @@ function ActiveRoom({
       />
 
       <MagicSheet
-        open={magic.open}
-        phase={magic.phase}
-        action={magic.action}
+        open={magicOpen}
+        phase={magicPhase === 'unavailable' ? 'unavailable' : (revision.state.phase === 'idle' ? 'menu' : revision.state.phase)}
+        action={revision.state.operation as MagicAction | null}
         original={draft}
-        suggestion={magic.suggestion}
-        error={magic.error}
+        suggestion={revision.state.suggestion}
+        error={revision.state.error}
         theme={theme}
-        onRun={(action) => {
-          // Вызов /ai/message-revisions появится на этапе 10; пока честная ошибка.
-          setMagic({
-            open: true,
-            phase: 'error',
-            action,
-            suggestion: null,
-            error: 'Помощник ещё не подключён на этом сервере.',
+        onRun={(action, tone) => {
+          void revision.run({
+            operation: action,
+            text: draft.trim(),
+            ...(tone ? { tone: tone as 'softer' } : {}),
           });
         }}
-        onApply={() => {
-          if (magic.suggestion === null) return;
-          setUndoText(draft);
-          setDraft(magic.suggestion);
-          setMagic({ open: false, phase: 'menu', action: null, suggestion: null, error: null });
+        onCancel={() => {
+          revision.cancel();
+          setMagicOpen(false);
         }}
-        onClose={() => setMagic({ open: false, phase: 'menu', action: null, suggestion: null, error: null })}
+        onApply={() => {
+          const suggestion = revision.state.suggestion;
+          if (suggestion === null) return;
+          // Замена черновика — только по явному действию; исходник можно вернуть.
+          setUndoText(draft);
+          setDraft(suggestion);
+          revision.reset();
+          setMagicOpen(false);
+        }}
+        onClose={() => {
+          revision.cancel();
+          setMagicOpen(false);
+        }}
       />
     </>
   );

@@ -1,13 +1,13 @@
 import { RADIUS, Sheet, type ThemeTokens } from '@vendor/ui';
 import { Sparkles } from 'lucide-react';
 
-/** Действия помощника над черновиком (этап 10 roadmap: /ai/message-revisions). */
+/** Действия помощника над черновиком (endpoint /ai/message-revisions). */
 export const MAGIC_ACTIONS = [
-  { id: 'improve', label: 'Понятнее', hint: 'Та же мысль, но яснее' },
+  { id: 'clarify', label: 'Понятнее', hint: 'Та же мысль, но яснее' },
   { id: 'shorten', label: 'Короче', hint: 'Убрать лишние слова' },
   { id: 'expand', label: 'Подробнее', hint: 'Добавить деталей' },
-  { id: 'soften', label: 'Мягче', hint: 'Без резкости' },
-  { id: 'grammar', label: 'Исправить', hint: 'Орфография и запятые' },
+  { id: 'tone', label: 'Мягче', hint: 'Без резкости', tone: 'softer' },
+  { id: 'fix', label: 'Исправить', hint: 'Орфография и запятые' },
 ] as const;
 
 export type MagicAction = (typeof MAGIC_ACTIONS)[number]['id'];
@@ -21,7 +21,8 @@ interface MagicSheetProps {
   suggestion: string | null;
   error: string | null;
   theme: ThemeTokens;
-  onRun: (action: MagicAction) => void;
+  onRun: (action: MagicAction, tone?: string) => void;
+  onCancel?: () => void;
   onApply: () => void;
   onClose: () => void;
 }
@@ -35,6 +36,7 @@ export function MagicSheet({
   error,
   theme,
   onRun,
+  onCancel,
   onApply,
   onClose,
 }: MagicSheetProps) {
@@ -74,7 +76,7 @@ export function MagicSheet({
             <button
               key={item.id}
               type="button"
-              onClick={() => onRun(item.id)}
+              onClick={() => onRun(item.id, 'tone' in item ? item.tone : undefined)}
               className="w-full flex items-center gap-3 px-3 py-3 text-left tap"
               style={{ borderBottom: `1px solid ${theme.hairline}` }}
             >
@@ -99,9 +101,21 @@ export function MagicSheet({
       ) : null}
 
       {phase === 'loading' ? (
-        <p aria-busy="true" className="px-5 pb-6 text-[15px]" style={{ color: theme.muted }}>
-          Текст обрабатывается внешним ИИ…
-        </p>
+        <div className="px-5 pb-6">
+          <p aria-busy="true" className="text-[15px]" style={{ color: theme.muted }}>
+            Текст обрабатывается внешним ИИ…
+          </p>
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="mt-3 px-4 py-2 tap text-[15px]"
+              style={{ background: theme.surfaceAlt, color: theme.text, borderRadius: RADIUS.sm }}
+            >
+              Отменить ожидание
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {phase === 'error' ? (
@@ -125,7 +139,7 @@ export function MagicSheet({
             {suggestion}
           </p>
           <p className="text-[12px] mb-3" style={{ color: theme.muted }}>
-            Текст обработан внешним ИИ. Решение за вами.
+            Текст обработан внешним ИИ. Решение за вами — черновик заменится только по нажатию.
           </p>
           <div className="flex gap-2">
             <button

@@ -1,5 +1,5 @@
 // Публичный entrypoint пакета @vendor/chat.
-export { messagesApi, roomsApi } from './api';
+export { aiApi, messagesApi, roomsApi } from './api';
 export { ChatProvider, useChatClient } from './adapters/ChatProvider';
 export { EchoAdapter } from './adapters/EchoAdapter';
 export type {
@@ -18,6 +18,15 @@ export { EmojiPicker, EMOJI_GROUPS } from './components/mobile/EmojiPicker';
 export { SystemEntry, systemText } from './components/mobile/SystemEntry';
 export { splitTimeline, type TimelineEntry } from './format';
 export { useTyping } from './hooks/useTyping';
+export { useRevision, type RevisionPhase, type RevisionState } from './hooks/useRevision';
+export {
+  revisionRequestSchema,
+  revisionSchema,
+  type Revision,
+  type RevisionOperation,
+  type RevisionRequest,
+  type RevisionTone,
+} from './schemas/revision';
 export {
   useIncomingMessages,
   useNotificationPermission,
