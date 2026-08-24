@@ -1,0 +1,18 @@
+type: object
+required: [category, category_label, channel, channel_label, enabled, locked]
+properties:
+  category:
+    type: string
+    enum: [message, mention, room_invite, security]
+  category_label:
+    type: string
+  channel:
+    type: string
+    enum: [database, mail]
+  channel_label:
+    type: string
+  enabled:
+    type: boolean
+  locked:
+    type: boolean
+    description: Обязательные уведомления в ленте отключить нельзя.

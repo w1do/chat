@@ -1,4 +1,9 @@
 import { EmailForm, PasswordForm, ProfileForm, useAuth } from '@vendor/identity';
+import {
+  PreferencesForm,
+  useNotificationPreferences,
+  useUpdatePreferences,
+} from '@vendor/notifications';
 import { Avatar, Group, Row, Segmented, Sheet, Toggle, useElementHeight, type ThemeTokens } from '@vendor/ui';
 import { useRef, useState } from 'react';
 import type { AppSettings } from '../app/settings';
@@ -12,7 +17,7 @@ interface SettingsScreenProps {
   onToast: (text: string) => void;
 }
 
-type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | null;
+type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | 'channels' | null;
 
 /** Экран «Настройки»: короткий список, каждый пункт открывает отдельный лист. */
 export function SettingsScreen({
@@ -27,6 +32,8 @@ export function SettingsScreen({
   const headerHeight = useElementHeight(headerRef);
   const [sheet, setSheet] = useState<SheetId>(null);
   const { user, logout, updateProfile, updateEmail, changePassword } = useAuth();
+  const preferences = useNotificationPreferences();
+  const updatePreferences = useUpdatePreferences();
 
   const themeLabel = settings.theme === 'dark' ? 'Тёмная' : 'Светлая';
   const sizeLabel = { S: 'Мелкий', M: 'Обычный', L: 'Крупный' }[settings.textSize];
@@ -88,6 +95,12 @@ export function SettingsScreen({
             onClick={
               notificationPermission === 'default' ? () => void onRequestNotifications() : undefined
             }
+          />
+          <Row
+            theme={theme}
+            title="Каналы уведомлений"
+            hint="Что присылать в ленту и на почту"
+            onClick={() => setSheet('channels')}
             last
           />
         </Group>
@@ -216,6 +229,24 @@ export function SettingsScreen({
             theme={theme}
             currentEmail={user?.email ?? null}
             onSubmit={(input) => updateEmail.mutateAsync(input)}
+          />
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={sheet === 'channels'}
+        title="Каналы уведомлений"
+        subtitle="Уведомления приходят, когда вас нет в комнате"
+        theme={theme}
+        onClose={() => setSheet(null)}
+      >
+        <div className="pb-4">
+          <PreferencesForm
+            preferences={preferences.data}
+            isLoading={preferences.isLoading}
+            error={preferences.error ?? undefined}
+            theme={theme}
+            onChange={(preference) => updatePreferences.mutateAsync([preference])}
           />
         </div>
       </Sheet>

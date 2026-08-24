@@ -1,0 +1,57 @@
+/notification-preferences:
+  get:
+    operationId: listNotificationPreferences
+    tags: [notifications]
+    summary: Настройки каналов уведомлений
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Полный список настроек с учётом значений по умолчанию.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/NotificationPreference' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+  patch:
+    operationId: updateNotificationPreferences
+    tags: [notifications]
+    summary: Изменение настроек каналов
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [preferences]
+            properties:
+              preferences:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items:
+                  type: object
+                  required: [category, channel, enabled]
+                  properties:
+                    category: { type: string, enum: [message, mention, room_invite, security] }
+                    channel: { type: string, enum: [database, mail] }
+                    enabled: { type: boolean }
+    responses:
+      '200':
+        description: Обновлённые настройки.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/NotificationPreference' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }

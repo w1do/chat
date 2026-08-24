@@ -5,12 +5,22 @@ declare(strict_types=1);
 namespace Vendor\Notifications;
 
 use Illuminate\Support\ServiceProvider;
+use Vendor\Notifications\Domain\Contracts\ActivityInspector;
+use Vendor\Notifications\Domain\Contracts\PreferenceResolver;
+use Vendor\Notifications\Infrastructure\Preferences\EloquentPreferenceResolver;
+use Vendor\Notifications\Infrastructure\Presence\AlwaysInactiveInspector;
 
 final class NotificationsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/notifications.php', 'notifications');
+
+        $this->app->bind(PreferenceResolver::class, EloquentPreferenceResolver::class);
+
+        // По умолчанию «никто не активен»: реальную проверку присутствия
+        // подставляет приложение через PackageWiringProvider (§4.1).
+        $this->app->bind(ActivityInspector::class, AlwaysInactiveInspector::class);
     }
 
     public function boot(): void

@@ -217,6 +217,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Настройки каналов уведомлений */
+        get: operations["listNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Изменение настроек каналов */
+        patch: operations["updateNotificationPreferences"];
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Лента уведомлений и счётчик непрочитанного */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить прочитанными (без списка — все) */
+        post: operations["markNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -425,6 +477,34 @@ export interface components {
                 event?: "member.joined" | "member.invited" | "member.left";
                 actor_id?: string;
             } | null;
+        };
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            category: "message" | "mention" | "room_invite" | "security";
+            room_id: string | null;
+            room_name: string | null;
+            actor_name: string | null;
+            /** @description Короткая выдержка; полный текст остаётся в чате. */
+            preview: string;
+            /** @description Сколько событий свёрнуто в эту запись. */
+            group_count: number;
+            /** Format: date-time */
+            read_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        NotificationPreference: {
+            /** @enum {string} */
+            category: "message" | "mention" | "room_invite" | "security";
+            category_label: string;
+            /** @enum {string} */
+            channel: "database" | "mail";
+            channel_label: string;
+            enabled: boolean;
+            /** @description Обязательные уведомления в ленте отключить нельзя. */
+            locked: boolean;
         };
         Reaction: {
             emoji: string;
@@ -1005,6 +1085,126 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Полный список настроек с учётом значений по умолчанию. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationPreference"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    updateNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    preferences: {
+                        /** @enum {string} */
+                        category: "message" | "mention" | "room_invite" | "security";
+                        /** @enum {string} */
+                        channel: "database" | "mail";
+                        enabled: boolean;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Обновлённые настройки. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationPreference"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                unread?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Лента уведомлений. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Notification"][];
+                        meta: {
+                            unread: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    markNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    ids?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Сколько записей отмечено. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            marked: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
             422: components["responses"]["ValidationError"];
         };
     };

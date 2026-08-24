@@ -1,0 +1,28 @@
+type: object
+required: [id, category, room_id, room_name, actor_name, preview, group_count, read_at, created_at]
+properties:
+  id:
+    type: string
+    format: uuid
+  category:
+    type: string
+    enum: [message, mention, room_invite, security]
+  room_id:
+    type: [string, "null"]
+  room_name:
+    type: [string, "null"]
+  actor_name:
+    type: [string, "null"]
+  preview:
+    type: string
+    description: Короткая выдержка; полный текст остаётся в чате.
+  group_count:
+    type: integer
+    minimum: 1
+    description: Сколько событий свёрнуто в эту запись.
+  read_at:
+    type: [string, "null"]
+    format: date-time
+  created_at:
+    type: string
+    format: date-time

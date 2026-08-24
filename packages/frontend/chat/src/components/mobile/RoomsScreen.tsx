@@ -1,5 +1,5 @@
 import { Avatar, Dots, RADIUS, roomEmoji, useElementHeight, voiceHue, type ThemeTokens } from '@vendor/ui';
-import { Lock, Plus } from 'lucide-react';
+import { Bell, Lock, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Room } from '../../schemas/room';
 import { formatTime } from '../../format';
@@ -15,6 +15,9 @@ interface RoomsScreenProps {
   onOpen: (roomId: string) => void;
   onRetry: () => void;
   onProfile: () => void;
+  onOpenNotifications?: () => void;
+  /** Непрочитанные уведомления — бейдж на колокольчике. */
+  unreadNotifications?: number;
   onCreateRoom: (input: { name: string; visibility: 'public' | 'private' }) => Promise<unknown>;
 }
 
@@ -29,6 +32,8 @@ export function RoomsScreen({
   onOpen,
   onRetry,
   onProfile,
+  onOpenNotifications,
+  unreadNotifications = 0,
   onCreateRoom,
 }: RoomsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
@@ -163,11 +168,35 @@ export function RoomsScreen({
               {rooms ? `${rooms.length} комнат` : '…'}
             </p>
           </div>
-          <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
+          <div className="flex items-center gap-3">
+            {onOpenNotifications ? (
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                className="tap relative grid place-items-center"
+                aria-label={
+                  unreadNotifications > 0
+                    ? `Уведомления, непрочитанных: ${unreadNotifications}`
+                    : 'Уведомления'
+                }
+                style={{ width: 40, height: 40, borderRadius: 14, background: theme.surfaceAlt, color: theme.text }}
+              >
+                <Bell size={18} />
+                {unreadNotifications > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute pop"
+                    style={{ top: 6, right: 6, width: 8, height: 8, borderRadius: 4, background: theme.amber }}
+                  />
+                ) : null}
+              </button>
+            ) : null}
+            <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
             {currentUser ? (
               <Avatar userId={currentUser.id} name={currentUser.name} size={40} theme={theme} online />
             ) : null}
-          </button>
+            </button>
+          </div>
         </div>
       </header>
     </div>

@@ -192,6 +192,115 @@
                     }
                 }
             },
+            "Notification": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "category",
+                    "room_id",
+                    "room_name",
+                    "actor_name",
+                    "preview",
+                    "group_count",
+                    "read_at",
+                    "created_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "message",
+                            "mention",
+                            "room_invite",
+                            "security"
+                        ]
+                    },
+                    "room_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "room_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "actor_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "preview": {
+                        "type": "string",
+                        "description": "Короткая выдержка; полный текст остаётся в чате."
+                    },
+                    "group_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Сколько событий свёрнуто в эту запись."
+                    },
+                    "read_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "NotificationPreference": {
+                "type": "object",
+                "required": [
+                    "category",
+                    "category_label",
+                    "channel",
+                    "channel_label",
+                    "enabled",
+                    "locked"
+                ],
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "message",
+                            "mention",
+                            "room_invite",
+                            "security"
+                        ]
+                    },
+                    "category_label": {
+                        "type": "string"
+                    },
+                    "channel": {
+                        "type": "string",
+                        "enum": [
+                            "database",
+                            "mail"
+                        ]
+                    },
+                    "channel_label": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "locked": {
+                        "type": "boolean",
+                        "description": "Обязательные уведомления в ленте отключить нельзя."
+                    }
+                }
+            },
             "Reaction": {
                 "type": "object",
                 "required": [
@@ -1228,6 +1337,277 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/Forbidden"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/notification-preferences": {
+            "get": {
+                "operationId": "listNotificationPreferences",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Настройки каналов уведомлений",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Полный список настроек с учётом значений по умолчанию.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/NotificationPreference"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "updateNotificationPreferences",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Изменение настроек каналов",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "preferences"
+                                ],
+                                "properties": {
+                                    "preferences": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 20,
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "category",
+                                                "channel",
+                                                "enabled"
+                                            ],
+                                            "properties": {
+                                                "category": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "message",
+                                                        "mention",
+                                                        "room_invite",
+                                                        "security"
+                                                    ]
+                                                },
+                                                "channel": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "database",
+                                                        "mail"
+                                                    ]
+                                                },
+                                                "enabled": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Обновлённые настройки.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/NotificationPreference"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/notifications": {
+            "get": {
+                "operationId": "listNotifications",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Лента уведомлений и счётчик непрочитанного",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 30
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Лента уведомлений.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Notification"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "required": [
+                                                "unread"
+                                            ],
+                                            "properties": {
+                                                "unread": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    }
+                }
+            }
+        },
+        "/notifications/read": {
+            "post": {
+                "operationId": "markNotificationsRead",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Отметить прочитанными (без списка — все)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "maxItems": 200,
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Сколько записей отмечено.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "required": [
+                                                "marked"
+                                            ],
+                                            "properties": {
+                                                "marked": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"

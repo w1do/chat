@@ -71,12 +71,12 @@
 
 ## 8. Stage 8 — Offline Notifications And Preferences (API + Web)
 
-- [ ] 8.1 Implement notifications package: `notification_preferences` migration and defaults, `PreferenceResolver` contract, UpdatePreferences/ListNotifications/MarkRead commands+queries, V1 endpoints `/notifications`, `/notification-preferences`, and verify feature tests cover read/update/validation/auth (скиллы: `architecture-ddd`, `dtos`, `spatie-laravel-php`)
-- [ ] 8.2 Wire chat→notifications in `PackageWiringProvider` using the chat `PresenceRegistry` contract for active-recipient detection, and verify tests cover active-recipient suppression, inactive-recipient creation, and initiator suppression (скиллы: `architecture-ddd`, `spatie-laravel-php`)
-- [ ] 8.3 Implement grouping/dedup windows and idempotent `DeliverNotificationJob`/`SendDigestJob` with unique locks, retry/backoff/timeout/`failed()`, separate queues per category, and verify queue tests cover duplicate retries, self-mention, and email provider failure without blocking message persistence (скиллы: `architecture-ddd`, `spatie-laravel-php`)
-- [ ] 8.4 Update OpenAPI fragments, rebuild dist, regenerate client, and verify contract tests pass (скиллы: `spatie-laravel-php`)
-- [ ] 8.5 Implement `packages/frontend/notifications`: feed, unread counters, mark-read, preferences UI, user-channel real-time delivery, all built from `@vendor/ui` primitives per design decision 1a (no ad-hoc markup), wire `NotificationsPage` into `chat-web`, and verify component tests cover loading/empty/error and preference update flows
-- [ ] 8.6 Documentation gate: write `docs/features/notifications.md` including the mandatory not-active-in-room rule, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test notifications` and web tests pass (скиллы: `documentation`)
+- [x] 8.1 Implement notifications package: `notification_preferences` migration and defaults, `PreferenceResolver` contract, UpdatePreferences/ListNotifications/MarkRead commands+queries, V1 endpoints `/notifications`, `/notification-preferences`, and verify feature tests cover read/update/validation/auth (скиллы: `architecture-ddd`, `dtos`, `spatie-laravel-php`)
+- [x] 8.2 Wire chat→notifications in `PackageWiringProvider` using the chat `PresenceRegistry` contract for active-recipient detection, and verify tests cover active-recipient suppression, inactive-recipient creation, and initiator suppression (скиллы: `architecture-ddd`, `spatie-laravel-php`)
+- [x] 8.3 Implement grouping/dedup windows and idempotent `DeliverNotificationJob`/`SendDigestJob` with unique locks, retry/backoff/timeout/`failed()`, separate queues per category, and verify queue tests cover duplicate retries, self-mention, and email provider failure without blocking message persistence (скиллы: `architecture-ddd`, `spatie-laravel-php`)
+- [x] 8.4 Update OpenAPI fragments, rebuild dist, regenerate client, and verify contract tests pass (скиллы: `spatie-laravel-php`)
+- [x] 8.5 Implement `packages/frontend/notifications`: feed, unread counters, mark-read, preferences UI, user-channel real-time delivery, all built from `@vendor/ui` primitives per design decision 1a (no ad-hoc markup), wire `NotificationsPage` into `chat-web`, and verify component tests cover loading/empty/error and preference update flows
+- [x] 8.6 Documentation gate: write `docs/features/notifications.md` including the mandatory not-active-in-room rule, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test notifications` and web tests pass (скиллы: `documentation`)
 
 ## 9. Stage 9 — Typesense Message Search (API + Web)
 

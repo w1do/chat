@@ -7636,16 +7636,19 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/backend/notifications",
-                "reference": "587240979deb0a4bff04921ae059e4a22e46c1ae"
+                "reference": "40fd933cd08dc8645feef6dd0f8e4e12fa7ccbfe"
             },
             "require": {
+                "illuminate/bus": "^13.0",
+                "illuminate/queue": "^13.0",
                 "illuminate/support": "^13.0",
                 "php": "^8.4",
                 "vendor/shared-kernel": "^0.1"
             },
             "require-dev": {
                 "orchestra/testbench": "^11.0",
-                "pestphp/pest": "^4.0"
+                "pestphp/pest": "^4.0",
+                "vendor/identity": "^0.1"
             },
             "type": "library",
             "extra": {

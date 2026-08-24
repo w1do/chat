@@ -7,6 +7,27 @@
 
 ### Added
 
+- Уведомления о пропущенном (этап 8 roadmap):
+  - пакет `vendor/notifications`: таблицы `notifications` и
+    `notification_preferences`, категории (message/mention/room_invite/security)
+    и каналы (лента/почта), `PreferenceResolver` поверх значений по умолчанию,
+    контракт `ActivityInspector`;
+  - правило «не уведомлять того, кто в комнате»: активность берётся из
+    presence-реестра chat, связка — в `PackageWiringProvider`; инициатор не
+    уведомляется никогда;
+  - группировка шумных событий в одну запись со счётчиком внутри окна;
+  - очереди по категориям, идемпотентный `DeliverNotificationJob`
+    (уникальный ключ, tries/backoff/timeout/failed) и `SendDigestJob`;
+    провал письма не мешает сохранению сообщения;
+  - endpoints `/notifications`, `/notifications/read`,
+    `/notification-preferences` + OpenAPI и клиент;
+  - пакет `@vendor/notifications`: лента с категориями и счётчиком свёрнутых
+    событий, отметка прочитанного, настройки каналов; экран «Уведомления» и
+    колокольчик с бейджем в списке чатов;
+  - `docs/features/notifications.md`.
+
+### Added
+
 - AI-помощник для черновиков (этап 10 roadmap):
   - пакет `vendor/ai`: порт `TextRevisionProvider`, реализации Polza
     (OpenAI-совместимый `/chat/completions`), Null и Fake; VO `DraftText`,

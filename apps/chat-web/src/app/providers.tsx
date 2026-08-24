@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ChatProvider } from '@vendor/chat';
 import { IdentityProvider } from '@vendor/identity';
+import { NotificationsClientProvider } from '@vendor/notifications';
 import type { ReactNode } from 'react';
 import { apiClient } from './api';
 import { createQueryClient } from './query-client';
@@ -13,7 +14,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <IdentityProvider client={apiClient()}>
-        <ChatProvider client={apiClient()}>{children}</ChatProvider>
+        <ChatProvider client={apiClient()}>
+          <NotificationsClientProvider value={apiClient()}>{children}</NotificationsClientProvider>
+        </ChatProvider>
       </IdentityProvider>
     </QueryClientProvider>
   );

@@ -28,6 +28,7 @@ import { apiClient } from '../app/api';
 import { realtimeAdapter } from '../app/echo';
 import { runtimeConfig } from '../app/runtime-config';
 import { applyTabCounter, raiseSystemNotification } from '../app/notifications';
+import { useNotificationFeed } from '@vendor/notifications';
 import { useSettings, type AppSettings } from '../app/settings';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -52,6 +53,7 @@ export function ChatPage() {
 
   const rooms = useRooms();
   const createRoom = useCreateRoom();
+  const notifications = useNotificationFeed();
   const chatOpen = Boolean(roomId);
 
   const showToast = (text: string) => {
@@ -112,6 +114,8 @@ export function ChatPage() {
               onOpen={(id) => navigate(`/rooms/${id}`)}
               onRetry={() => void rooms.refetch()}
               onProfile={() => setTab('settings')}
+              onOpenNotifications={() => navigate('/notifications')}
+              unreadNotifications={notifications.data?.meta.unread ?? 0}
               onCreateRoom={async (input) => {
                 const room = await createRoom.mutateAsync(input);
                 navigate(`/rooms/${room.id}`);
