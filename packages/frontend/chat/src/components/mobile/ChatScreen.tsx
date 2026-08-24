@@ -11,12 +11,14 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Send, Sparkles } from 'lucide-react';
+import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Send, Smile, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildGroups, dayLabel, formatTime, ROLE_LABEL } from '../../format';
+import { dayLabel, formatTime, ROLE_LABEL, splitTimeline } from '../../format';
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Message, SendMessageInput } from '../../schemas/message';
 import { MentionPicker } from '../MentionPicker';
+import { EmojiPicker } from './EmojiPicker';
+import { SystemEntry } from './SystemEntry';
 import type { Member, Room } from '../../schemas/room';
 
 interface ChatScreenProps {
@@ -89,12 +91,24 @@ export function ChatScreen({
   const scroller = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const headerHeight = useElementHeight(headerRef);
   const composerHeight = useElementHeight(composerRef);
   const [sendError, setSendError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [mentions, setMentions] = useState<string[]>([]);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [reactionFor, setReactionFor] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+
+  /** Переход от цитаты к оригиналу: подсветка гаснет сама. */
+  const jumpToMessage = (messageId: string) => {
+    const target = scroller.current?.querySelector(`[data-message-id="${messageId}"]`);
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setHighlightedId(messageId);
+    window.setTimeout(() => setHighlightedId((current) => (current === messageId ? null : current)), 1600);
+  };
 
   const isMember = room.my_role !== null;
   const canWrite = isMember && room.archived_at === null;
@@ -106,7 +120,8 @@ export function ChatScreen({
 
   // API отдаёт новые → старые; лента показывает старые сверху.
   const ordered = useMemo(() => [...messages].reverse(), [messages]);
-  const groups = useMemo(() => buildGroups(ordered), [ordered]);
+  // Системные записи стоят отдельными строками и не группируются с репликами.
+  const timeline = useMemo(() => splitTimeline(ordered), [ordered]);
   const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
 
   const scrollToBottom = (smooth: boolean) => {
@@ -184,7 +199,24 @@ export function ChatScreen({
           </div>
         ) : null}
 
-        {groups.map((group) => {
+        {timeline.map((entry) => {
+          if (entry.type === 'system') {
+            const showSystemDay = dayKeyOf(entry.message.created_at) !== lastDay;
+            lastDay = dayKeyOf(entry.message.created_at);
+
+            return (
+              <div key={entry.key}>
+                {showSystemDay ? <DayDivider iso={entry.message.created_at} theme={theme} /> : null}
+                <SystemEntry
+                  message={entry.message}
+                  actorName={namesById.get(entry.message.payload?.actor_id ?? '') ?? 'Участник'}
+                  theme={theme}
+                />
+              </div>
+            );
+          }
+
+          const group = entry.group;
           const author = namesById.get(group.authorId) ?? group.items[0]?.author_name ?? group.authorId;
           const hue = voiceHue(group.authorId);
           const own = group.authorId === currentUserId;
@@ -193,16 +225,7 @@ export function ChatScreen({
 
           return (
             <div key={group.key}>
-              {showDay ? (
-                <div className="flex justify-center py-3">
-                  <span
-                    className="text-[11.5px] font-medium uppercase px-3 py-1"
-                    style={{ background: theme.surfaceAlt, color: theme.muted, borderRadius: 9, letterSpacing: '0.07em' }}
-                  >
-                    {dayLabel(group.items[0]!.created_at)}
-                  </span>
-                </div>
-              ) : null}
+              {showDay ? <DayDivider iso={group.items[0]!.created_at} theme={theme} /> : null}
 
               <div className={`flex mb-2.5 ${own ? 'justify-end' : 'justify-start'}`}>
                 {!own ? (
@@ -218,12 +241,13 @@ export function ChatScreen({
 
                   {group.items.map((message, index) => {
                     const isLast = index === group.items.length - 1;
-                    const reply = message.reply_to_id ? byId.get(message.reply_to_id) : null;
+                    const reply: Message | null = message.reply_to_id ? (byId.get(message.reply_to_id) ?? null) : null;
                     const reactionCount = message.reactions.reduce((sum, reaction) => sum + reaction.count, 0);
 
                     return (
                       <article
                         key={message.id}
+                        data-message-id={message.id}
                         aria-label={`Сообщение ${message.id}`}
                         onDoubleClick={() => !message.deleted && onToggleReaction(message.id, '❤️')}
                         className={`relative px-3.5 py-2 ${own ? 'enter-right' : 'enter-left'}`}
@@ -236,20 +260,45 @@ export function ChatScreen({
                           alignSelf: own ? 'flex-end' : 'flex-start',
                           marginBottom: reactionCount > 0 ? 12 : 0,
                           opacity: message.deleted ? 0.6 : 1,
+                          boxShadow:
+                            highlightedId === message.id ? `0 0 0 2px ${theme.amber}` : 'none',
+                          transition: 'box-shadow .4s ease',
                         }}
                       >
-                        {reply ? (
-                          <p
-                            className="text-[12.5px] mb-1 px-2 py-1"
+                        {message.reply_to_id ? (
+                          <button
+                            type="button"
+                            onClick={() => jumpToMessage(message.reply_to_id!)}
+                            aria-label={`Перейти к сообщению ${message.reply_to_id}`}
+                            className="w-full text-left text-[12.5px] mb-1 px-2 py-1 tap flex gap-2"
                             style={{
                               background: own ? overlayOnOwn(theme) : theme.surfaceAlt,
                               borderRadius: 8,
                               color: own ? theme.ownText : theme.muted,
                             }}
                           >
-                            {(namesById.get(reply.author_id) ?? reply.author_name ?? '') + ': '}
-                            {reply.deleted ? '…' : reply.body}
-                          </p>
+                            <span
+                              aria-hidden="true"
+                              className="shrink-0"
+                              style={{
+                                width: 2,
+                                borderRadius: 2,
+                                background: reply ? voiceHue(reply.author_id) : theme.faint,
+                              }}
+                            />
+                            <span className="min-w-0">
+                              <span className="block font-semibold truncate">
+                                {reply ? (namesById.get(reply.author_id) ?? reply.author_name ?? '') : 'Сообщение'}
+                              </span>
+                              <span className="block truncate">
+                                {reply === null
+                                  ? 'Сообщение не загружено'
+                                  : reply.deleted
+                                    ? 'Сообщение удалено'
+                                    : reply.body}
+                              </span>
+                            </span>
+                          </button>
                         ) : null}
 
                         <p
@@ -316,6 +365,16 @@ export function ChatScreen({
                             >
                               ↩
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setReactionFor((current) => (current === message.id ? null : message.id))}
+                              aria-label={`Выбрать реакцию для сообщения ${message.id}`}
+                              aria-expanded={reactionFor === message.id}
+                              className="tap"
+                              style={{ color: theme.faint, fontSize: 12 }}
+                            >
+                              ☺
+                            </button>
                             {own ? (
                               <button
                                 type="button"
@@ -327,6 +386,22 @@ export function ChatScreen({
                                 ✕
                               </button>
                             ) : null}
+                          </span>
+                        ) : null}
+
+                        {reactionFor === message.id ? (
+                          <span
+                            className="absolute z-20"
+                            style={{ top: '100%', [own ? 'right' : 'left']: 0, width: 232 }}
+                          >
+                            <EmojiPicker
+                              theme={theme}
+                              label={`Реакции для сообщения ${message.id}`}
+                              onPick={(emoji) => {
+                                onToggleReaction(message.id, emoji);
+                                setReactionFor(null);
+                              }}
+                            />
                           </span>
                         ) : null}
                       </article>
@@ -446,6 +521,28 @@ export function ChatScreen({
           </div>
         ) : null}
 
+        {emojiOpen && canWrite ? (
+          <div className="mb-2">
+            <EmojiPicker
+              theme={theme}
+              label="Эмодзи для сообщения"
+              onPick={(emoji) => {
+                // Вставка по позиции каретки, а не в конец строки.
+                const field = textarea.current;
+                const start = field?.selectionStart ?? draft.length;
+                const end = field?.selectionEnd ?? draft.length;
+                const next = draft.slice(0, start) + emoji + draft.slice(end);
+                onDraftChange(next);
+                setEmojiOpen(false);
+                window.requestAnimationFrame(() => {
+                  field?.focus();
+                  field?.setSelectionRange(start + emoji.length, start + emoji.length);
+                });
+              }}
+            />
+          </div>
+        ) : null}
+
         {mentionMatch && canWrite ? (
           <div className="mb-2 px-1">
             <MentionPicker
@@ -505,6 +602,7 @@ export function ChatScreen({
               Сообщение
             </label>
             <textarea
+              ref={textarea}
               id="composer-body"
               aria-label="Сообщение"
               value={draft}
@@ -526,6 +624,17 @@ export function ChatScreen({
               className="flex-1 resize-none bg-transparent px-3 py-2 outline-none"
               style={{ color: theme.text, maxHeight: 116, fontSize: Math.max(MIN_INPUT_FONT, fontSize), lineHeight: 1.35 }}
             />
+
+            <button
+              type="button"
+              onClick={() => setEmojiOpen((open) => !open)}
+              aria-label="Эмодзи"
+              aria-expanded={emojiOpen}
+              className="tap grid place-items-center shrink-0"
+              style={{ width: 36, height: 36, borderRadius: 18, background: theme.surfaceAlt, color: theme.muted }}
+            >
+              <Smile size={18} />
+            </button>
 
             <button
               type="button"
@@ -566,6 +675,23 @@ export function ChatScreen({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function dayKeyOf(iso: string): string {
+  return new Date(iso).toDateString();
+}
+
+function DayDivider({ iso, theme }: { iso: string; theme: ThemeTokens }) {
+  return (
+    <div className="flex justify-center py-3">
+      <span
+        className="text-[11.5px] font-medium uppercase px-3 py-1"
+        style={{ background: theme.surfaceAlt, color: theme.muted, borderRadius: 9, letterSpacing: '0.07em' }}
+      >
+        {dayLabel(iso)}
+      </span>
     </div>
   );
 }

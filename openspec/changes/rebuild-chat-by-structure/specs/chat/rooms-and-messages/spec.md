@@ -62,6 +62,32 @@ The chat web application SHALL provide room list, room view, membership manageme
 - **WHEN** a room member submits a valid message in the room view
 - **THEN** the message appears in the visible history using data from the documented API contract
 
+### Requirement: Replies are visible and navigable
+The chat web application SHALL make replying obvious from the message itself, SHALL show the quoted message above the composer while composing, and SHALL let a reader move from a quote to the original message.
+
+#### Scenario: Replying to a message
+- **WHEN** a member starts a reply from a message in the timeline
+- **THEN** the composer shows a quote of that message with its author and text and a way to cancel it, and the sent message is stored against that reply target
+
+#### Scenario: Jumping to the quoted message
+- **WHEN** a member activates the quote shown inside a reply in the timeline
+- **THEN** the interface brings the original message into view and highlights it briefly; if the original is deleted the quote says so instead of showing its text
+
+### Requirement: Reactions and emoji are chosen from the interface
+The chat web application SHALL let a member react to a message with an emoji chosen from a picker rather than a fixed shortlist, SHALL let a member insert emoji into the draft, and SHALL show grouped reaction counts that make the member's own reaction visible.
+
+#### Scenario: Reacting with a chosen emoji
+- **WHEN** a member picks an emoji for a message from the reaction picker
+- **THEN** the reaction is stored through the documented API and the grouped count updates for every member of the room
+
+#### Scenario: Removing an own reaction
+- **WHEN** a member activates a reaction they already gave
+- **THEN** the reaction is removed and the grouped count reflects it
+
+#### Scenario: Inserting emoji into a draft
+- **WHEN** a member picks an emoji from the composer
+- **THEN** the emoji is inserted into the draft text at the caret without sending the message
+
 #### Scenario: User text is rendered safely
 - **WHEN** a message body contains HTML or script-like content
 - **THEN** the UI renders it as text without executing or injecting unsafe HTML

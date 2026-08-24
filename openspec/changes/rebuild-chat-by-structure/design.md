@@ -58,6 +58,30 @@ Consequences:
 - Identity OpenAPI fragments, the generated client, and the identity frontend
   package change together with the endpoints.
 
+### 1c. System messages are a message kind, not a separate stream
+
+Joining and leaving a room become rows in `messages` carrying a kind and the
+actor, so history is one ordered list and cursor pagination keeps working. A
+forward migration adds the kind (default `text`) and the structured payload;
+`message.created.v1` carries them, so no new event schema appears. System rows
+are excluded from editing, deletion, and reactions by policy, and their body is
+rendered by the client from the payload rather than stored as prose, so wording
+and language can change without rewriting history.
+
+Rejected alternative — deriving the timeline entries from `room.member_changed.v1`
+on the client only: entries would vanish on reload and would never appear for
+members who were offline when it happened.
+
+### 1d. Client notifications are presence-aware
+
+The interface decides how loudly to announce an incoming message from what the
+reader is doing: the open, focused room stays silent; any other room raises the
+unread badge, the tab counter, and an in-app notice; a background tab may raise
+one system notification when permission was granted explicitly. Permission is
+asked once, from a deliberate action, never on load. Server-side delivery
+(database and email notifications, preferences, digests) stays in the
+notifications capability and is unaffected by this client behaviour.
+
 ### 2. Vertical slice definition per feature stage
 
 A feature stage is complete only when all of these exist, in `STRUCTURE.md` locations:

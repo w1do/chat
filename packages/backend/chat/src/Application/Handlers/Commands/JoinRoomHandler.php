@@ -10,12 +10,16 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Vendor\Chat\Application\Commands\JoinRoomCommand;
 use Vendor\Chat\Application\DTOs\MemberData;
 use Vendor\Chat\Domain\Enums\RoomRole;
+use Vendor\Chat\Domain\Enums\SystemEvent;
+use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\RoomMemberChanged;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
 
 final readonly class JoinRoomHandler
 {
+    use RecordsSystemMessage;
+
     public function __construct(
         private ConnectionResolverInterface $db,
         private Dispatcher $events,
@@ -23,7 +27,9 @@ final readonly class JoinRoomHandler
 
     public function handle(JoinRoomCommand $command): MemberData
     {
-        $member = $this->db->connection()->transaction(function () use ($command): RoomMember {
+        $systemMessageId = null;
+
+        $member = $this->db->connection()->transaction(function () use ($command, &$systemMessageId): RoomMember {
             /** @var Room $room */
             $room = Room::query()->lockForUpdate()->findOrFail($command->roomId);
 
@@ -31,14 +37,23 @@ final readonly class JoinRoomHandler
                 throw new ConflictHttpException('Already a member of this room.');
             }
 
-            return $room->members()->create([
+            $member = $room->members()->create([
                 'user_id' => $command->userId,
                 'role' => RoomRole::Member,
                 'joined_at' => now(),
             ]);
+
+            $systemMessageId = $this->recordSystemMessage(
+                $command->roomId,
+                $command->userId,
+                SystemEvent::MemberJoined,
+            )->id;
+
+            return $member;
         });
 
         $this->events->dispatch(new RoomMemberChanged($command->roomId, $command->userId, 'joined', RoomRole::Member->value));
+        $this->events->dispatch(new MessageCreated($command->roomId, (string) $systemMessageId));
 
         return MemberData::fromModel($member);
     }

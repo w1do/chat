@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 use Vendor\Chat\Application\Commands\SendMessageCommand;
 use Vendor\Chat\Application\DTOs\MessageData;
 use Vendor\Chat\Domain\Contracts\MessageSanitizer;
+use Vendor\Chat\Domain\Enums\MessageKind;
 use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\ValueObjects\MentionList;
@@ -58,13 +59,16 @@ final readonly class SendMessageHandler
                 }
             }
 
-            return Message::query()->create([
+            $message = Message::query()->create([
                 'room_id' => $command->roomId,
+                'kind' => MessageKind::Text,
                 'author_id' => $command->authorId,
                 'reply_to_id' => $command->replyToId,
                 'body' => $body->value,
                 'mentions' => $mentions->isEmpty() ? null : $mentions->userIds,
             ]);
+
+            return $message;
         });
 
         if ($cacheKey !== null) {

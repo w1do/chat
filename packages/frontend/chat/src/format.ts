@@ -32,6 +32,35 @@ export interface MessageGroup<T> {
   items: T[];
 }
 
+/** Лента: системные записи стоят отдельно, реплики группируются по автору. */
+export type TimelineEntry<T> =
+  | { type: 'system'; key: string; message: T }
+  | { type: 'group'; key: string; group: MessageGroup<T> };
+
+export function splitTimeline<
+  T extends { id: string; author_id: string; created_at: string; kind: 'text' | 'system' },
+>(messages: T[]): Array<TimelineEntry<T>> {
+  const entries: Array<TimelineEntry<T>> = [];
+  let buffer: T[] = [];
+
+  const flush = () => {
+    for (const group of buildGroups(buffer)) entries.push({ type: 'group', key: group.key, group });
+    buffer = [];
+  };
+
+  for (const message of messages) {
+    if (message.kind === 'system') {
+      flush();
+      entries.push({ type: 'system', key: message.id, message });
+    } else {
+      buffer.push(message);
+    }
+  }
+  flush();
+
+  return entries;
+}
+
 export function buildGroups<T extends { id: string; author_id: string; created_at: string }>(
   messages: T[],
 ): Array<MessageGroup<T>> {

@@ -10,12 +10,16 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Vendor\Chat\Application\Commands\InviteMemberCommand;
 use Vendor\Chat\Application\DTOs\MemberData;
 use Vendor\Chat\Domain\Enums\RoomRole;
+use Vendor\Chat\Domain\Enums\SystemEvent;
+use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\RoomMemberChanged;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
 
 final readonly class InviteMemberHandler
 {
+    use RecordsSystemMessage;
+
     public function __construct(
         private ConnectionResolverInterface $db,
         private Dispatcher $events,
@@ -23,7 +27,9 @@ final readonly class InviteMemberHandler
 
     public function handle(InviteMemberCommand $command): MemberData
     {
-        $member = $this->db->connection()->transaction(function () use ($command): RoomMember {
+        $systemMessageId = null;
+
+        $member = $this->db->connection()->transaction(function () use ($command, &$systemMessageId): RoomMember {
             /** @var Room $room */
             $room = Room::query()->lockForUpdate()->findOrFail($command->roomId);
 
@@ -31,14 +37,24 @@ final readonly class InviteMemberHandler
                 throw new ConflictHttpException('User is already a member of this room.');
             }
 
-            return $room->members()->create([
+            $member = $room->members()->create([
                 'user_id' => $command->userId,
                 'role' => RoomRole::Member,
                 'joined_at' => now(),
             ]);
+
+            // Системная запись создаётся в той же транзакции: откат уносит и её.
+            $systemMessageId = $this->recordSystemMessage(
+                $command->roomId,
+                $command->userId,
+                SystemEvent::MemberInvited,
+            )->id;
+
+            return $member;
         });
 
         $this->events->dispatch(new RoomMemberChanged($command->roomId, $command->userId, 'invited', RoomRole::Member->value));
+        $this->events->dispatch(new MessageCreated($command->roomId, (string) $systemMessageId));
 
         return MemberData::fromModel($member);
     }

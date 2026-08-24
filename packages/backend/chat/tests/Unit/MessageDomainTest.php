@@ -3,10 +3,17 @@
 declare(strict_types=1);
 
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Vendor\Chat\Application\Commands\InviteMemberCommand;
+use Vendor\Chat\Application\Commands\JoinRoomCommand;
+use Vendor\Chat\Application\Commands\LeaveRoomCommand;
 use Vendor\Chat\Application\Commands\MarkRoomReadCommand;
 use Vendor\Chat\Application\Commands\SendMessageCommand;
 use Vendor\Chat\Application\Commands\ToggleReactionCommand;
 use Vendor\Chat\Application\DTOs\MessageData;
+use Vendor\Chat\Application\Handlers\Commands\InviteMemberHandler;
+use Vendor\Chat\Application\Handlers\Commands\JoinRoomHandler;
+use Vendor\Chat\Application\Handlers\Commands\LeaveRoomHandler;
 use Vendor\Chat\Application\Handlers\Commands\MarkRoomReadHandler;
 use Vendor\Chat\Application\Handlers\Commands\SendMessageHandler;
 use Vendor\Chat\Application\Handlers\Commands\ToggleReactionHandler;
@@ -14,6 +21,7 @@ use Vendor\Chat\Application\Handlers\Queries\GetUnreadCountersHandler;
 use Vendor\Chat\Application\Handlers\Queries\ListMessagesHandler;
 use Vendor\Chat\Application\Queries\GetUnreadCountersQuery;
 use Vendor\Chat\Application\Queries\ListMessagesQuery;
+use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\MessageReaction;
 use Vendor\Chat\Domain\Models\Room;
@@ -158,4 +166,87 @@ it('marks rooms read monotonically and counts unread per room', function (): voi
     $mark->handle(new MarkRoomReadCommand($room->id, (string) $reader->getKey(), $messages[0]->id));
     expect(RoomMember::query()->where('user_id', $reader->getKey())->value('last_read_message_id'))
         ->toBe($messages[1]->id);
+});
+
+it('refuses editing, deleting and reacting to system messages', function (): void {
+    $room = Room::factory()->create();
+    $owner = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Owner)->create(['user_id' => $owner->getKey()]);
+    $system = Message::factory()->for($room)->system()->create(['author_id' => $owner->getKey()]);
+
+    $policy = new MessagePolicy;
+
+    expect($policy->update($owner, $system))->toBeFalse()
+        ->and($policy->delete($owner, $system))->toBeFalse()
+        ->and($policy->react($owner, $system))->toBeFalse();
+
+    // Обычное сообщение владельца по-прежнему доступно.
+    $text = Message::factory()->for($room)->create(['author_id' => $owner->getKey()]);
+    expect($policy->update($owner, $text))->toBeTrue()
+        ->and($policy->react($owner, $text))->toBeTrue();
+});
+
+it('keeps chronological order with mixed message kinds', function (): void {
+    $room = Room::factory()->create();
+    $viewer = User::factory()->create();
+
+    $first = Message::factory()->for($room)->create();
+    $joined = Message::factory()->for($room)->system()->create();
+    $last = Message::factory()->for($room)->create();
+
+    $page = app(ListMessagesHandler::class)
+        ->handle(new ListMessagesQuery($room->id, limit: 10), (string) $viewer->getKey());
+
+    // Новые → старые: системная запись стоит на своём месте в ленте.
+    expect(array_map(fn ($m) => $m->id, $page->items))->toBe([$last->id, $joined->id, $first->id]);
+
+    $systemData = $page->items[1];
+    expect($systemData->kind)->toBe('system')
+        ->and($systemData->payload['event'])->toBe('member.joined');
+});
+
+it('records a system message when someone joins, is invited or leaves', function (): void {
+    $room = Room::factory()->create();
+    $owner = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Owner)->create(['user_id' => $owner->getKey()]);
+    $walkIn = User::factory()->create();
+    $invitee = User::factory()->create();
+
+    app(JoinRoomHandler::class)
+        ->handle(new JoinRoomCommand($room->id, (string) $walkIn->getKey()));
+    app(InviteMemberHandler::class)
+        ->handle(new InviteMemberCommand($room->id, (string) $invitee->getKey()));
+    app(LeaveRoomHandler::class)
+        ->handle(new LeaveRoomCommand($room->id, (string) $walkIn->getKey()));
+
+    $system = Message::query()
+        ->where('room_id', $room->id)
+        ->where('kind', 'system')
+        ->orderBy('id')
+        ->get();
+
+    expect($system->pluck('payload.event')->all())
+        ->toBe(['member.joined', 'member.invited', 'member.left'])
+        ->and($system->first()->payload['actor_id'])->toBe((string) $walkIn->getKey())
+        // Тело пустое: формулировку задаёт клиент.
+        ->and($system->first()->body)->toBe('');
+});
+
+it('does not leave a system message behind when the membership transaction rolls back', function (): void {
+    $room = Room::factory()->create();
+    $user = User::factory()->create();
+
+    try {
+        DB::transaction(function () use ($room, $user): void {
+            app(JoinRoomHandler::class)
+                ->handle(new JoinRoomCommand($room->id, (string) $user->getKey()));
+
+            throw new RuntimeException('force rollback');
+        });
+    } catch (RuntimeException) {
+        // ожидаемо
+    }
+
+    expect(Message::query()->where('room_id', $room->id)->count())->toBe(0)
+        ->and(RoomMember::query()->where('room_id', $room->id)->count())->toBe(0);
 });

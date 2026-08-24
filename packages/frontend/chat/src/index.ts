@@ -13,8 +13,16 @@ export type { PresenceEvent, RoomEvent } from './realtime/eventMap';
 export { ConnectionBanner } from './components/ConnectionBanner';
 export { PresenceDots } from './components/PresenceDots';
 export { TypingIndicator } from './components/TypingIndicator';
-export { useRealtimeRoom } from './hooks/useRealtimeRoom';
+export { useRealtimeRoom, type JoinGreeting } from './hooks/useRealtimeRoom';
+export { EmojiPicker, EMOJI_GROUPS } from './components/mobile/EmojiPicker';
+export { SystemEntry, systemText } from './components/mobile/SystemEntry';
+export { splitTimeline, type TimelineEntry } from './format';
 export { useTyping } from './hooks/useTyping';
+export {
+  useIncomingMessages,
+  useNotificationPermission,
+  type IncomingMessage,
+} from './hooks/useIncomingMessages';
 export { ChatScreen } from './components/mobile/ChatScreen';
 export { MagicSheet, MAGIC_ACTIONS, type MagicAction, type MagicPhase } from './components/mobile/MagicSheet';
 export { RoomsScreen } from './components/mobile/RoomsScreen';

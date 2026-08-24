@@ -32,6 +32,7 @@ export function useSendMessage(roomId: string, authorId: string) {
       const optimistic: Message = {
         id: optimisticId,
         room_id: roomId,
+        kind: 'text',
         author_id: authorId,
         author_name: null,
         reply_to_id: input.reply_to_id ?? null,
@@ -41,6 +42,7 @@ export function useSendMessage(roomId: string, authorId: string) {
         deleted: false,
         created_at: new Date().toISOString(),
         reactions: [],
+        payload: null,
       };
 
       queryClient.setQueryData<MessagesData>(messagesKey(roomId), (data) => {

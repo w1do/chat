@@ -1,8 +1,12 @@
 type: object
-required: [id, room_id, author_id, author_name, reply_to_id, body, mentions, edited_at, deleted, created_at, reactions]
+required: [id, room_id, kind, author_id, author_name, reply_to_id, body, mentions, edited_at, deleted, created_at, reactions, payload]
 properties:
   id: { type: string, description: ULID сообщения. }
   room_id: { type: string }
+  kind:
+    type: string
+    enum: [text, system]
+    description: Системные записи описывают событие комнаты; их текст формулирует клиент.
   author_id: { type: string }
   author_name: { type: [string, "null"] }
   reply_to_id: { type: [string, "null"] }
@@ -18,3 +22,11 @@ properties:
   reactions:
     type: array
     items: { $ref: '#/components/schemas/Reaction' }
+  payload:
+    type: [object, "null"]
+    description: Данные системного события (event, actor_id); null для обычных сообщений.
+    properties:
+      event:
+        type: string
+        enum: [member.joined, member.invited, member.left]
+      actor_id: { type: string }

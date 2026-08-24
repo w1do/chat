@@ -18,6 +18,7 @@ final class MessageResource extends JsonResource
         return [
             'id' => $this->resource->id,
             'room_id' => $this->resource->roomId,
+            'kind' => $this->resource->kind,
             'author_id' => $this->resource->authorId,
             'author_name' => $this->resource->authorName,
             'reply_to_id' => $this->resource->replyToId,
@@ -31,6 +32,7 @@ final class MessageResource extends JsonResource
                 'count' => $reaction->count,
                 'reacted_by_me' => $reaction->reactedByMe,
             ], $this->resource->reactions),
+            'payload' => $this->resource->payload,
         ];
     }
 }

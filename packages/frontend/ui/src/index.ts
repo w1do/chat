@@ -1,6 +1,7 @@
 // Публичный entrypoint пакета @vendor/ui — примитивы дизайн-системы.
 // Продуктовой логики здесь нет (§4.2).
 export { Avatar } from './components/Avatar';
+export { Confetti } from './components/Confetti';
 export { Dots } from './components/Dots';
 export { Group } from './components/Group';
 export { Row } from './components/Row';

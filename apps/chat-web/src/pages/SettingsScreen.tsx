@@ -7,13 +7,22 @@ interface SettingsScreenProps {
   theme: ThemeTokens;
   settings: AppSettings;
   onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  notificationPermission: NotificationPermission | 'unsupported';
+  onRequestNotifications: () => Promise<void>;
   onToast: (text: string) => void;
 }
 
 type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | null;
 
 /** Экран «Настройки»: короткий список, каждый пункт открывает отдельный лист. */
-export function SettingsScreen({ theme, settings, onChange, onToast }: SettingsScreenProps) {
+export function SettingsScreen({
+  theme,
+  settings,
+  onChange,
+  notificationPermission,
+  onRequestNotifications,
+  onToast,
+}: SettingsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
   const headerHeight = useElementHeight(headerRef);
   const [sheet, setSheet] = useState<SheetId>(null);
@@ -57,6 +66,27 @@ export function SettingsScreen({ theme, settings, onChange, onToast }: SettingsS
                 checked={settings.animations}
                 onChange={() => onChange('animations', !settings.animations)}
               />
+            }
+            last
+          />
+        </Group>
+
+        <Group theme={theme} label="Уведомления">
+          <Row
+            theme={theme}
+            title="Уведомления браузера"
+            hint={
+              notificationPermission === 'granted'
+                ? 'Приходят, когда вкладка в фоне'
+                : notificationPermission === 'denied'
+                  ? 'Запрещены в настройках браузера'
+                  : notificationPermission === 'unsupported'
+                    ? 'Браузер их не поддерживает'
+                    : 'Внутри приложения уведомления работают и без разрешения'
+            }
+            value={notificationPermission === 'default' ? 'Включить' : undefined}
+            onClick={
+              notificationPermission === 'default' ? () => void onRequestNotifications() : undefined
             }
             last
           />

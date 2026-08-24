@@ -7,6 +7,12 @@ import { applyRoomEvent, resyncRoom } from '../realtime/handlers';
  * Подписка на события комнаты + presence. После reconnect выполняется
  * HTTP-ресинхронизация — пропущенные события не теряются.
  */
+export interface JoinGreeting {
+  userId: string;
+  name: string;
+  at: number;
+}
+
 export function useRealtimeRoom(
   adapter: RealtimeAdapter | null,
   roomId: string,
@@ -17,6 +23,8 @@ export function useRealtimeRoom(
   const [connection, setConnection] = useState<ConnectionState>('connected');
   const [typingUserIds, setTypingUserIds] = useState<string[]>([]);
   const [presentMembers, setPresentMembers] = useState<PresenceMember[]>([]);
+  /** Кто только что присоединился — повод поздравить всю комнату. */
+  const [joinGreeting, setJoinGreeting] = useState<JoinGreeting | null>(null);
   const wasDisconnected = useRef(false);
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -25,7 +33,17 @@ export function useRealtimeRoom(
     // когда пользователь уже участник, и переподписываемся при его изменении.
     if (!adapter || !enabled) return;
 
-    const room = adapter.subscribeRoom(roomId, (event) => applyRoomEvent(queryClient, event));
+    const room = adapter.subscribeRoom(roomId, (event) => {
+      applyRoomEvent(queryClient, event);
+
+      if (event.event === 'message.created.v1' && event.data.payload?.event === 'member.joined') {
+        setJoinGreeting({
+          userId: event.data.payload.actor_id,
+          name: event.data.author.name,
+          at: Date.now(),
+        });
+      }
+    });
 
     const presence = adapter.subscribePresence(roomId, {
       onHere: (members) => setPresentMembers(members),
@@ -77,5 +95,11 @@ export function useRealtimeRoom(
     };
   }, [adapter, roomId, enabled, queryClient]);
 
-  return { connection, typingUserIds, presentMembers };
+  return {
+    connection,
+    typingUserIds,
+    presentMembers,
+    joinGreeting,
+    dismissGreeting: () => setJoinGreeting(null),
+  };
 }

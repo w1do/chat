@@ -6,7 +6,9 @@ import {
   useDeleteMessage,
   useMembers,
   useMembershipActions,
+  useIncomingMessages,
   useMessages,
+  useNotificationPermission,
   useReactions,
   useRealtimeRoom,
   useRoom,
@@ -17,13 +19,14 @@ import {
   type MagicPhase,
 } from '@vendor/chat';
 import { useAuth } from '@vendor/identity';
-import { THEMES, Toast, useKeyboardInsets, useTheme, type ThemeTokens } from '@vendor/ui';
+import { Confetti, THEMES, Toast, useKeyboardInsets, useTheme, type ThemeTokens } from '@vendor/ui';
 import { MessageCircle, Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../app/api';
 import { realtimeAdapter } from '../app/echo';
 import { runtimeConfig } from '../app/runtime-config';
+import { applyTabCounter, raiseSystemNotification } from '../app/notifications';
 import { useSettings, type AppSettings } from '../app/settings';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -65,6 +68,22 @@ export function ChatPage() {
 
   const totalUnread = (rooms.data ?? []).reduce((sum, room) => sum + (room.unread_count ?? 0), 0);
 
+  // Счётчик в заголовке вкладки повторяет бейджи списка.
+  useEffect(() => applyTabCounter(totalUnread), [totalUnread]);
+
+  const { permission, request: requestNotifications } = useNotificationPermission();
+
+  useIncomingMessages(realtimeAdapter(), {
+    rooms: new Map((rooms.data ?? []).filter((room) => room.my_role !== null).map((room) => [room.id, room.name])),
+    currentUserId: user?.id ?? '',
+    activeRoomId: roomId,
+    onNotice: (message) => {
+      showToast(`${message.roomName} · ${message.authorName}: ${message.body}`);
+      void rooms.refetch();
+      raiseSystemNotification(message, (id) => navigate(`/rooms/${id}`));
+    },
+  });
+
   return (
     <div
       className="w-full flex justify-center"
@@ -104,6 +123,11 @@ export function ChatPage() {
               onChange={(key, value) => {
                 set(key, value);
                 if (key === 'theme') setTheme(value as AppSettings['theme']);
+              }}
+              notificationPermission={permission}
+              onRequestNotifications={async () => {
+                await requestNotifications();
+                showToast('Настройки уведомлений обновлены');
               }}
               onToast={showToast}
             />
@@ -215,7 +239,14 @@ function ActiveRoom({
   const membership = useMembershipActions(roomId);
 
   const isMember = room.data?.my_role != null;
-  const { typingUserIds, connection } = useRealtimeRoom(realtimeAdapter(), roomId, { enabled: isMember });
+  const { typingUserIds, connection, joinGreeting, dismissGreeting } = useRealtimeRoom(
+    realtimeAdapter(),
+    roomId,
+    { enabled: isMember },
+  );
+
+  const prefersReducedMotion =
+    typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
 
   const [draft, setDraft] = useState('');
   const [undoText, setUndoText] = useState<string | null>(null);
@@ -322,6 +353,14 @@ function ActiveRoom({
           setDraft(undoText);
           setUndoText(null);
         }}
+      />
+
+      <Confetti
+        active={joinGreeting !== null}
+        message={joinGreeting ? `К нам подключился ${joinGreeting.name}` : ''}
+        theme={theme}
+        reducedMotion={!settings.animations || prefersReducedMotion}
+        onDone={dismissGreeting}
       />
 
       <MagicSheet

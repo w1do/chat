@@ -382,6 +382,11 @@ export interface components {
             /** @description ULID сообщения. */
             id: string;
             room_id: string;
+            /**
+             * @description Системные записи описывают событие комнаты; их текст формулирует клиент.
+             * @enum {string}
+             */
+            kind: "text" | "system";
             author_id: string;
             author_name: string | null;
             reply_to_id: string | null;
@@ -394,6 +399,12 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             reactions: components["schemas"]["Reaction"][];
+            /** @description Данные системного события (event, actor_id); null для обычных сообщений. */
+            payload: {
+                /** @enum {string} */
+                event?: "member.joined" | "member.invited" | "member.left";
+                actor_id?: string;
+            } | null;
         };
         Reaction: {
             emoji: string;

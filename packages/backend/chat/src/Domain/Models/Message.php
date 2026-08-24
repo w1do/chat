@@ -13,10 +13,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Vendor\Chat\Database\Factories\MessageFactory;
+use Vendor\Chat\Domain\Enums\MessageKind;
 
 /**
  * @property string $id
  * @property string $room_id
+ * @property MessageKind $kind
+ * @property ?array<string, mixed> $payload
  * @property string $author_id
  * @property ?string $reply_to_id
  * @property string $body
@@ -35,12 +38,14 @@ class Message extends Model
 
     protected $table = 'messages';
 
-    protected $fillable = ['room_id', 'author_id', 'reply_to_id', 'body', 'mentions'];
+    protected $fillable = ['room_id', 'kind', 'author_id', 'reply_to_id', 'body', 'mentions', 'payload'];
 
     protected function casts(): array
     {
         return [
+            'kind' => MessageKind::class,
             'mentions' => 'array',
+            'payload' => 'array',
             'edited_at' => 'datetime',
         ];
     }
@@ -61,6 +66,11 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class);
+    }
+
+    public function isSystem(): bool
+    {
+        return $this->kind->isSystem();
     }
 
     public function isAuthoredBy(Authenticatable $user): bool

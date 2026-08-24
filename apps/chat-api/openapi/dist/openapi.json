@@ -94,6 +94,7 @@
                 "required": [
                     "id",
                     "room_id",
+                    "kind",
                     "author_id",
                     "author_name",
                     "reply_to_id",
@@ -102,7 +103,8 @@
                     "edited_at",
                     "deleted",
                     "created_at",
-                    "reactions"
+                    "reactions",
+                    "payload"
                 ],
                 "properties": {
                     "id": {
@@ -111,6 +113,14 @@
                     },
                     "room_id": {
                         "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "system"
+                        ],
+                        "description": "Системные записи описывают событие комнаты; их текст формулирует клиент."
                     },
                     "author_id": {
                         "type": "string"
@@ -158,6 +168,26 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Reaction"
+                        }
+                    },
+                    "payload": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Данные системного события (event, actor_id); null для обычных сообщений.",
+                        "properties": {
+                            "event": {
+                                "type": "string",
+                                "enum": [
+                                    "member.joined",
+                                    "member.invited",
+                                    "member.left"
+                                ]
+                            },
+                            "actor_id": {
+                                "type": "string"
+                            }
                         }
                     }
                 }

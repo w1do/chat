@@ -8,7 +8,7 @@
 
 | Событие | Канал | Данные |
 |---|---|---|
-| `message.created.v1` | private room | id, author{id,name}, body, reply_to_id, created_at |
+| `message.created.v1` | private room | id, kind, author{id,name}, body, payload, reply_to_id, created_at |
 | `message.updated.v1` | private room | id, body, edited_at |
 | `message.deleted.v1` | private room | id, deleted_at |
 | `reaction.changed.v1` | private room | message_id, user_id, emoji, action, count |
@@ -16,6 +16,10 @@
 | `typing.changed.v1` | presence room | user_id, is_typing |
 
 Общий конверт: `event`, `version`, `room_id` (ULID), `occurred_at` (RFC 3339), `data`.
+
+Системные записи о членстве приходят тем же `message.created.v1` с
+`kind: system` и `payload: {event, actor_id}` — отдельной схемы события нет
+(design 1c); текст формулирует клиент.
 `additionalProperties: false` — утечка недекларированных полей ломает контрактный тест
 `apps/chat-api/tests/Contract/RealtimeSchemaTest.php` (фикстуры —
 `tests/fixtures/realtime/`).

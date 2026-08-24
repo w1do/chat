@@ -147,3 +147,32 @@ it('stores mentions of room members', function (): void {
         'mentions' => [(string) $mentioned->getKey()],
     ])->assertCreated()->assertJsonPath('data.mentions.0', (string) $mentioned->getKey());
 });
+
+it('keeps membership system messages in the reloaded history', function (): void {
+    $room = Room::factory()->create();
+    $owner = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Owner)->create(['user_id' => $owner->getKey()]);
+    $guest = User::factory()->create();
+
+    $this->actingAs($guest)->postJson("/api/v1/rooms/{$room->id}/members/me")->assertCreated();
+    $this->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'Всем привет'])->assertCreated();
+    $this->deleteJson("/api/v1/rooms/{$room->id}/members/me")->assertNoContent();
+
+    // Владелец перезагружает ленту: обе системные записи на своих местах.
+    $history = $this->actingAs($owner)->getJson("/api/v1/rooms/{$room->id}/messages")->assertOk()->json('data');
+
+    expect(array_column($history, 'kind'))->toBe(['system', 'text', 'system'])
+        ->and($history[2]['payload']['event'])->toBe('member.joined')
+        ->and($history[0]['payload']['event'])->toBe('member.left')
+        ->and($history[0]['payload']['actor_id'])->toBe((string) $guest->getKey());
+});
+
+it('forbids editing, deleting and reacting to system messages over the API', function (): void {
+    [$room, $member] = roomWithMember(RoomRole::Owner);
+    $system = Message::factory()->for($room)->system()->create(['author_id' => $member->getKey()]);
+
+    $this->actingAs($member)->patchJson("/api/v1/messages/{$system->id}", ['body' => 'x'])
+        ->assertStatus(403)->assertJsonPath('code', 'forbidden');
+    $this->deleteJson("/api/v1/messages/{$system->id}")->assertStatus(403);
+    $this->postJson("/api/v1/messages/{$system->id}/reactions", ['emoji' => '👍'])->assertStatus(403);
+});

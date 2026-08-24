@@ -44,6 +44,17 @@ it('has a schema and a valid fixture for every versioned event', function (strin
     );
 })->with(REALTIME_EVENTS);
 
+it('validates the system-message fixture against the message.created schema', function (): void {
+    $payload = json_decode((string) file_get_contents(dirname(__DIR__).'/fixtures/realtime/message.created.v1.system.json'));
+
+    $result = realtimeValidator()->validate($payload, 'https://contracts.chat.local/realtime/message.created.v1.schema.json');
+
+    expect($result->isValid())->toBeTrue(
+        $result->hasError() ? json_encode($result->error()->message()) : '',
+    )->and($payload->data->kind)->toBe('system')
+        ->and($payload->data->payload->event)->toBe('member.joined');
+});
+
 it('rejects payloads with undeclared fields', function (): void {
     $payload = json_decode((string) file_get_contents(dirname(__DIR__).'/fixtures/realtime/typing.changed.v1.json'));
     $payload->data->leaked_private_field = 'room history';
@@ -71,8 +82,20 @@ it('produces broadcast payloads that validate against the contract schemas', fun
     $events = [
         new MessageCreatedV1($roomId, [
             'id' => $messageId,
+            'kind' => 'text',
             'author' => ['id' => $userId, 'name' => 'Alice'],
             'body' => 'Hello',
+            'payload' => null,
+            'reply_to_id' => null,
+            'created_at' => $now,
+        ], $now),
+        // Системная запись: событие вместо прозы (design 1c).
+        new MessageCreatedV1($roomId, [
+            'id' => $messageId,
+            'kind' => 'system',
+            'author' => ['id' => $userId, 'name' => 'Alice'],
+            'body' => '',
+            'payload' => ['event' => 'member.joined', 'actor_id' => $userId],
             'reply_to_id' => null,
             'created_at' => $now,
         ], $now),

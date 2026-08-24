@@ -29,6 +29,11 @@ final class MessagePolicy
 
     public function update(Authenticatable $user, Message $message): bool
     {
+        // Системные записи принадлежат истории комнаты, а не автору (design 1c).
+        if ($message->isSystem()) {
+            return false;
+        }
+
         if ($message->trashed() || ! $message->isAuthoredBy($user)) {
             return false;
         }
@@ -38,7 +43,7 @@ final class MessagePolicy
 
     public function delete(Authenticatable $user, Message $message): bool
     {
-        if ($message->trashed()) {
+        if ($message->isSystem() || $message->trashed()) {
             return false;
         }
 
@@ -51,6 +56,6 @@ final class MessagePolicy
 
     public function react(Authenticatable $user, Message $message): bool
     {
-        return ! $message->trashed() && $message->room->hasMember($user);
+        return ! $message->isSystem() && ! $message->trashed() && $message->room->hasMember($user);
     }
 }

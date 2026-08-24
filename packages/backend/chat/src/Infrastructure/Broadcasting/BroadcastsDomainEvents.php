@@ -34,8 +34,11 @@ final readonly class BroadcastsDomainEvents
 
         $this->events->dispatch(new MessageCreatedV1($event->roomId, [
             'id' => $message->id,
+            'kind' => $message->kind->value,
             'author' => ['id' => $message->author_id, 'name' => $authorName],
+            // Системная запись несёт событие, а не прозу: текст формулирует клиент.
             'body' => (string) $message->body,
+            'payload' => $message->payload,
             'reply_to_id' => $message->reply_to_id,
             'created_at' => (string) $message->created_at?->toIso8601ZuluString(),
         ], now()->toIso8601ZuluString()));

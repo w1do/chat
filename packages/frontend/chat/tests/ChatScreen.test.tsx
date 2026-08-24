@@ -24,6 +24,7 @@ const room = (extra: Partial<Room> = {}): Room => ({
 const message = (id: string, extra: Partial<Message> = {}): Message => ({
   id,
   room_id: 'r1',
+  kind: 'text',
   author_id: 'u1',
   author_name: 'Alice',
   reply_to_id: null,
@@ -33,8 +34,17 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   deleted: false,
   created_at: '2026-08-24T12:00:00Z',
   reactions: [],
+  payload: null,
   ...extra,
 });
+
+const systemMessage = (id: string, event: 'member.joined' | 'member.left', actorId: string): Message =>
+  message(id, {
+    kind: 'system',
+    body: '',
+    author_id: actorId,
+    payload: { event, actor_id: actorId },
+  });
 
 const members: Member[] = [
   { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice' },
@@ -206,5 +216,82 @@ describe('ChatScreen', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Показать более ранние' }));
     expect(onLoadMore).toHaveBeenCalled();
+  });
+
+  it('starts a reply from the message and sends the target', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    render(<Harness onSend={onSend} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ответить на сообщение m1' }));
+    expect(screen.getByLabelText('Ответ на сообщение')).toHaveTextContent('Ответ Alice');
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Сообщение' }), 'Отвечаю{Enter}');
+    expect(onSend).toHaveBeenCalledWith({ body: 'Отвечаю', reply_to_id: 'm1', mentions: undefined });
+  });
+
+  it('cancels a started reply', async () => {
+    render(<Harness />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ответить на сообщение m1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Отменить ответ' }));
+
+    expect(screen.queryByLabelText('Ответ на сообщение')).toBeNull();
+  });
+
+  it('jumps from a quote to the original message', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<Harness messages={[message('m2', { reply_to_id: 'm1' }), message('m1')]} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Перейти к сообщению m1' }));
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('says so when the quoted original is deleted', () => {
+    render(
+      <Harness messages={[message('m2', { reply_to_id: 'm1' }), message('m1', { deleted: true, body: null })]} />,
+    );
+
+    const quote = screen.getByRole('button', { name: 'Перейти к сообщению m1' });
+    expect(quote).toHaveTextContent('Сообщение удалено');
+  });
+
+  it('reacts with an emoji chosen from the picker', async () => {
+    const onToggleReaction = vi.fn();
+    render(<Harness onToggleReaction={onToggleReaction} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Выбрать реакцию для сообщения m1' }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Реакции для сообщения m1' })).getByRole('button', { name: '🔥' }));
+
+    expect(onToggleReaction).toHaveBeenCalledWith('m1', '🔥');
+  });
+
+  it('inserts an emoji into the draft at the caret', async () => {
+    render(<Harness />);
+
+    const field = screen.getByRole('textbox', { name: 'Сообщение' });
+    await userEvent.type(field, 'Привет');
+    await userEvent.click(screen.getByRole('button', { name: 'Эмодзи' }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Эмодзи для сообщения' })).getByRole('button', { name: '🎉' }));
+
+    expect(field).toHaveValue('Привет🎉');
+  });
+
+  it('renders membership system messages as plain timeline entries', () => {
+    render(
+      <Harness
+        messages={[
+          systemMessage('s2', 'member.left', 'u-bob'),
+          message('m1'),
+          systemMessage('s1', 'member.joined', 'u-bob'),
+        ]}
+      />,
+    );
+
+    expect(screen.getByLabelText('Событие комнаты s1')).toHaveTextContent('Bob присоединился к комнате');
+    expect(screen.getByLabelText('Событие комнаты s2')).toHaveTextContent('Bob покинул комнату');
+    // Системные записи не предлагают ответ и реакции.
+    expect(screen.queryByRole('button', { name: 'Ответить на сообщение s1' })).toBeNull();
   });
 });

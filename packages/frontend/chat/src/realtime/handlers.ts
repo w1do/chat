@@ -13,6 +13,7 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
       const message: Message = {
         id: event.data.id,
         room_id: event.room_id,
+        kind: event.data.kind,
         author_id: event.data.author.id,
         author_name: event.data.author.name,
         reply_to_id: event.data.reply_to_id,
@@ -22,6 +23,7 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
         deleted: false,
         created_at: event.data.created_at,
         reactions: [],
+        payload: event.data.payload,
       };
 
       queryClient.setQueryData<MessagesData>(messagesKey(event.room_id), (data) => {

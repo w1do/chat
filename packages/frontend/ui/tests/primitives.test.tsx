@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Avatar } from '../src/components/Avatar';
+import { Confetti } from '../src/components/Confetti';
 import { Segmented } from '../src/components/Segmented';
 import { Sheet } from '../src/components/Sheet';
 import { Toggle } from '../src/components/Toggle';
@@ -76,5 +77,35 @@ describe('Avatar', () => {
     expect(screen.getByLabelText('в сети')).toBeInTheDocument();
     expect(voiceHue('u1')).toBe(voiceHue('u1'));
     expect(voiceHue('u1')).not.toBe(voiceHue('u2'));
+  });
+});
+
+describe('Confetti', () => {
+  it('greets a new participant and fades away on its own', async () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+
+    render(
+      <Confetti active message="К нам подключился Bob" theme={LIGHT} durationMs={1000} onDone={onDone} />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('К нам подключился Bob');
+    // Слой не перехватывает нажатия: интерфейс остаётся рабочим.
+    expect(document.querySelector('.pointer-events-none')).not.toBeNull();
+    expect(document.querySelectorAll('.confetti-piece').length).toBeGreaterThan(0);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onDone).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('drops the confetti when motion is reduced but keeps the notice', () => {
+    render(<Confetti active reducedMotion message="К нам подключился Bob" theme={LIGHT} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('К нам подключился Bob');
+    expect(document.querySelectorAll('.confetti-piece')).toHaveLength(0);
   });
 });

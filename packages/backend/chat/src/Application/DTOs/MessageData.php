@@ -15,6 +15,7 @@ final readonly class MessageData
     public function __construct(
         public string $id,
         public string $roomId,
+        public string $kind,
         public string $authorId,
         public ?string $authorName,
         public ?string $replyToId,
@@ -24,6 +25,8 @@ final readonly class MessageData
         public bool $deleted,
         public string $createdAt,
         public array $reactions = [],
+        /** @var ?array<string, mixed> */
+        public ?array $payload = null,
     ) {}
 
     /** @param list<ReactionData> $reactions */
@@ -34,6 +37,7 @@ final readonly class MessageData
         return new self(
             id: $message->id,
             roomId: $message->room_id,
+            kind: $message->kind->value,
             authorId: $message->author_id,
             authorName: $authorName,
             replyToId: $message->reply_to_id,
@@ -44,6 +48,7 @@ final readonly class MessageData
             deleted: $deleted,
             createdAt: (string) $message->created_at?->toIso8601String(),
             reactions: $reactions,
+            payload: $message->payload,
         );
     }
 }
