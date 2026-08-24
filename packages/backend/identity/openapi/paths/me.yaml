@@ -1,0 +1,44 @@
+/me:
+  get:
+    operationId: getMe
+    tags: [me]
+    summary: Текущий пользователь
+    security:
+      - sanctumCookie: []
+    responses:
+      '200':
+        description: Профиль текущего пользователя.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEnvelope'
+      '401':
+        $ref: '#/components/responses/Unauthenticated'
+/me/profile:
+  patch:
+    operationId: updateProfile
+    tags: [me]
+    summary: Обновление профиля
+    security:
+      - sanctumCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name: { type: string, maxLength: 255 }
+              locale: { type: string, example: ru }
+              timezone: { type: string, example: Europe/Moscow }
+    responses:
+      '200':
+        description: Обновлённый профиль.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEnvelope'
+      '401':
+        $ref: '#/components/responses/Unauthenticated'
+      '422':
+        $ref: '#/components/responses/ValidationError'

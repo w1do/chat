@@ -29,12 +29,12 @@
 
 ## 4. Stage 4 — Identity (API + Web)
 
-- [ ] 4.1 Implement `packages/backend/identity`: migrations (`users`, `password_reset_tokens`, `personal_access_tokens`), base `Domain/Models/{User,Session}`, `config/identity.php` with `user_model`, commands/queries/handlers for Register, Login, Logout, ResetPassword, UpdateProfile, GetMe, Sanctum infrastructure, V1 controllers/requests/resources, and verify package Testbench unit+feature tests pass
-- [ ] 4.2 Compose in `apps/chat-api`: `App\Models\User` extends the package base and is bound via `config('identity.user_model')`, routes mounted under `/api/v1/auth` and `/api/v1/me`, Sanctum cookie SPA auth with explicit CORS/trusted-proxy allowlists, and verify integration tests cover login happy path, invalid credentials, rate limiting, CSRF, and disallowed origin
-- [ ] 4.3 Add `apps/chat-api/tests/Octane/WorkerStateLeakTest.php` running sequential requests as different users, and verify it fails on injected leaked state and passes under the ADR-009 Octane server
-- [ ] 4.4 Update OpenAPI fragments in the identity package, rebuild dist, regenerate client, and verify contract tests and `./tools/chat web typecheck` pass
-- [ ] 4.5 Implement `packages/frontend/identity`: auth forms (login, register, recovery), profile form, guard hooks, Zod schemas, and wire `LoginPage`/`ProfilePage` and route guards into `apps/chat-web`, and verify component tests cover happy, invalid-input, and error states with keyboard accessibility
-- [ ] 4.6 Documentation gate: write `docs/features/{authentication,profile}.md` with status, ADR-005 (Sanctum SPA auth), update `SUMMARY.md` identity row, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test identity` and `./tools/chat web test identity` pass before marking `implemented`
+- [x] 4.1 Implement `packages/backend/identity`: migrations (`users`, `password_reset_tokens`, `personal_access_tokens`), base `Domain/Models/{User,Session}`, `config/identity.php` with `user_model`, commands/queries/handlers for Register, Login, Logout, ResetPassword, UpdateProfile, GetMe, Sanctum infrastructure, V1 controllers/requests/resources, and verify package Testbench unit+feature tests pass
+- [x] 4.2 Compose in `apps/chat-api`: `App\Models\User` extends the package base and is bound via `config('identity.user_model')`, routes mounted under `/api/v1/auth` and `/api/v1/me`, Sanctum cookie SPA auth with explicit CORS/trusted-proxy allowlists, and verify integration tests cover login happy path, invalid credentials, rate limiting, CSRF, and disallowed origin
+- [x] 4.3 Add `apps/chat-api/tests/Octane/WorkerStateLeakTest.php` running sequential requests as different users, and verify it fails on injected leaked state and passes under the ADR-009 Octane server
+- [x] 4.4 Update OpenAPI fragments in the identity package, rebuild dist, regenerate client, and verify contract tests and `./tools/chat web typecheck` pass
+- [x] 4.5 Implement `packages/frontend/identity`: auth forms (login, register, recovery), profile form, guard hooks, Zod schemas, and wire `LoginPage`/`ProfilePage` and route guards into `apps/chat-web`, and verify component tests cover happy, invalid-input, and error states with keyboard accessibility
+- [x] 4.6 Documentation gate: write `docs/features/{authentication,profile}.md` with status, ADR-005 (Sanctum SPA auth), update `SUMMARY.md` identity row, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test identity` and `./tools/chat web test identity` pass before marking `implemented`
 
 ## 5. Stage 5 — Rooms And Membership (API + Web)
 

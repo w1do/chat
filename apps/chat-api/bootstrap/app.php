@@ -16,7 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Sanctum cookie SPA auth: stateful-запросы фронтенда проходят
+        // session/CSRF стек (ADR-005).
+        $middleware->statefulApi();
+
+        // Reverse proxy стека (ADR-007) — явный allowlist через env.
+        $middleware->trustProxies(at: array_values(array_filter(
+            explode(',', (string) env('TRUSTED_PROXIES', '')),
+        )));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API всегда отвечает JSON, включая исключения (docs/api/error-envelope.md).

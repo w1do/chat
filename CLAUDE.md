@@ -8,6 +8,51 @@
 
 Этот файл задаёт правила разработки, но не является свидетельством реализованной функциональности. Состояние реализации подтверждается только кодом, тестами и документацией в репозитории.
 
+## Обязательные правила
+
+- **DDD + CQRS-lite + DTO**: слои `Domain / Application(Commands|Queries) / Http` в каждом модуль-пакете; все входные и выходные структуры — `spatie/laravel-data`; контроллер тонкий: Data → Command/Query → Data. Без `$request->validate()` и ручных массивов ответов.
+- **Tenant-изоляция**: каждая бизнес-таблица имеет `project_id`; модели используют `BelongsToProject`; контекст — scoped `ProjectContext` (Octane-safe, никаких синглтонов с request-состоянием).
+- **Деньги** — только целые минорные единицы (`Cms\Shared\Values\Money`), float запрещён везде.
+- **Права** — spatie/laravel-permission, teams-режим (`team_id = project_id`), формат `<service>.<resource>.<action>`, роль `super-admin` через `Gate::before`. Каждый admin-маршрут закрыт правом.
+- Тяжёлое/внешнее — только в Jobs (ID вместо моделей, явный `project_id`, идемпотентность, `failed()` → audit).
+
+## Скиллы `.ai/skills/**` — читать SKILL.md перед соответствующей работой
+
+Архитектура и код:
+- `.ai/skills/architecture-ddd` — правила DDD-архитектуры слоёв. Применять при проектировании любого модуль-пакета.
+- `.ai/skills/refactoring-ddd` — методика рефакторинга к DDD/CQRS/DTO. Применять при переработке "раздутых" контроллеров и legacy-кода.
+- `.ai/skills/dtos` — типизированные DTO между слоями (spatie/laravel-data). Применять при создании любых входных/выходных Data-классов.
+- `.ai/skills/spatie-laravel-php` — стандарты кода Spatie для Laravel/PHP (контроллеры, модели, маршруты, миграции, тесты). Применять при любом написании PHP.
+- `.ai/skills/spatie-javascript` — стандарты Spatie для JS/TS. Применять в `packages/frontend/*` и `frontends/admin`.
+- `.ai/skills/clean-project` — превращение копии проекта в чистый скелет (команда `/clean-development`).
+
+Laravel-пакеты:
+- `.ai/skills/laravel-permission-development` — spatie/laravel-permission: роли, права, teams, middleware, policies. Применять во всём, что касается доступа (cms/auth).
+- `.ai/skills/laravel-query-builder` — spatie/laravel-query-builder: фильтры/сортировки/includes в API-эндпоинтах списков.
+- `.ai/skills/lazychaser-laravel-nestedset` — nested sets (kalnoy/nestedset): деревья категорий, перемещение поддеревьев (cms/content).
+- `.ai/skills/sluggable-development` — spatie/laravel-sluggable: слаги постов/страниц, self-healing URLs (cms/content).
+- `.ai/skills/medialibrary-development` — spatie/laravel-medialibrary: медиа-коллекции, конверсии, responsive images (cms/content медиа).
+- `.ai/skills/laravel-activitylog` — spatie/laravel-activitylog: журналирование действий (audit log в cms/auth).
+- `.ai/skills/laravel-package-tools` — spatie/laravel-package-tools: каркас сервис-провайдеров пакетов `packages/cms/*`.
+- `.ai/skills/laravel-deploy` — деплой и докеризация Laravel (infra/, общий Dockerfile, Octane).
+
+Платежи и тарифы (cms/pay):
+- `.ai/skills/payment-platega-integration-laravel` — эталонная интеграция платёжного шлюза Platega.io в DDD+CQRS: фабрика шлюзов, HTTP-клиент, callback, тесты. Использовать как blueprint провайдера.
+- `.ai/skills/platega` — справочник API Platega.io.
+- `.ai/skills/laravel-plans` — тарифные планы/подписки (rennokki/plans) — референс модели планов, опций, фич.
+- `.ai/skills/moffhub-billing` — feature-based биллинг: гейтинг фич, учёт использования — референс для plan features.
+
+Frontend:
+- `.ai/skills/frontend-source-integration` — перенос экранов из готовой вёрстки как источника правды дизайна. Применять при сборке `frontends/admin` из `frontends/source-admin`.
+- `.ai/skills/source-copy` — точный поблочный перенос вёрстки из reference-шаблона: ничего не добавлять, менять только тексты/пути/синтаксис.
+- `.ai/skills/design-prototype` — прототипирование UI (NeuralFlow) — только если явно попросят прототип.
+
+Прочее:
+- `.ai/skills/documentation` — правила написания документации (docs/, summary).
+- `.ai/skills/spatie-security` — security-гайдлайны: SSL, CSRF, хэширование, права БД. Применять при настройке окружений и ревью безопасности.
+- `.ai/skills/spatie-version-control` — конвенции git: сообщения коммитов, ветки, PR.
+- `.ai/skills/serp-api`, `.ai/skills/polza-ai` — интеграции SerpApi / Polza AI (транскрипция, эмбеддинги) — только при работе с соответствующими API.
+
 ## 2. Продуктовые границы
 
 ### MVP

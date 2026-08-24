@@ -7,6 +7,22 @@
 
 ### Added
 
+- Identity (этап 4 roadmap):
+  - пакет `vendor/identity`: миграции (users ULID, password_reset_tokens,
+    personal_access_tokens), базовая модель User (наследуется приложением через
+    `config('identity.user_model')`), commands/handlers Register/Login/Logout/
+    RequestPasswordReset/ResetPassword/UpdateProfile/GetMe, V1 контроллеры и
+    маршруты `/auth/*`, `/me`, rate limiters;
+  - Sanctum cookie SPA auth (ADR-005): stateful api, CSRF, CORS allowlist,
+    trusted proxies; интеграционные тесты (login, invalid, rate limit, CSRF,
+    CORS deny);
+  - `tests/Octane/WorkerStateLeakTest` + `./tools/chat smoke octane` —
+    проверка отсутствия утечки identity в одном FrankenPHP worker'е;
+  - OpenAPI-фрагменты identity → dist → регенерированный api-client;
+  - пакет `@vendor/identity`: Zod-схемы, `useAuth`, формы Login/Register/
+    Recovery/Profile (vitest+Testing Library, 9 тестов), страницы и route
+    guards в `chat-web`;
+  - `./tools/chat test <module>` и `./tools/chat web test <package>`.
 - Контракты API и real-time (этап 3 roadmap):
   - единый JSON error envelope (`code`, `message`, `details`, `trace_id`) для
     всех ошибок API + заголовок `X-Trace-Id`; feature-тесты на все классы ошибок;

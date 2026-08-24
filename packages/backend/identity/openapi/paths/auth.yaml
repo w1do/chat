@@ -1,0 +1,135 @@
+/auth/register:
+  post:
+    operationId: register
+    tags: [auth]
+    summary: Регистрация пользователя
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, email, password]
+            properties:
+              name: { type: string, maxLength: 255 }
+              email: { type: string, format: email }
+              password: { type: string, minLength: 10 }
+    responses:
+      '201':
+        description: Пользователь создан, сессия начата.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEnvelope'
+      '422':
+        $ref: '#/components/responses/ValidationError'
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'
+/auth/login:
+  post:
+    operationId: login
+    tags: [auth]
+    summary: Вход (Sanctum cookie SPA)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email, password]
+            properties:
+              email: { type: string, format: email }
+              password: { type: string }
+              remember: { type: boolean, default: false }
+    responses:
+      '200':
+        description: Аутентифицирован; сессионная cookie обновлена.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEnvelope'
+      '401':
+        $ref: '#/components/responses/Unauthenticated'
+      '422':
+        $ref: '#/components/responses/ValidationError'
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'
+/auth/logout:
+  post:
+    operationId: logout
+    tags: [auth]
+    summary: Выход
+    security:
+      - sanctumCookie: []
+    responses:
+      '204':
+        description: Сессия завершена.
+      '401':
+        $ref: '#/components/responses/Unauthenticated'
+/auth/forgot-password:
+  post:
+    operationId: forgotPassword
+    tags: [auth]
+    summary: Запрос ссылки восстановления пароля
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email: { type: string, format: email }
+    responses:
+      '202':
+        description: Ответ одинаков для существующего и несуществующего email.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string }
+      '422':
+        $ref: '#/components/responses/ValidationError'
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'
+/auth/reset-password:
+  post:
+    operationId: resetPassword
+    tags: [auth]
+    summary: Установка нового пароля по токену
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email, token, password]
+            properties:
+              email: { type: string, format: email }
+              token: { type: string }
+              password: { type: string, minLength: 10 }
+    responses:
+      '204':
+        description: Пароль обновлён.
+      '422':
+        $ref: '#/components/responses/ValidationError'
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'

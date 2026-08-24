@@ -9,14 +9,14 @@
   "properties": {
     "event": { "const": "typing.changed.v1" },
     "version": { "const": 1 },
-    "room_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
+    "room_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" },
     "occurred_at": { "type": "string", "format": "date-time" },
     "data": {
       "type": "object",
       "required": ["user_id", "is_typing"],
       "additionalProperties": false,
       "properties": {
-        "user_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
+        "user_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" },
         "is_typing": { "type": "boolean" }
       }
     }
