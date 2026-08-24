@@ -300,8 +300,8 @@ PY
   e2e)
     sub="${1:-realtime}"; shift || true
     # E2E-стек: postgres+redis (dev compose) + api/reverb/web + smoke-proxy,
-    # Playwright — в официальном контейнере с браузерами.
-    "$0" e2e-stack-up
+    # Playwright — в официальном контейнере с браузерами (адрес внутри сети).
+    CHAT_WS_HOST=proxy CHAT_WS_PORT=80 "$0" e2e-stack-up
     docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true       -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web       mcr.microsoft.com/playwright:v1.58.1-noble       bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/$sub.spec.ts --reporter=line"
     rc=$?
     "$0" e2e-stack-down
@@ -326,8 +326,10 @@ PY
     docker run -d --name e2e-reverb --network chat-dev_default --network-alias reverb $common vendor/chat-api:0.1.0 php artisan reverb:start --host=0.0.0.0 --port=8080 >/dev/null
     # Broadcast'ы ставятся в очередь (QUEUE_CONNECTION=redis) — нужен worker.
     docker run -d --name e2e-worker --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan queue:work --queue=default --tries=1 >/dev/null
-    docker run -d --name e2e-web --network chat-dev_default --network-alias web       -e API_BASE_URL=/api/v1 -e REVERB_HOST=proxy -e REVERB_PORT=80 -e REVERB_SCHEME=http -e REVERB_APP_KEY=devkey       -e AI_ENABLED=false -e APP_NAME="E2E Chat" vendor/chat-web:0.1.0 >/dev/null
-    docker run -d --name e2e-proxy --network chat-dev_default --network-alias proxy       -v "$ROOT/infra/docker/proxy/Caddyfile.smoke:/etc/caddy/Caddyfile:ro" caddy:2.10.0-alpine >/dev/null
+    docker run -d --name e2e-web --network chat-dev_default --network-alias web       -e API_BASE_URL=/api/v1 -e REVERB_HOST="${CHAT_WS_HOST:-localhost}" -e REVERB_PORT="${CHAT_WS_PORT:-${CHAT_LOCAL_PORT:-8088}}" -e REVERB_SCHEME=http -e REVERB_APP_KEY=devkey       -e AI_ENABLED=false -e APP_NAME="E2E Chat" vendor/chat-web:0.1.0 >/dev/null
+    docker run -d --name e2e-proxy --network chat-dev_default --network-alias proxy \
+      -p "${CHAT_LOCAL_PORT:-8088}:80" \
+      -v "$ROOT/infra/docker/proxy/Caddyfile.smoke:/etc/caddy/Caddyfile:ro" caddy:2.10.0-alpine >/dev/null
     sleep 6
     docker run --rm --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan migrate --force >/dev/null
     echo "stack up: http://localhost:${CHAT_LOCAL_PORT:-8088} (proxy alias 'proxy' в сети chat-dev_default)"
