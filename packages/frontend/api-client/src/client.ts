@@ -13,6 +13,8 @@ import {
 
 export interface ApiClientOptions {
   baseUrl: string;
+  /** Путь CSRF-handshake Sanctum (ADR-005); null отключает handshake. */
+  csrfCookiePath?: string | null;
   /** Хук на 401 — например, редирект на страницу входа. */
   onUnauthenticated?: () => void;
   fetchFn?: typeof fetch;
@@ -28,7 +30,32 @@ export interface RequestOptions {
 }
 
 export class ApiClient {
+  private csrfReady: Promise<void> | null = null;
+
   constructor(private readonly options: ApiClientOptions) {}
+
+  /**
+   * Sanctum SPA: перед первой мутацией нужен XSRF-TOKEN cookie.
+   * Handshake выполняется один раз и переигрывается при 419.
+   */
+  private async ensureCsrfCookie(force = false): Promise<void> {
+    const path = this.options.csrfCookiePath ?? '/sanctum/csrf-cookie';
+    if (path === null) return;
+    if (force) this.csrfReady = null;
+    // Cookie уже есть — лишний запрос не нужен.
+    if (!force && readCookie('XSRF-TOKEN')) return;
+
+    this.csrfReady ??= (async () => {
+      const fetchFn = this.options.fetchFn ?? fetch;
+      await fetchFn(path, { credentials: 'include', headers: { Accept: 'application/json' } });
+    })().catch(() => {
+      // Неудачный handshake не кэшируется и не блокирует мутацию:
+      // отсутствие токена приведёт к 419 и одному повтору ниже.
+      this.csrfReady = null;
+    });
+
+    await this.csrfReady;
+  }
 
   get(path: string, options: RequestOptions = {}): Promise<unknown> {
     return this.request('GET', path, options);
@@ -46,7 +73,12 @@ export class ApiClient {
     return this.request('DELETE', path, options);
   }
 
-  async request(method: string, path: string, options: RequestOptions = {}): Promise<unknown> {
+  async request(method: string, path: string, options: RequestOptions = {}, isRetry = false): Promise<unknown> {
+    const isMutation = method !== 'GET' && method !== 'HEAD';
+    if (isMutation) {
+      await this.ensureCsrfCookie();
+    }
+
     const url = new URL(this.options.baseUrl + path, globalThis.location?.origin ?? 'http://localhost');
     for (const [key, value] of Object.entries(options.query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -57,6 +89,8 @@ export class ApiClient {
       'X-Requested-With': 'XMLHttpRequest',
       ...options.headers,
     };
+    const xsrfToken = readCookie('XSRF-TOKEN');
+    if (isMutation && xsrfToken) headers['X-XSRF-TOKEN'] = xsrfToken;
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
     if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
 
@@ -87,6 +121,12 @@ export class ApiClient {
       throw new UnauthenticatedError(response.status, envelope);
     }
     if (response.status === 419) {
+      // Токен устарел (перезапуск сессии): обновляем cookie и повторяем один раз.
+      if (!isRetry) {
+        await this.ensureCsrfCookie(true);
+
+        return this.request(method, path, options, true);
+      }
       throw new CsrfTokenMismatchError(response.status, envelope);
     }
     if (response.status === 429) {
@@ -115,4 +155,11 @@ async function parseEnvelope(response: Response): Promise<ApiErrorEnvelope> {
   } catch {
     return { code: 'http_error', message: response.statusText, details: {}, trace_id: traceId };
   }
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.split('; ').find((row) => row.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }

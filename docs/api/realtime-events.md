@@ -1,6 +1,6 @@
 # Real-time события
 
-Статус: implemented (контракт; доставка — этап 7)
+Статус: verified (контракт и доставка; ADR-003)
 
 События версионируются в имени: `message.created.v1`. Payload описан JSON Schema
 (draft 2020-12) в `packages/contracts/realtime/<event>.schema.json` — единственном
@@ -21,4 +21,16 @@
 `tests/fixtures/realtime/`).
 
 Правила: payload содержит только данные, доступные подписчику через HTTP API;
-изменение payload = новая схема `*.v2`; broadcast — только после commit.
+изменение payload = новая схема `*.v2`; broadcast — только после commit
+(`ShouldDispatchAfterCommit`).
+
+Каналы и авторизация (`apps/chat-api/routes/channels.php`):
+
+| Канал | Кто допускается |
+|---|---|
+| `private-room.{roomId}` | участник комнаты |
+| `presence-room.{roomId}.presence` | участник; payload — `{id, name}` |
+| `private-user.{userId}` | только сам пользователь |
+
+Клиент не считает WebSocket источником истины: после reconnect выполняется
+HTTP-ресинхронизация (`resyncRoom` в `@vendor/chat`).

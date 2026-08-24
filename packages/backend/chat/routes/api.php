@@ -7,6 +7,7 @@ use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\ReactionController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\RoomController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\TypingController;
 
 Route::prefix(config('chat.routes.prefix', 'api/v1'))
     ->middleware([...config('chat.routes.middleware', ['api']), 'auth:sanctum'])
@@ -31,4 +32,5 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::patch('/messages/{message}', [MessageController::class, 'update'])->name('messages.update');
         Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->name('messages.delete');
         Route::post('/messages/{message}/reactions', [ReactionController::class, 'toggle'])->name('reactions.toggle');
+        Route::post('/rooms/{room}/typing', [TypingController::class, 'store'])->name('typing.set');
     });

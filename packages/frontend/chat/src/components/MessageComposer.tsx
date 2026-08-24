@@ -12,6 +12,8 @@ interface MessageComposerProps {
   editing?: Message | null;
   onSubmitEdit?: (messageId: string, body: string) => Promise<unknown>;
   onCancelEdit?: () => void;
+  /** Сигнал набора текста (троттлится вызывающей стороной). */
+  onTyping?: () => void;
 }
 
 /** Композер: отправка/редактирование, ответы, упоминания через @. */
@@ -23,6 +25,7 @@ export function MessageComposer({
   editing,
   onSubmitEdit,
   onCancelEdit,
+  onTyping,
 }: MessageComposerProps) {
   const [body, setBody] = useState(editing?.body ?? '');
   const [mentions, setMentions] = useState<string[]>([]);
@@ -72,7 +75,10 @@ export function MessageComposer({
       <textarea
         id="composer-body"
         value={body}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          setBody(event.target.value);
+          if (!editing && event.target.value.trim() !== '') onTyping?.();
+        }}
         onKeyDown={onKeyDown}
         rows={3}
       />

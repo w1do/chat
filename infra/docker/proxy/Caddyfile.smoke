@@ -1,0 +1,16 @@
+# HTTP-only proxy для e2e/smoke: единый origin для SPA, API и WebSocket.
+:80 {
+	@websocket path /app/* /apps/*
+	handle @websocket {
+		reverse_proxy reverb:8080
+	}
+
+	@api path /api/* /up /broadcasting/* /sanctum/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}

@@ -1,0 +1,81 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import type { ConnectionState, PresenceMember, RealtimeAdapter } from '../adapters/RealtimeAdapter';
+import { applyRoomEvent, resyncRoom } from '../realtime/handlers';
+
+/**
+ * Подписка на события комнаты + presence. После reconnect выполняется
+ * HTTP-ресинхронизация — пропущенные события не теряются.
+ */
+export function useRealtimeRoom(
+  adapter: RealtimeAdapter | null,
+  roomId: string,
+  options: { enabled?: boolean } = {},
+) {
+  const enabled = options.enabled ?? true;
+  const queryClient = useQueryClient();
+  const [connection, setConnection] = useState<ConnectionState>('connected');
+  const [typingUserIds, setTypingUserIds] = useState<string[]>([]);
+  const [presentMembers, setPresentMembers] = useState<PresenceMember[]>([]);
+  const wasDisconnected = useRef(false);
+  const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    // Приватные каналы авторизуются сервером по членству: подписываемся только
+    // когда пользователь уже участник, и переподписываемся при его изменении.
+    if (!adapter || !enabled) return;
+
+    const room = adapter.subscribeRoom(roomId, (event) => applyRoomEvent(queryClient, event));
+
+    const presence = adapter.subscribePresence(roomId, {
+      onHere: (members) => setPresentMembers(members),
+      onJoining: (member) =>
+        setPresentMembers((current) =>
+          current.some((m) => m.id === member.id) ? current : [...current, member],
+        ),
+      onLeaving: (member) => setPresentMembers((current) => current.filter((m) => m.id !== member.id)),
+      onEvent: (event) => {
+        if (event.event !== 'typing.changed.v1') return;
+        const { user_id: userId, is_typing: isTyping } = event.data;
+
+        const timers = typingTimers.current;
+        const existing = timers.get(userId);
+        if (existing) clearTimeout(existing);
+
+        if (isTyping) {
+          setTypingUserIds((current) => (current.includes(userId) ? current : [...current, userId]));
+          // Страховочный таймаут на случай потери события "перестал печатать".
+          timers.set(
+            userId,
+            setTimeout(() => setTypingUserIds((current) => current.filter((id) => id !== userId)), 7000),
+          );
+        } else {
+          timers.delete(userId);
+          setTypingUserIds((current) => current.filter((id) => id !== userId));
+        }
+      },
+    });
+
+    const offConnection = adapter.onConnectionChange((state) => {
+      setConnection(state);
+      if (state !== 'connected') {
+        wasDisconnected.current = true;
+        return;
+      }
+      if (wasDisconnected.current) {
+        wasDisconnected.current = false;
+        resyncRoom(queryClient, roomId);
+      }
+    });
+
+    return () => {
+      room.unsubscribe();
+      presence.unsubscribe();
+      offConnection();
+      typingTimers.current.forEach((timer) => clearTimeout(timer));
+      typingTimers.current.clear();
+    };
+  }, [adapter, roomId, enabled, queryClient]);
+
+  return { connection, typingUserIds, presentMembers };
+}

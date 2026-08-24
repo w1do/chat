@@ -1,4 +1,5 @@
 import {
+  ConnectionBanner,
   CreateRoomForm,
   MessageComposer,
   MessageList,
@@ -8,16 +9,22 @@ import {
   useDeleteMessage,
   useEditMessage,
   useMembers,
+  useMembershipActions,
   useMessages,
   useReactions,
   useRoom,
   useRooms,
+  useRealtimeRoom,
   useSendMessage,
+  useTyping,
+  PresenceDots,
+  TypingIndicator,
   type Message,
 } from '@vendor/chat';
 import { useAuth } from '@vendor/identity';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { realtimeAdapter } from '../app/echo';
 
 export function ChatPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -64,6 +71,13 @@ function ActiveRoom({ roomId }: { roomId: string }) {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
 
+  const isMember = room.data?.my_role != null;
+  const { connection, typingUserIds, presentMembers } = useRealtimeRoom(realtimeAdapter(), roomId, {
+    enabled: isMember,
+  });
+  const typing = useTyping(roomId);
+  const membership = useMembershipActions(roomId);
+
   if (room.isLoading) return <p aria-busy="true">Загрузка комнаты…</p>;
   if (room.error || !room.data) return <p role="alert">Не удалось открыть комнату.</p>;
 
@@ -73,6 +87,13 @@ function ActiveRoom({ roomId }: { roomId: string }) {
   return (
     <section>
       <RoomHeader room={room.data} onOpenSettings={() => navigate(`/rooms/${roomId}/settings`)} />
+      <ConnectionBanner state={connection} />
+      {room.data.my_role === null && room.data.visibility === 'public' ? (
+        <button type="button" onClick={() => void membership.join.mutateAsync().then(() => room.refetch())}>
+          Вступить в комнату
+        </button>
+      ) : null}
+      <PresenceDots members={presentMembers} />
 
       <MessageList
         messages={flatMessages}
@@ -94,10 +115,20 @@ function ActiveRoom({ roomId }: { roomId: string }) {
         onToggleReaction={(messageId, emoji) => react.mutate({ messageId, emoji })}
       />
 
+      <TypingIndicator
+        typingUserIds={typingUserIds}
+        currentUserId={user?.id}
+        namesById={new Map((members.data ?? []).map((m) => [m.user_id, m.name ?? m.user_id]))}
+      />
+
       <MessageComposer
         key={editing?.id ?? 'composer'}
-        onSend={(input) => send.mutateAsync(input)}
+        onSend={async (input) => {
+          typing.stopTyping();
+          return send.mutateAsync(input);
+        }}
         members={members.data}
+        onTyping={typing.notifyTyping}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         editing={editing}

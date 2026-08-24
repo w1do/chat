@@ -10,6 +10,11 @@ return [
         'page_size' => 50,
     ],
 
+    'presence' => [
+        'active_ttl_seconds' => 60,
+        'typing_ttl_seconds' => 7,
+    ],
+
     'routes' => [
         'enabled' => true,
         'prefix' => 'api/v1',

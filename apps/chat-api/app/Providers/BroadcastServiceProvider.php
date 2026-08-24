@@ -11,7 +11,9 @@ final class BroadcastServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        Broadcast::routes(['middleware' => ['auth:sanctum']]);
+        // Sanctum SPA: маршрут авторизации каналов должен пройти session-стек
+        // (иначе cookie не читается и auth возвращает 401) — ADR-005.
+        Broadcast::routes(['middleware' => ['web', 'auth:sanctum']]);
 
         require base_path('routes/channels.php');
     }

@@ -3,6 +3,12 @@
 declare(strict_types=1);
 
 use Opis\JsonSchema\Validator;
+use Vendor\Chat\Infrastructure\Broadcasting\MessageCreatedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\MessageDeletedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\MessageUpdatedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\ReactionChangedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\RoomMemberChangedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\TypingChangedV1;
 
 const REALTIME_EVENTS = [
     'message.created.v1',
@@ -54,4 +60,57 @@ it('rejects payloads of the wrong event name or version', function (): void {
     $result = realtimeValidator()->validate($payload, 'https://contracts.chat.local/realtime/typing.changed.v1.schema.json');
 
     expect($result->isValid())->toBeFalse();
+});
+
+it('produces broadcast payloads that validate against the contract schemas', function (): void {
+    $roomId = '01j8zc2v9q4t5w6x7y8z9abcde';
+    $userId = '01j8zc2v9q4t5w6x7y8z9abcdf';
+    $messageId = '01j8zc2v9q4t5w6x7y8z9abcdg';
+    $now = '2026-08-24T12:00:00Z';
+
+    $events = [
+        new MessageCreatedV1($roomId, [
+            'id' => $messageId,
+            'author' => ['id' => $userId, 'name' => 'Alice'],
+            'body' => 'Hello',
+            'reply_to_id' => null,
+            'created_at' => $now,
+        ], $now),
+        new MessageUpdatedV1($roomId, [
+            'id' => $messageId,
+            'body' => 'Edited',
+            'edited_at' => $now,
+        ], $now),
+        new MessageDeletedV1($roomId, [
+            'id' => $messageId,
+            'deleted_at' => $now,
+        ], $now),
+        new ReactionChangedV1($roomId, [
+            'message_id' => $messageId,
+            'user_id' => $userId,
+            'emoji' => '👍',
+            'action' => 'added',
+            'count' => 1,
+        ], $now),
+        new RoomMemberChangedV1($roomId, [
+            'user_id' => $userId,
+            'action' => 'joined',
+            'role' => 'member',
+        ], $now),
+        new TypingChangedV1($roomId, [
+            'user_id' => $userId,
+            'is_typing' => true,
+        ], $now),
+    ];
+
+    foreach ($events as $event) {
+        $payload = json_decode(json_encode($event->broadcastWith()));
+        $schema = 'https://contracts.chat.local/realtime/'.$event->broadcastAs().'.schema.json';
+
+        $result = realtimeValidator()->validate($payload, $schema);
+
+        expect($result->isValid())->toBeTrue(
+            $event->broadcastAs().': '.($result->hasError() ? json_encode($result->error()->message()) : ''),
+        );
+    }
 });

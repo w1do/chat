@@ -62,12 +62,12 @@
 
 ## 7. Stage 7 — Real-Time, Presence, Typing (API + Web)
 
-- [ ] 7.1 Implement `Infrastructure/Broadcasting/{MessageCreatedV1,…,TypingChangedV1}` broadcast classes dispatched after commit, `routes/channels.php` authorization for room/user private and presence channels, and verify channel tests reject non-members and event tests prove no broadcast on rollback (скиллы: `architecture-ddd`, `spatie-laravel-php`)
-- [ ] 7.2 Implement `Infrastructure/Presence/RedisPresenceRegistry` behind `Domain/Contracts/PresenceRegistry` with TTLs, plus SetTyping command, and verify tests cover typing timeout, disconnect cleanup, and active-in-room detection (скиллы: `architecture-ddd`, `dtos`, `spatie-laravel-php`)
-- [ ] 7.3 Validate broadcast payloads against `packages/contracts` schemas in `RealtimeSchemaTest`, and verify all six event fixtures validate (скиллы: `spatie-laravel-php`)
-- [ ] 7.4 Implement frontend real-time: `realtime/{eventMap,handlers}.ts` typed from contracts, `adapters/EchoAdapter`, hooks (`useRealtimeRoom`, `useTyping`, `useReconnectSync`) with HTTP resync after reconnect, `TypingIndicator`, `PresenceDots`, reconnecting UI state, and verify integration tests cover live message application and missed-event reconciliation
-- [ ] 7.5 Add Playwright `e2e/realtime.spec.ts`: two users, live delivery, typing, disconnect/reconnect/resync, and verify `./tools/chat e2e realtime` passes against the dev stack
-- [ ] 7.6 Documentation gate: write `docs/features/presence-typing.md`, ADR-003 (Reverb delivery model), update `docs/api/realtime-events.md`, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke websocket` delivers a real event before `verified` (скиллы: `documentation`)
+- [x] 7.1 Implement `Infrastructure/Broadcasting/{MessageCreatedV1,…,TypingChangedV1}` broadcast classes dispatched after commit, `routes/channels.php` authorization for room/user private and presence channels, and verify channel tests reject non-members and event tests prove no broadcast on rollback (скиллы: `architecture-ddd`, `spatie-laravel-php`)
+- [x] 7.2 Implement `Infrastructure/Presence/RedisPresenceRegistry` behind `Domain/Contracts/PresenceRegistry` with TTLs, plus SetTyping command, and verify tests cover typing timeout, disconnect cleanup, and active-in-room detection (скиллы: `architecture-ddd`, `dtos`, `spatie-laravel-php`)
+- [x] 7.3 Validate broadcast payloads against `packages/contracts` schemas in `RealtimeSchemaTest`, and verify all six event fixtures validate (скиллы: `spatie-laravel-php`)
+- [x] 7.4 Implement frontend real-time: `realtime/{eventMap,handlers}.ts` typed from contracts, `adapters/EchoAdapter`, hooks (`useRealtimeRoom`, `useTyping`, `useReconnectSync`) with HTTP resync after reconnect, `TypingIndicator`, `PresenceDots`, reconnecting UI state, and verify integration tests cover live message application and missed-event reconciliation
+- [x] 7.5 Add Playwright `e2e/realtime.spec.ts`: two users, live delivery, typing, disconnect/reconnect/resync, and verify `./tools/chat e2e realtime` passes against the dev stack
+- [x] 7.6 Documentation gate: write `docs/features/presence-typing.md`, ADR-003 (Reverb delivery model), update `docs/api/realtime-events.md`, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke websocket` delivers a real event before `verified` (скиллы: `documentation`)
 
 ## 8. Stage 8 — Offline Notifications And Preferences (API + Web)
 

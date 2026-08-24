@@ -7,6 +7,24 @@
 
 ### Added
 
+- Real-time, присутствие, набор текста (этап 7 roadmap):
+  - broadcast-классы `*V1` с конвертом контрактов и `ShouldDispatchAfterCommit`,
+    мост доменных событий, события членства и typing;
+  - авторизация каналов в `routes/channels.php` (room/presence/user), маршрут
+    `/broadcasting/auth` через session-стек;
+  - `PresenceRegistry` + `RedisPresenceRegistry` (TTL, очистка просроченных),
+    `SetTyping` команда и endpoint `POST /rooms/{room}/typing`;
+  - контрактный тест реальных broadcast-payload'ов против JSON Schema;
+  - фронтенд: `eventMap`/`handlers`, `EchoAdapter`, `useRealtimeRoom`
+    (подписка только для участников, HTTP-ресинк после reconnect), `useTyping`,
+    `TypingIndicator`, `PresenceDots`, `ConnectionBanner`;
+  - CSRF-handshake и `X-XSRF-TOKEN` в `@vendor/api-client` и Echo-auth;
+  - оптимистичное сообщение заменяется серверным (без дублей с WS-событием),
+    безопасный фолбэк ключа идемпотентности вне secure context;
+  - `./tools/chat up|down` (локальный стек), `e2e <spec>`, `smoke websocket`;
+    Playwright-сценарий `e2e/realtime.spec.ts` (два пользователя, typing,
+    reconnect/resync) проходит против полного стека;
+  - ADR-003, `docs/features/presence-typing.md`, обновлён `docs/api/realtime-events.md`.
 - Сообщения, ответы, реакции, упоминания (этап 6 roadmap):
   - миграции `messages` (self-FK ответов с restrict, soft delete, индекс
     (room_id,id) под ULID-курсор) и `message_reactions` (уникальность

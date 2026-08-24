@@ -46,12 +46,19 @@ final readonly class ToggleReactionHandler
             return [true, $message->room_id];
         });
 
-        $this->events->dispatch(new ReactionChanged($roomId, $command->messageId));
-
         $count = MessageReaction::query()
             ->where('message_id', $command->messageId)
             ->where('emoji', $command->emoji)
             ->count();
+
+        $this->events->dispatch(new ReactionChanged(
+            roomId: $roomId,
+            messageId: $command->messageId,
+            userId: $command->userId,
+            emoji: $command->emoji,
+            action: $reacted ? 'added' : 'removed',
+            count: $count,
+        ));
 
         return new ReactionData(emoji: $command->emoji, count: $count, reactedByMe: $reacted);
     }

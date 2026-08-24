@@ -23,14 +23,14 @@ export function useSendMessage(roomId: string, authorId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: SendMessageInput) =>
-      messagesApi.send(client, roomId, input, crypto.randomUUID()),
+    mutationFn: (input: SendMessageInput) => messagesApi.send(client, roomId, input, idempotencyKey()),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: messagesKey(roomId) });
       const previous = queryClient.getQueryData<MessagesData>(messagesKey(roomId));
 
+      const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const optimistic: Message = {
-        id: `optimistic-${Date.now()}`,
+        id: optimisticId,
         room_id: roomId,
         author_id: authorId,
         author_name: null,
@@ -50,7 +50,29 @@ export function useSendMessage(roomId: string, authorId: string) {
         return { ...data, pages: [{ ...first, data: [optimistic, ...first.data] }, ...rest] };
       });
 
-      return { previous };
+      return { previous, optimisticId };
+    },
+    onSuccess: (message, _input, context) => {
+      // Заменяем оптимистичную запись серверной: иначе real-time событие
+      // добавит второе сообщение с тем же текстом.
+      queryClient.setQueryData<MessagesData>(messagesKey(roomId), (data) => {
+        if (!data) return data;
+        let replaced = false;
+        const pages = data.pages.map((page) => ({
+          ...page,
+          data: page.data.flatMap((item) => {
+            if (item.id === context?.optimisticId) {
+              replaced = true;
+
+              return page.data.some((m) => m.id === message.id) ? [] : [message];
+            }
+
+            return item.id === message.id && replaced ? [] : [item];
+          }),
+        }));
+
+        return { ...data, pages };
+      });
     },
     onError: (_error, _input, context) => {
       // Rollback: ошибка отправки не оставляет фантомное сообщение.
@@ -124,4 +146,17 @@ export function useReactions(roomId: string) {
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: messagesKey(roomId) }),
   });
+}
+
+/**
+ * Ключ идемпотентности отправки. `crypto.randomUUID` доступен только в
+ * secure context (https/localhost), поэтому нужен фолбэк.
+ */
+function idempotencyKey(): string {
+  const uuid = globalThis.crypto?.randomUUID;
+  if (typeof uuid === 'function') return globalThis.crypto.randomUUID();
+
+  const random = Math.random().toString(36).slice(2);
+
+  return `send-${Date.now().toString(36)}-${random}`;
 }

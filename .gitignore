@@ -16,3 +16,5 @@ composer.lock.tmp
 coverage/
 .phpunit.result.cache
 .phpunit.cache/
+/apps/chat-web/test-results/
+/apps/chat-web/playwright-report/
