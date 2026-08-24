@@ -10,9 +10,11 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Vendor\Chat\Application\Commands\DeleteMessageCommand;
 use Vendor\Chat\Application\Commands\EditMessageCommand;
+use Vendor\Chat\Application\Commands\MarkRoomReadCommand;
 use Vendor\Chat\Application\Commands\SendMessageCommand;
 use Vendor\Chat\Application\Handlers\Commands\DeleteMessageHandler;
 use Vendor\Chat\Application\Handlers\Commands\EditMessageHandler;
+use Vendor\Chat\Application\Handlers\Commands\MarkRoomReadHandler;
 use Vendor\Chat\Application\Handlers\Commands\SendMessageHandler;
 use Vendor\Chat\Application\Handlers\Queries\GetMessageHandler;
 use Vendor\Chat\Application\Handlers\Queries\ListMessagesHandler;
@@ -21,6 +23,7 @@ use Vendor\Chat\Application\Queries\ListMessagesQuery;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Presentation\Http\Api\V1\Requests\EditMessageRequest;
+use Vendor\Chat\Presentation\Http\Api\V1\Requests\MarkRoomReadRequest;
 use Vendor\Chat\Presentation\Http\Api\V1\Requests\SendMessageRequest;
 use Vendor\Chat\Presentation\Http\Api\V1\Resources\MessageResource;
 
@@ -60,6 +63,19 @@ final class MessageController
         return MessageResource::make($result['message'])
             ->response()
             ->setStatusCode($result['replayed'] ? 200 : 201);
+    }
+
+    public function markRead(MarkRoomReadRequest $request, Room $room, MarkRoomReadHandler $handler): Response
+    {
+        Gate::authorize('viewAny', [Message::class, $room]);
+
+        $handler->handle(new MarkRoomReadCommand(
+            roomId: $room->id,
+            userId: (string) $request->user()->getAuthIdentifier(),
+            lastReadMessageId: $request->validated()['last_read_message_id'],
+        ));
+
+        return response()->noContent();
     }
 
     public function show(Message $message, GetMessageHandler $handler): MessageResource

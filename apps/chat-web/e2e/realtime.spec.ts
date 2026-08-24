@@ -25,6 +25,7 @@ test('two users chat in real time with typing and reconnect resync', async ({ br
 
   // Alice создаёт публичную комнату.
   const roomName = `E2E Room ${suffix}`;
+  await alice.getByRole('button', { name: 'Новая комната' }).click();
   await alice.getByRole('textbox', { name: 'Название' }).fill(roomName);
   await alice.getByRole('button', { name: 'Создать' }).click();
   await expect(alice.getByRole('heading', { name: roomName })).toBeVisible();

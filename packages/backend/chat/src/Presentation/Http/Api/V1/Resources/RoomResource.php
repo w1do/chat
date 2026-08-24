@@ -24,6 +24,7 @@ final class RoomResource extends JsonResource
             'created_at' => $this->resource->createdAt,
             'my_role' => $this->resource->myRole,
             'member_count' => $this->resource->memberCount,
+            'unread_count' => $this->resource->unreadCount,
         ];
     }
 }

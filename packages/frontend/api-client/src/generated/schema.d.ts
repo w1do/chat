@@ -282,6 +282,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{room}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметка прочтения (не двигается назад) */
+        post: operations["markRoomRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{room}/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сигнал набора текста (транслируется в presence-канал) */
+        post: operations["setTyping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -346,6 +384,8 @@ export interface components {
              */
             my_role: "owner" | "admin" | "member" | null;
             member_count: number | null;
+            /** @description Непрочитанные сообщения; null для комнат, где пользователь не состоит. */
+            unread_count: number | null;
         };
         User: {
             /** @description ULID пользователя. */
@@ -1139,6 +1179,64 @@ export interface operations {
                         data: components["schemas"]["Message"];
                     };
                 };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    markRoomRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    last_read_message_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Отметка обновлена. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    setTyping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_typing: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Сигнал принят. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];

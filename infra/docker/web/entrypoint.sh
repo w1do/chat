@@ -5,9 +5,10 @@
 set -eu
 
 : "${API_BASE_URL:=/api/v1}"
-: "${REVERB_HOST:=localhost}"
-: "${REVERB_PORT:=443}"
-: "${REVERB_SCHEME:=https}"
+# Пустые значения означают «тот же origin, что и страница» (см. app/echo.ts).
+: "${REVERB_HOST:=}"
+: "${REVERB_PORT:=}"
+: "${REVERB_SCHEME:=}"
 : "${REVERB_APP_KEY:=}"
 : "${AI_ENABLED:=false}"
 : "${APP_NAME:=Self-Hosted Chat}"

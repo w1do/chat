@@ -1,4 +1,31 @@
-/* Tailwind подключается вместе с первым UI-этапом (этап 4). */
-:root {
-  color-scheme: light dark;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Анимации и утилиты мобильного интерфейса из дизайн-системы. */
+@import '@vendor/ui/styles/global.css';
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Скрытая подпись для скринридеров. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

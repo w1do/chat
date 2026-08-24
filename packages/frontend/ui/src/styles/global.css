@@ -1,0 +1,48 @@
+/* Анимации и утилиты мобильного интерфейса.
+   Подключается приложением один раз (apps/chat-web/src/styles/index.css). */
+
+.enter { animation: enter 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.enter-left { animation: enterLeft 0.34s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.enter-right { animation: enterRight 0.34s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.pop { animation: pop 0.32s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+.dot { display: inline-block; animation: dot 1.1s ease-in-out infinite; }
+
+.tap { transition: transform 0.14s ease, opacity 0.14s ease; }
+.tap:active { transform: scale(0.94); opacity: 0.85; }
+
+.scroll-area { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.blur-chrome {
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+}
+.tnum { font-variant-numeric: tabular-nums; }
+.safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+
+/* Выключенные анимации: системная настройка «уменьшить движение» или тумблер. */
+.still *, .still *::before, .still *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enterLeft {
+  from { opacity: 0; transform: translate(-8px, 10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enterRight {
+  from { opacity: 0; transform: translate(8px, 10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  65% { transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes dot {
+  0%, 65%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}

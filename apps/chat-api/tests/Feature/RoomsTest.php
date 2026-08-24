@@ -146,3 +146,40 @@ it('requires authentication for all room endpoints', function (): void {
     $this->postJson('/api/v1/rooms', [])->assertStatus(401);
     $this->getJson("/api/v1/rooms/{$room->id}/members")->assertStatus(401);
 });
+
+it('reports unread counters in the room list and clears them on read', function (): void {
+    $room = Room::factory()->create();
+    $reader = memberOf($room, RoomRole::Member);
+    $author = memberOf($room, RoomRole::Owner);
+
+    $messages = Vendor\Chat\Domain\Models\Message::factory()
+        ->for($room)
+        ->count(3)
+        ->create(['author_id' => $author->getKey()])
+        ->sortBy('id')
+        ->values();
+
+    $list = $this->actingAs($reader)->getJson('/api/v1/rooms')->assertOk();
+    expect(collect($list->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBe(3);
+
+    $this->postJson("/api/v1/rooms/{$room->id}/read", ['last_read_message_id' => $messages[1]->id])
+        ->assertNoContent();
+
+    $after = $this->getJson('/api/v1/rooms')->assertOk();
+    expect(collect($after->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBe(1);
+
+    // Свои сообщения не считаются непрочитанными.
+    Vendor\Chat\Domain\Models\Message::factory()->for($room)->create(['author_id' => $reader->getKey()]);
+    $own = $this->getJson('/api/v1/rooms')->assertOk();
+    expect(collect($own->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBe(1);
+});
+
+it('does not report unread counters for rooms the user has not joined', function (): void {
+    $room = Room::factory()->create();
+    memberOf($room, RoomRole::Owner);
+    $outsider = User::factory()->create();
+
+    $list = $this->actingAs($outsider)->getJson('/api/v1/rooms')->assertOk();
+
+    expect(collect($list->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBeNull();
+});

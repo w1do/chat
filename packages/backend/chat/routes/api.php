@@ -33,4 +33,5 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->name('messages.delete');
         Route::post('/messages/{message}/reactions', [ReactionController::class, 'toggle'])->name('reactions.toggle');
         Route::post('/rooms/{room}/typing', [TypingController::class, 'store'])->name('typing.set');
+        Route::post('/rooms/{room}/read', [MessageController::class, 'markRead'])->name('messages.read');
     });

@@ -1,0 +1,287 @@
+import { Avatar, Dots, RADIUS, roomEmoji, useElementHeight, voiceHue, type ThemeTokens } from '@vendor/ui';
+import { Lock, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import type { Room } from '../../schemas/room';
+import { formatTime } from '../../format';
+
+interface RoomsScreenProps {
+  rooms: Room[] | undefined;
+  isLoading: boolean;
+  error?: unknown;
+  theme: ThemeTokens;
+  currentUser: { id: string; name: string } | null;
+  /** Кто сейчас печатает в комнате: roomId → имя. */
+  typingByRoom?: Record<string, string>;
+  onOpen: (roomId: string) => void;
+  onRetry: () => void;
+  onProfile: () => void;
+  onCreateRoom: (input: { name: string; visibility: 'public' | 'private' }) => Promise<unknown>;
+}
+
+/** Экран «Чаты»: список комнат, счётчики непрочитанного, создание комнаты. */
+export function RoomsScreen({
+  rooms,
+  isLoading,
+  error,
+  theme,
+  currentUser,
+  typingByRoom = {},
+  onOpen,
+  onRetry,
+  onProfile,
+  onCreateRoom,
+}: RoomsScreenProps) {
+  const headerRef = useRef<HTMLElement>(null);
+  const headerHeight = useElementHeight(headerRef);
+  const [creating, setCreating] = useState(false);
+
+  return (
+    <div className="relative h-full" style={{ background: theme.bg }}>
+      <div
+        className="absolute inset-0 overflow-y-auto scroll-area"
+        style={{ paddingTop: headerHeight, paddingBottom: 96 }}
+      >
+        <div className="px-3 pt-2">
+          {isLoading ? (
+            <p aria-busy="true" className="px-2 py-6 text-[15px]" style={{ color: theme.muted }}>
+              Загрузка комнат…
+            </p>
+          ) : error ? (
+            <div role="alert" className="px-2 py-6">
+              <p className="text-[15px]" style={{ color: theme.text }}>
+                Не удалось загрузить комнаты.
+              </p>
+              <button type="button" onClick={onRetry} className="mt-2 text-[15px] tap" style={{ color: theme.amberText }}>
+                Повторить
+              </button>
+            </div>
+          ) : !rooms || rooms.length === 0 ? (
+            <p role="status" className="px-2 py-6 text-[15px]" style={{ color: theme.muted }}>
+              Комнат пока нет — создайте первую.
+            </p>
+          ) : (
+            <nav aria-label="Комнаты">
+              <ul style={{ background: theme.surface, borderRadius: RADIUS.md, overflow: 'hidden' }}>
+                {rooms.map((room, index) => {
+                  const unread = room.unread_count ?? 0;
+                  const typingName = typingByRoom[room.id];
+                  const isMember = room.my_role !== null;
+
+                  return (
+                    <li key={room.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(room.id)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left tap enter"
+                        style={{
+                          borderBottom: index === rooms.length - 1 ? 'none' : `1px solid ${theme.hairline}`,
+                          animationDelay: `${index * 0.035}s`,
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="grid place-items-center shrink-0"
+                          style={{ width: 46, height: 46, borderRadius: 16, background: theme.surfaceAlt, fontSize: 21 }}
+                        >
+                          {roomEmoji(room.name)}
+                        </span>
+
+                        <span className="flex-1 min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className="text-[16px] font-semibold truncate"
+                              style={{ color: theme.text, letterSpacing: '-0.01em' }}
+                            >
+                              {room.name}
+                            </span>
+                            {room.visibility === 'private' ? <Lock size={12} style={{ color: theme.faint }} /> : null}
+                          </span>
+
+                          {typingName ? (
+                            <span className="flex items-center gap-1.5 mt-0.5 text-[14px]" style={{ color: theme.muted }}>
+                              {typingName} печатает <Dots color={theme.muted} size={4} />
+                            </span>
+                          ) : (
+                            <span className="block text-[14px] truncate mt-0.5" style={{ color: theme.muted }}>
+                              {room.topic ?? (isMember ? 'Вы участник' : 'Открытая комната — можно вступить')}
+                            </span>
+                          )}
+                        </span>
+
+                        <span className="flex flex-col items-end gap-1 shrink-0" style={{ minWidth: 42 }}>
+                          <span className="text-[12px] tnum" style={{ color: theme.faint }}>
+                            {room.member_count ?? 0} 👤
+                          </span>
+                          {unread > 0 ? (
+                            <span
+                              aria-label={`Непрочитанных: ${unread}`}
+                              className="pop text-[11.5px] font-semibold grid place-items-center"
+                              style={{
+                                minWidth: 20,
+                                height: 20,
+                                padding: '0 6px',
+                                borderRadius: 10,
+                                background: theme.text,
+                                color: theme.bg,
+                              }}
+                            >
+                              {unread}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
+
+          <CreateRoomCard
+            theme={theme}
+            open={creating}
+            onToggle={() => setCreating((value) => !value)}
+            onSubmit={async (input) => {
+              await onCreateRoom(input);
+              setCreating(false);
+            }}
+          />
+        </div>
+      </div>
+
+      <header
+        ref={headerRef}
+        className="absolute top-0 left-0 right-0 z-10 px-5 pb-3 safe-top blur-chrome"
+        style={{ background: theme.chromeAlpha }}
+      >
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-[28px] font-semibold" style={{ color: theme.text, letterSpacing: '-0.035em' }}>
+              Чаты
+            </h1>
+            <p className="text-[13px] mt-0.5" style={{ color: theme.muted }}>
+              {rooms ? `${rooms.length} комнат` : '…'}
+            </p>
+          </div>
+          <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
+            {currentUser ? (
+              <Avatar userId={currentUser.id} name={currentUser.name} size={40} theme={theme} online />
+            ) : null}
+          </button>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+function CreateRoomCard({
+  theme,
+  open,
+  onToggle,
+  onSubmit,
+}: {
+  theme: ThemeTokens;
+  open: boolean;
+  onToggle: () => void;
+  onSubmit: (input: { name: string; visibility: 'public' | 'private' }) => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 mt-3 px-3 py-3 tap"
+        style={{ background: theme.surface, borderRadius: RADIUS.md, color: theme.text }}
+      >
+        <span
+          aria-hidden="true"
+          className="grid place-items-center"
+          style={{ width: 28, height: 28, borderRadius: 14, background: theme.surfaceAlt, color: voiceHue('new-room') }}
+        >
+          <Plus size={16} />
+        </span>
+        <span className="text-[16px]">Новая комната</span>
+      </button>
+    );
+  }
+
+  return (
+    <form
+      aria-label="create-room"
+      className="mt-3 p-3"
+      style={{ background: theme.surface, borderRadius: RADIUS.md }}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (!name.trim()) {
+          setError('Укажите название комнаты.');
+          return;
+        }
+        setError(null);
+        setBusy(true);
+        try {
+          await onSubmit({ name: name.trim(), visibility });
+          setName('');
+        } catch {
+          setError('Не удалось создать комнату.');
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {error ? (
+        <p role="alert" className="text-[13px] mb-2" style={{ color: theme.danger }}>
+          {error}
+        </p>
+      ) : null}
+
+      <label htmlFor="new-room-name" className="block text-[13px] mb-1" style={{ color: theme.muted }}>
+        Название
+      </label>
+      <input
+        id="new-room-name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        className="w-full px-3 py-2 mb-3 outline-none"
+        style={{ background: theme.surfaceAlt, borderRadius: RADIUS.sm, color: theme.text, fontSize: 16 }}
+      />
+
+      <label htmlFor="new-room-visibility" className="block text-[13px] mb-1" style={{ color: theme.muted }}>
+        Видимость
+      </label>
+      <select
+        id="new-room-visibility"
+        value={visibility}
+        onChange={(event) => setVisibility(event.target.value as 'public' | 'private')}
+        className="w-full px-3 py-2 mb-3 outline-none"
+        style={{ background: theme.surfaceAlt, borderRadius: RADIUS.sm, color: theme.text, fontSize: 16 }}
+      >
+        <option value="public">Открытая — видна всем</option>
+        <option value="private">Закрытая — только участникам</option>
+      </select>
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex-1 py-2.5 tap text-[15px] font-medium"
+          style={{ background: theme.text, color: theme.bg, borderRadius: RADIUS.sm }}
+        >
+          {busy ? 'Создаём…' : 'Создать'}
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="px-4 py-2.5 tap text-[15px]"
+          style={{ background: theme.surfaceAlt, color: theme.muted, borderRadius: RADIUS.sm }}
+        >
+          Отмена
+        </button>
+      </div>
+    </form>
+  );
+}

@@ -13,21 +13,36 @@ declare global {
 
 let adapter: RealtimeAdapter | null = null;
 
+/**
+ * Адрес WebSocket. По умолчанию — origin страницы: в self-hosted стеке
+ * Reverb стоит за тем же reverse proxy, что и SPA (ADR-003/007), поэтому
+ * жёстко зашитый хост только ломает доступ с других адресов.
+ * Явные значения в config.json переопределяют это поведение.
+ */
+function socketEndpoint(config: RuntimeConfig): { host: string; port: number; tls: boolean } {
+  const scheme = config.reverb.scheme || window.location.protocol.replace(':', '');
+  const tls = scheme === 'https';
+  const port = Number(config.reverb.port) || Number(window.location.port) || (tls ? 443 : 80);
+
+  return { host: config.reverb.host || window.location.hostname, port, tls };
+}
+
 export function createRealtimeAdapter(config: RuntimeConfig): RealtimeAdapter | null {
   if (adapter) return adapter;
   if (!config.reverb.appKey) return null;
 
   window.Pusher = Pusher;
+  const socket = socketEndpoint(config);
 
   // Sanctum SPA: /broadcasting/auth — stateful-маршрут, требует XSRF-токен
   // (Echo не читает cookie самостоятельно).
   const echo = new Echo({
     broadcaster: 'reverb',
     key: config.reverb.appKey,
-    wsHost: config.reverb.host,
-    wsPort: Number(config.reverb.port),
-    wssPort: Number(config.reverb.port),
-    forceTLS: config.reverb.scheme === 'https',
+    wsHost: socket.host,
+    wsPort: socket.port,
+    wssPort: socket.port,
+    forceTLS: socket.tls,
     enabledTransports: ['ws', 'wss'],
     authEndpoint: '/broadcasting/auth',
     auth: {

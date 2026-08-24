@@ -18,10 +18,15 @@ final readonly class RoomData
         public string $createdAt,
         public ?string $myRole = null,
         public ?int $memberCount = null,
+        public ?int $unreadCount = null,
     ) {}
 
-    public static function fromModel(Room $room, ?string $myRole = null, ?int $memberCount = null): self
-    {
+    public static function fromModel(
+        Room $room,
+        ?string $myRole = null,
+        ?int $memberCount = null,
+        ?int $unreadCount = null,
+    ): self {
         return new self(
             id: $room->id,
             name: $room->name,
@@ -32,6 +37,7 @@ final readonly class RoomData
             createdAt: (string) $room->created_at?->toIso8601String(),
             myRole: $myRole,
             memberCount: $memberCount,
+            unreadCount: $unreadCount,
         );
     }
 }

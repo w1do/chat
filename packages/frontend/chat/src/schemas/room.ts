@@ -10,6 +10,7 @@ export const roomSchema = z.object({
   created_at: z.string(),
   my_role: z.enum(['owner', 'admin', 'member']).nullable(),
   member_count: z.number().nullable(),
+  unread_count: z.number().nullable(),
 });
 
 export const memberSchema = z.object({

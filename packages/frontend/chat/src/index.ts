@@ -15,18 +15,13 @@ export { PresenceDots } from './components/PresenceDots';
 export { TypingIndicator } from './components/TypingIndicator';
 export { useRealtimeRoom } from './hooks/useRealtimeRoom';
 export { useTyping } from './hooks/useTyping';
-export { CreateRoomForm } from './components/CreateRoomForm';
-export { MembershipManager } from './components/MembershipManager';
-export { RoomHeader } from './components/RoomHeader';
-export { RoomList } from './components/RoomList';
+export { ChatScreen } from './components/mobile/ChatScreen';
+export { MagicSheet, MAGIC_ACTIONS, type MagicAction, type MagicPhase } from './components/mobile/MagicSheet';
+export { RoomsScreen } from './components/mobile/RoomsScreen';
+export { buildGroups, dayLabel, formatTime, ROLE_LABEL } from './format';
 export { useDeleteMessage, useEditMessage, useMessages, useReactions, useSendMessage } from './hooks/useMessages';
 export { useCreateRoom, useMembers, useMembershipActions, useRoom, useRooms } from './hooks/useRooms';
 export { MentionPicker } from './components/MentionPicker';
-export { MessageComposer } from './components/MessageComposer';
-export { MessageItem } from './components/MessageItem';
-export { MessageList } from './components/MessageList';
-export { ReactionBar } from './components/ReactionBar';
-export { ReplyPreview } from './components/ReplyPreview';
 export {
   messagePageSchema,
   messageSchema,
