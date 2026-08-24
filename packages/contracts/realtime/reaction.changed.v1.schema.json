@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.chat.local/realtime/reaction.changed.v1.schema.json",
+  "title": "reaction.changed.v1",
+  "description": "Versioned real-time event payload for reaction.changed (v1). Payload contains only data the subscriber is already authorized to read via the HTTP API.",
+  "type": "object",
+  "required": ["event", "version", "room_id", "occurred_at"],
+  "properties": {
+    "event": { "const": "reaction.changed.v1" },
+    "version": { "const": 1 },
+    "room_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
+    "occurred_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": true
+}

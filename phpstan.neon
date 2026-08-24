@@ -1,0 +1,15 @@
+parameters:
+    level: 6
+    bootstrapFiles:
+        - apps/chat-api/vendor/autoload.php
+    paths:
+        - apps/chat-api/app
+        - packages/backend/shared-kernel/src
+        - packages/backend/identity/src
+        - packages/backend/chat/src
+        - packages/backend/notifications/src
+        - packages/backend/ai/src
+        - packages/backend/administration/src
+    ignoreErrors:
+        # Testing-трейты и заготовки пакетов используются потребителями, не внутри пакета.
+        - identifier: trait.unused

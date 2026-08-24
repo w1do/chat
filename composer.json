@@ -1,0 +1,34 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "vendor/chat-self-hosted",
+    "description": "Self-hosted AI chat monorepo root: path repositories and aggregate quality scripts.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.27",
+        "phpstan/phpstan": "^2.1"
+    },
+    "repositories": [
+        { "type": "path", "url": "packages/backend/shared-kernel", "options": { "versions": { "vendor/shared-kernel": "0.1.0" } } },
+        { "type": "path", "url": "packages/backend/identity", "options": { "versions": { "vendor/identity": "0.1.0" } } },
+        { "type": "path", "url": "packages/backend/chat", "options": { "versions": { "vendor/chat": "0.1.0" } } },
+        { "type": "path", "url": "packages/backend/notifications", "options": { "versions": { "vendor/notifications": "0.1.0" } } },
+        { "type": "path", "url": "packages/backend/ai", "options": { "versions": { "vendor/ai": "0.1.0" } } },
+        { "type": "path", "url": "packages/backend/administration", "options": { "versions": { "vendor/administration": "0.1.0" } } }
+    ],
+    "scripts": {
+        "lint": "pint --test",
+        "lint:fix": "pint",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "test:packages": "tools/chat test packages"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}

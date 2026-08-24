@@ -1,0 +1,15 @@
+{
+  "name": "@vendor/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript-клиент, генерируемый из apps/chat-api/openapi/dist/openapi.json.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@vendor/tooling": "workspace:*",
+    "typescript": "^5.9.0"
+  }
+}

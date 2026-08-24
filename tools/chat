@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+#
+# ./tools/chat — единая точка входа для команд разработки монорепозитория.
+# Подкоманды добавляются поэтапно вместе с задачами roadmap.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+API_DIR="$ROOT/apps/chat-api"
+BACKEND_PKGS=(shared-kernel identity chat notifications ai administration)
+
+usage() {
+  cat <<'EOF'
+Usage: ./tools/chat <command> [args]
+
+Commands:
+  api <artisan-args…>     artisan в apps/chat-api (пример: ./tools/chat api about)
+  web <script> [args…]    pnpm-скрипт в apps/chat-web (typecheck, build, test)
+  test packages           изолированные тесты каждого backend-пакета
+  test api                тесты apps/chat-api (Pest)
+  check boundaries        запрет cross-package internal imports и Domain/ в apps
+  contracts validate      валидация JSON Schema в packages/contracts
+  lint | stan             pint / phpstan из корня
+EOF
+}
+
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+  api)
+    (cd "$API_DIR" && php artisan "$@")
+    ;;
+  web)
+    (cd "$ROOT/apps/chat-web" && pnpm run "$@")
+    ;;
+  test)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      api)
+        (cd "$API_DIR" && ./vendor/bin/pest "$@")
+        ;;
+      packages)
+        rc=0
+        for pkg in "${BACKEND_PKGS[@]}"; do
+          dir="$ROOT/packages/backend/$pkg"
+          if [[ ! -d "$dir/vendor" ]]; then
+            echo "[skip] $pkg: vendor/ отсутствует — выполните composer install в $dir" >&2
+            continue
+          fi
+          echo "== $pkg =="
+          (cd "$dir" && composer test) || rc=1
+        done
+        exit $rc
+        ;;
+      *)
+        echo "Unknown test target: $sub" >&2; exit 64
+        ;;
+    esac
+    ;;
+  check)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      boundaries)
+        rc=0
+        # 1) Domain/ или Application/ внутри apps/* запрещены (STRUCTURE.md §9)
+        if find "$ROOT/apps" -type d \( -name Domain -o -name Application \) -not -path '*/vendor/*' | grep .; then
+          echo "FAIL: Domain/ или Application/ внутри apps/*" >&2; rc=1
+        fi
+        # 2) cross-package internal imports: пакет не использует чужой Vendor\<Pkg>\ namespace,
+        #    кроме shared-kernel (общий по контракту §4.1)
+        declare -A NS=( [identity]=Identity [chat]=Chat [notifications]=Notifications [ai]=Ai [administration]=Administration )
+        for pkg in "${!NS[@]}"; do
+          for other in "${!NS[@]}"; do
+            [[ "$pkg" == "$other" ]] && continue
+            if grep -rn "Vendor\\\\${NS[$other]}\\\\" "$ROOT/packages/backend/$pkg/src" 2>/dev/null; then
+              echo "FAIL: $pkg импортирует внутренности $other" >&2; rc=1
+            fi
+          done
+        done
+        # 3) deep imports во frontend-пакетах: @vendor/<pkg>/src/... запрещены
+        if grep -rn --include='*.ts' --include='*.tsx' -E "from ['\"]@vendor/[a-z-]+/src/" \
+            "$ROOT/packages/frontend" "$ROOT/apps/chat-web/src" 2>/dev/null; then
+          echo "FAIL: deep import @vendor/*/src/**" >&2; rc=1
+        fi
+        [[ $rc -eq 0 ]] && echo "boundaries: OK"
+        exit $rc
+        ;;
+      *)
+        echo "Unknown check: $sub" >&2; exit 64
+        ;;
+    esac
+    ;;
+  contracts)
+    sub="${1:-}"; shift || true
+    if [[ "$sub" == "validate" ]]; then
+      php -r '
+        $ok = true;
+        foreach (glob($argv[1]."/packages/contracts/realtime/*.schema.json") as $f) {
+            $data = json_decode((string) file_get_contents($f));
+            if ($data === null) { fwrite(STDERR, "FAIL: $f\n"); $ok = false; continue; }
+            foreach (["\$schema", "\$id", "title", "type", "required", "properties"] as $k) {
+                if (!property_exists($data, $k)) { fwrite(STDERR, "FAIL: $f missing $k\n"); $ok = false; }
+            }
+            echo basename($f), ": OK\n";
+        }
+        exit($ok ? 0 : 1);
+      ' "$ROOT"
+    else
+      echo "Unknown contracts command: $sub" >&2; exit 64
+    fi
+    ;;
+  lint)
+    (cd "$ROOT" && ./vendor/bin/pint --test "$@")
+    ;;
+  stan)
+    (cd "$ROOT" && ./vendor/bin/phpstan analyse --memory-limit=1G "$@")
+    ;;
+  ""|help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $cmd" >&2
+    usage >&2
+    exit 64
+    ;;
+esac

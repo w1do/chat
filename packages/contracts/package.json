@@ -1,0 +1,7 @@
+{
+  "name": "@vendor/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Language-neutral JSON Schemas for versioned real-time events.",
+  "files": ["realtime"]
+}

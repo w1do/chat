@@ -1,0 +1,15 @@
+{
+  "apiBaseUrl": "${API_BASE_URL}",
+  "reverb": {
+    "host": "${REVERB_HOST}",
+    "port": "${REVERB_PORT}",
+    "scheme": "${REVERB_SCHEME}",
+    "appKey": "${REVERB_APP_KEY}"
+  },
+  "ai": {
+    "enabled": "${AI_ENABLED}"
+  },
+  "branding": {
+    "appName": "${APP_NAME}"
+  }
+}

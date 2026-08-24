@@ -1,0 +1,40 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "vendor/chat",
+    "description": "Self-hosted chat: chat backend package.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^13.0",
+        "vendor/shared-kernel": "^0.1"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "repositories": [
+        { "type": "path", "url": "../shared-kernel", "options": { "versions": { "vendor/shared-kernel": "0.1.0" } } }
+    ],
+    "autoload": {
+        "psr-4": { "Vendor\\Chat\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "Vendor\\Chat\\Tests\\": "tests/" }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Vendor\\Chat\\ChatServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "pestphp/pest-plugin": true }
+    },
+    "minimum-stability": "stable"
+}

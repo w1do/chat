@@ -1,0 +1,107 @@
+## 1. Stage 1 — Align Foundation To STRUCTURE.md
+
+- [x] 1.1 Audit the existing tree against `STRUCTURE.md` §1 and record deltas: move `infra/docker/api-entrypoint.sh`, `infra/docker/api.Dockerfile`, `infra/docker/web.Dockerfile`, `infra/docker/web-nginx.conf`, `infra/docker/caddy/` into `infra/docker/{api,web,proxy}/` directory layout, and verify `find apps packages infra docs -maxdepth 2` matches the §1 tree with no prohibited items from §9
+- [x] 1.2 Ensure root files per §1 exist: `composer.json` (path repositories on `packages/backend/*`, aggregate `lint`/`stan`/`test:packages` scripts), `package.json` + `pnpm-workspace.yaml`, `pint.json`, `phpstan.neon`, `.editorconfig`, `.env.example` pointing at `infra/compose/.env.example`, and verify `composer validate` and `pnpm install --frozen-lockfile` (or initial lockfile creation) succeed
+- [x] 1.3 Ensure `apps/chat-api` matches §2: `app/Models/User.php`, `app/Providers/{AppServiceProvider,BroadcastServiceProvider,PackageWiringProvider}.php`, `app/Support/{ApiErrorEnvelope,TraceId}.php`, framework-only `database/migrations/`, `routes/{api,channels,console}.php`, `openapi/{openapi.base.yaml,build.php}`, test suites `tests/{Integration,Contract,Smoke,Octane}/`, and verify `./tools/chat api about` runs and no `Domain/` or `Application/` directory exists under `apps/`
+- [x] 1.4 Ensure backend package skeletons match §3 for `shared-kernel`, `identity`, `chat`, `notifications`, `ai`, `administration` (composer.json with `Vendor\<Pkg>\` namespace, ServiceProvider, `src/{Domain,Application,Infrastructure,Presentation}` only where content exists, `config/`, `database/{migrations,factories}`, `routes/`, `openapi/`, `tests/` with Testbench `TestCase.php`), and verify each package's isolated `composer test` bootstraps and a boundary check finds no cross-package internal imports
+- [x] 1.5 Create `packages/contracts/` with JSON Schema layout for the six event types (`message.created.v1` … `typing.changed.v1`) plus a README describing generation into PHP/TS consumers, and verify schema files parse with a JSON Schema validator
+- [x] 1.6 Ensure frontend package skeletons match §4 for `tooling`, `ui`, `api-client`, `chat`, `identity`, `notifications` (public `index.ts` entrypoints, peer deps for React/Query/Router/Echo, no deep imports, `api-client/src/generated` marked generated), and verify `./tools/chat web typecheck` and a no-deep-import lint rule pass
+- [x] 1.7 Ensure `apps/chat-web` matches §5: `src/app/{providers,router,runtime-config,echo,query-client,permissions}.ts(x)`, `src/pages/*`, `public/config.template.json`, `e2e/` placeholders, and verify `./tools/chat web typecheck` and a build pass with runtime config read from `/config.json`
+- [x] 1.8 Documentation gate: write `docs/features/` stubs for all twelve feature docs from §7 with status `planned`, create/refresh `docs/api`, `docs/operations`, `docs/security` stubs, add the module status table to `SUMMARY.md` (module, what was done, status), link `README.md` "Архитектура" to `STRUCTURE.md`, add a `CHANGELOG.md` `[Unreleased]` entry for the realignment, and verify a grep confirms every capability has a docs entry and no status exceeds `planned`
+
+## 2. Stage 2 — Self-Hosted Runtime
+
+- [ ] 2.1 Write ADR-009 (Octane application server choice) and ADR-007 (Compose delivery) in `docs/decisions/`, and verify each ADR has status, context, decision, alternatives, and revision criteria
+- [ ] 2.2 Create `infra/compose/{compose.prod.yaml,compose.dev.yaml,compose.override.example.yaml,.env.example}` covering proxy, web, api, worker, scheduler, reverb, postgres, redis, typesense, optional minio with pinned image tags, health checks, one main process per container, and verify `./tools/chat compose config` succeeds for both profiles
+- [ ] 2.3 Create `infra/docker/api/{Dockerfile,entrypoint.sh,php.ini,opcache.ini,healthcheck.sh}`, `infra/docker/web/{Dockerfile,nginx.conf,entrypoint.sh}` (entrypoint renders `config.json` from `config.template.json`), `infra/docker/proxy/{Caddyfile.example,nginx.proxy.conf.example}`, with multi-stage builds and non-root users, and verify `./tools/chat build images` completes
+- [ ] 2.4 Implement liveness `/up` and readiness endpoint reporting Octane API, PostgreSQL, Redis, Horizon, Reverb, Typesense without secrets, and verify `apps/chat-api/tests/Smoke/{HealthTest,ReadinessTest}` cover healthy and degraded states
+- [ ] 2.5 Create `infra/supervisor/{supervisord.conf,octane.conf,horizon.conf,scheduler.conf,reverb.conf}` with non-root user, autostart/autorestart, stopasgroup/killasgroup, horizon `stopwaitsecs` above longest job, separate logs, and verify `./tools/chat supervisor check` validates syntax
+- [ ] 2.6 Add deploy reload flow (`octane:reload`, `horizon:terminate`, `reverb:restart`) to `./tools/chat` and verify `./tools/chat smoke runtime` checks HTTP, queue, and WebSocket readiness against the dev Compose stack
+- [ ] 2.7 Documentation gate: write `docs/operations/{installation,configuration,supervisor,backup-restore,upgrade,troubleshooting}.md`, update `SUMMARY.md` runtime row, `README.md` quick start (`docker compose up -d` + `./tools/chat`), `CHANGELOG.md` entry, and verify runtime status is `implemented` only after 2.6 smoke passes
+
+## 3. Stage 3 — API And Real-Time Contracts Baseline
+
+- [ ] 3.1 Implement `/api/v1` group, JSON-only exception rendering, `app/Support/{ApiErrorEnvelope,TraceId}` wiring in `bootstrap/app.php`, and verify feature tests cover validation, unauthenticated, forbidden, not-found, conflict, rate-limit, and unexpected error envelopes
+- [ ] 3.2 Implement OpenAPI assembly: `apps/chat-api/openapi/build.php` merges `openapi.base.yaml` with package `openapi/{paths,schemas}` fragments into committed `openapi/dist/openapi.json`, and verify `./tools/chat openapi validate` passes with no uncommitted diff
+- [ ] 3.3 Wire `packages/frontend/api-client` generation (`codegen.config.ts` → `src/generated/**`, wrapper `src/{client.ts,errors.ts}` handling envelope, trace_id, 401/419/429), and verify `./tools/chat client generate && ./tools/chat web typecheck` passes
+- [ ] 3.4 Finalize `packages/contracts` JSON Schemas for the six events and add `apps/chat-api/tests/Contract/RealtimeSchemaTest.php`, and verify payload fixtures validate against schemas
+- [ ] 3.5 Documentation gate: write `docs/api/{rest-guidelines,error-envelope,realtime-events,versioning}.md` and ADR-008 (OpenAPI as source of truth), update `SUMMARY.md` contracts row, `README.md`, `CHANGELOG.md`, and verify docs reference the committed OpenAPI and schema paths
+
+## 4. Stage 4 — Identity (API + Web)
+
+- [ ] 4.1 Implement `packages/backend/identity`: migrations (`users`, `password_reset_tokens`, `personal_access_tokens`), base `Domain/Models/{User,Session}`, `config/identity.php` with `user_model`, commands/queries/handlers for Register, Login, Logout, ResetPassword, UpdateProfile, GetMe, Sanctum infrastructure, V1 controllers/requests/resources, and verify package Testbench unit+feature tests pass
+- [ ] 4.2 Compose in `apps/chat-api`: `App\Models\User` extends the package base and is bound via `config('identity.user_model')`, routes mounted under `/api/v1/auth` and `/api/v1/me`, Sanctum cookie SPA auth with explicit CORS/trusted-proxy allowlists, and verify integration tests cover login happy path, invalid credentials, rate limiting, CSRF, and disallowed origin
+- [ ] 4.3 Add `apps/chat-api/tests/Octane/WorkerStateLeakTest.php` running sequential requests as different users, and verify it fails on injected leaked state and passes under the ADR-009 Octane server
+- [ ] 4.4 Update OpenAPI fragments in the identity package, rebuild dist, regenerate client, and verify contract tests and `./tools/chat web typecheck` pass
+- [ ] 4.5 Implement `packages/frontend/identity`: auth forms (login, register, recovery), profile form, guard hooks, Zod schemas, and wire `LoginPage`/`ProfilePage` and route guards into `apps/chat-web`, and verify component tests cover happy, invalid-input, and error states with keyboard accessibility
+- [ ] 4.6 Documentation gate: write `docs/features/{authentication,profile}.md` with status, ADR-005 (Sanctum SPA auth), update `SUMMARY.md` identity row, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test identity` and `./tools/chat web test identity` pass before marking `implemented`
+
+## 5. Stage 5 — Rooms And Membership (API + Web)
+
+- [ ] 5.1 Implement chat package migrations for `rooms` and `room_members` (ULID external IDs, role enum, ownership constraint, indexes) with factories, and verify migration tests pass on clean PostgreSQL
+- [ ] 5.2 Implement Domain (`Room`, `RoomMember`, enums, `RoomPolicy`, `MembershipPolicy`) and Application (CreateRoom, UpdateRoom, ArchiveRoom, InviteMember, JoinRoom, LeaveRoom, ChangeMemberRole commands; ListRooms, GetRoom, ListMembers queries) with handlers and DTOs, and verify package tests cover owner/admin/member/guest authorization matrices
+- [ ] 5.3 Implement `Presentation/Http/Api/V1` controllers/requests/resources for `/rooms`, `/rooms/{room}`, `/rooms/{room}/members` with scoped bindings, and verify app feature tests cover creation, private-room hiding, forbidden updates, invite/join/leave/role-change flows
+- [ ] 5.4 Update chat package OpenAPI fragments (`paths/{rooms,rooms-members}.yaml`, `schemas/{Room,Member}.yaml`), rebuild dist, regenerate client, and verify contract tests pass with no diff
+- [ ] 5.5 Implement `packages/frontend/chat` room slice: `RoomList`, `RoomHeader`, membership management components, `useRooms` hooks, Zod schemas, wire `ChatPage`/`RoomSettingsPage` routes into `chat-web`, and verify component tests cover loading/empty/error/keyboard states and typecheck passes
+- [ ] 5.6 Documentation gate: write `docs/features/{rooms,membership}.md`, update `SUMMARY.md` chat-rooms row, `README.md`, `CHANGELOG.md`, and verify statuses reflect passing `./tools/chat test chat` and web tests
+
+## 6. Stage 6 — Messages, Replies, Reactions, Mentions (API + Web)
+
+- [ ] 6.1 Implement migrations for `messages` (reply constraint, edit metadata, soft delete, indexes) and `message_reactions` (unique `(message_id,user_id,emoji)`), and verify constraint and forward-migration tests pass
+- [ ] 6.2 Implement Domain value objects (`MessageBody`, `MentionList`, `MessageCursor`), `MessagePolicy`, domain events, and Application commands (SendMessage, EditMessage, DeleteMessage, ToggleReaction, MarkRoomRead) and queries (ListMessages cursor-paginated, GetMessage, GetUnreadCounters) with transaction + row-lock race protection, and verify package tests cover send, edit window, soft delete preserving replies, reaction uniqueness, cursor stability, and sanitized body storage
+- [ ] 6.3 Implement V1 controllers for `/rooms/{room}/messages`, `/messages/{message}`, `/messages/{message}/reactions` with scoped bindings and idempotency-key support on send, and verify feature tests cover non-member forbidden, cross-room scoping, invalid body, and duplicate-send idempotency
+- [ ] 6.4 Update OpenAPI fragments (`rooms-messages,messages,reactions` paths, `Message,Reaction` schemas), rebuild dist, regenerate client, and verify contract tests pass
+- [ ] 6.5 Implement frontend message slice: `MessageList`, `MessageItem`, `MessageComposer`, `ReplyPreview`, `ReactionBar`, `MentionPicker`, hooks (`useMessages`, `useSendMessage`, `useEditMessage`, `useReactions`) with optimistic updates + rollback, safe text rendering, and verify component tests cover send/edit/delete/reaction/reply flows and history pagination
+- [ ] 6.6 Documentation gate: write `docs/features/{messaging,replies,reactions,mentions}.md`, ADR-004 (lightweight CQRS) if not yet written, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test chat-messages` and web chat tests pass
+
+## 7. Stage 7 — Real-Time, Presence, Typing (API + Web)
+
+- [ ] 7.1 Implement `Infrastructure/Broadcasting/{MessageCreatedV1,…,TypingChangedV1}` broadcast classes dispatched after commit, `routes/channels.php` authorization for room/user private and presence channels, and verify channel tests reject non-members and event tests prove no broadcast on rollback
+- [ ] 7.2 Implement `Infrastructure/Presence/RedisPresenceRegistry` behind `Domain/Contracts/PresenceRegistry` with TTLs, plus SetTyping command, and verify tests cover typing timeout, disconnect cleanup, and active-in-room detection
+- [ ] 7.3 Validate broadcast payloads against `packages/contracts` schemas in `RealtimeSchemaTest`, and verify all six event fixtures validate
+- [ ] 7.4 Implement frontend real-time: `realtime/{eventMap,handlers}.ts` typed from contracts, `adapters/EchoAdapter`, hooks (`useRealtimeRoom`, `useTyping`, `useReconnectSync`) with HTTP resync after reconnect, `TypingIndicator`, `PresenceDots`, reconnecting UI state, and verify integration tests cover live message application and missed-event reconciliation
+- [ ] 7.5 Add Playwright `e2e/realtime.spec.ts`: two users, live delivery, typing, disconnect/reconnect/resync, and verify `./tools/chat e2e realtime` passes against the dev stack
+- [ ] 7.6 Documentation gate: write `docs/features/presence-typing.md`, ADR-003 (Reverb delivery model), update `docs/api/realtime-events.md`, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke websocket` delivers a real event before `verified`
+
+## 8. Stage 8 — Offline Notifications And Preferences (API + Web)
+
+- [ ] 8.1 Implement notifications package: `notification_preferences` migration and defaults, `PreferenceResolver` contract, UpdatePreferences/ListNotifications/MarkRead commands+queries, V1 endpoints `/notifications`, `/notification-preferences`, and verify feature tests cover read/update/validation/auth
+- [ ] 8.2 Wire chat→notifications in `PackageWiringProvider` using the chat `PresenceRegistry` contract for active-recipient detection, and verify tests cover active-recipient suppression, inactive-recipient creation, and initiator suppression
+- [ ] 8.3 Implement grouping/dedup windows and idempotent `DeliverNotificationJob`/`SendDigestJob` with unique locks, retry/backoff/timeout/`failed()`, separate queues per category, and verify queue tests cover duplicate retries, self-mention, and email provider failure without blocking message persistence
+- [ ] 8.4 Update OpenAPI fragments, rebuild dist, regenerate client, and verify contract tests pass
+- [ ] 8.5 Implement `packages/frontend/notifications`: feed, unread counters, mark-read, preferences UI, user-channel real-time delivery, wire `NotificationsPage` into `chat-web`, and verify component tests cover loading/empty/error and preference update flows
+- [ ] 8.6 Documentation gate: write `docs/features/notifications.md` including the mandatory not-active-in-room rule, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test notifications` and web tests pass
+
+## 9. Stage 9 — Typesense Message Search (API + Web)
+
+- [ ] 9.1 Add Typesense config to chat package `config/chat.php` (or dedicated search section), index schema with safe fields only, and verify production-profile config tests reject missing required values
+- [ ] 9.2 Implement `Infrastructure/Search/` after-commit idempotent index jobs for create/edit/soft-delete, and verify tests cover commit indexing, rollback suppression, and deleted-body removal
+- [ ] 9.3 Implement permission-scoped search query + V1 endpoint with degraded response on outage, and verify feature tests cover member results, non-member privacy, and unavailable service
+- [ ] 9.4 Implement reindex console command rebuilding from PostgreSQL, and verify command tests rebuild a fresh index
+- [ ] 9.5 Update OpenAPI, regenerate client, implement search UI in `packages/frontend/chat` (room-scoped input, results, empty/degraded states), and verify component tests and typecheck pass
+- [ ] 9.6 Documentation gate: write `docs/features/message-search.md` and `docs/operations/` reindex notes, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke search` indexes and finds a test message
+
+## 10. Stage 10 — Polza AI Text Revisions (API + Web)
+
+- [ ] 10.1 Implement AI package per §3: `TextRevisionProvider` contract, enums/VOs, `AiRequest` model+migration, ReviseDraft command/handler, `Infrastructure/Providers/{PolzaProvider,NullProvider}` + fake, prompts, `Resilience/{Timeout,RetryPolicy,CircuitBreaker}`, `Quota/{RateLimiter,UsageRecorder}`, `config/ai.php` with no direct `env()` outside config, and verify package tests cover success, failure, timeout, and quota fakes
+- [ ] 10.2 Implement `/ai/message-revisions` endpoint for fix/clarify/shorten/expand/tone/custom with length limits, cancellation, and admin-disable check, and verify feature tests cover success, invalid operation, unauthorized selected message, quota exhaustion, timeout, and disabled AI
+- [ ] 10.3 Implement safe audit recording (operation, provider, model, status, tokens/cost; no secrets, no full prompt/response by default), and verify audit tests assert absence of private content
+- [ ] 10.4 Update OpenAPI, regenerate client, and verify contract tests pass; ordinary CI uses the fake provider and `./tools/chat smoke polza` stays opt-in with env secrets
+- [ ] 10.5 Implement composer AI UI in `packages/frontend/chat`: suggestion panel with accept/discard, external-AI processing indicator, hidden actions when disabled, error state that never blocks sending, and verify component tests cover accept, discard, provider error, and disabled states
+- [ ] 10.6 Documentation gate: write `docs/features/ai-text-revision.md`, ADR-006 (AI provider interface and privacy), update `docs/security` privacy notes, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test ai` and web tests pass
+
+## 11. Stage 11 — Administration And Audit (API + Web)
+
+- [ ] 11.1 Implement administration package: `audit_logs`/`system_settings` migrations, `AuditRecorder` contract + Eloquent implementation, RecordAudit/ListAudit/UpdateSettings/GetSystemStatus, `/admin/*` V1 endpoints, and verify tests cover admin allowed, non-admin forbidden, guest unauthenticated
+- [ ] 11.2 Wire audit recording for administrative and AI actions via `PackageWiringProvider`, restrict Horizon dashboard by gate, and verify tests cover redaction, pagination, and Horizon denial for non-admins
+- [ ] 11.3 Update OpenAPI, regenerate client, implement admin-only React screens (status, AI toggle, audit list) in `chat-web` with guarded routes, and verify frontend tests cover forbidden navigation and settings/audit states
+- [ ] 11.4 Documentation gate: write `docs/features/administration.md`, update `docs/security/threat-model.md` audit section, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test administration` passes
+
+## 12. Stage 12 — Hardening And Release Readiness
+
+- [ ] 12.1 Add dependency-boundary CI checks (no cross-package internals, no deep imports, no generated-file edits, no `Domain/` in apps) and verify they fail on injected violations
+- [ ] 12.2 Complete `.github/workflows/{pull-request,security,release,deploy-staging,deploy-production}.yml` per `STRUCTURE.md` §7, runnable locally via `./tools/chat ci`, and verify a full local CI run passes
+- [ ] 12.3 Add docs-status enforcement: CI check that no feature doc claims `implemented`/`verified` without its module test command existing and passing, and verify it catches an injected false status
+- [ ] 12.4 Add Playwright `e2e/{auth,messaging,ai-revision}.spec.ts` covering registration, room creation, two-user messaging, AI suggestion, offline notification, and search, and verify `./tools/chat e2e critical` passes
+- [ ] 12.5 Complete `docs/security/{threat-model,hardening,disclosure,secret-rotation}.md` and release artifacts (`LICENSE`, `SECURITY.md`, `SUPPORT.md`, upgrade notes, SBOM/checksum/provenance plan, compose bundle), and verify the release checklist has no undocumented manual step
+- [ ] 12.6 Final gate: run `docker compose up -d` plus `./tools/chat smoke all`, then set final module statuses in `SUMMARY.md`, finalize `README.md` and `CHANGELOG.md` for the release, and verify every `verified` status corresponds to a passing smoke/E2E command

@@ -1,0 +1,4 @@
+packages:
+  - apps/chat-web
+  - packages/frontend/*
+  - packages/contracts
