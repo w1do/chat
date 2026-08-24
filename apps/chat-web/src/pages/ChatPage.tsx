@@ -88,11 +88,6 @@ function ActiveRoom({ roomId }: { roomId: string }) {
     <section>
       <RoomHeader room={room.data} onOpenSettings={() => navigate(`/rooms/${roomId}/settings`)} />
       <ConnectionBanner state={connection} />
-      {room.data.my_role === null && room.data.visibility === 'public' ? (
-        <button type="button" onClick={() => void membership.join.mutateAsync().then(() => room.refetch())}>
-          Вступить в комнату
-        </button>
-      ) : null}
       <PresenceDots members={presentMembers} />
 
       <MessageList
@@ -121,20 +116,60 @@ function ActiveRoom({ roomId }: { roomId: string }) {
         namesById={new Map((members.data ?? []).map((m) => [m.user_id, m.name ?? m.user_id]))}
       />
 
-      <MessageComposer
-        key={editing?.id ?? 'composer'}
-        onSend={async (input) => {
-          typing.stopTyping();
-          return send.mutateAsync(input);
-        }}
-        members={members.data}
-        onTyping={typing.notifyTyping}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        editing={editing}
-        onSubmitEdit={(messageId, body) => edit.mutateAsync({ messageId, body })}
-        onCancelEdit={() => setEditing(null)}
-      />
+      {isMember ? (
+        <MessageComposer
+          key={editing?.id ?? 'composer'}
+          onSend={async (input) => {
+            typing.stopTyping();
+            return send.mutateAsync(input);
+          }}
+          members={members.data}
+          onTyping={typing.notifyTyping}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          editing={editing}
+          onSubmitEdit={(messageId, body) => edit.mutateAsync({ messageId, body })}
+          onCancelEdit={() => setEditing(null)}
+        />
+      ) : (
+        // Не-участник видит историю публичной комнаты, но писать не может,
+        // пока не вступит (сервер отвечает 403 — UI не предлагает действие).
+        <JoinPanel
+          canJoin={room.data.visibility === 'public' && room.data.archived_at === null}
+          isJoining={membership.join.isPending}
+          error={membership.join.error}
+          onJoin={async () => {
+            await membership.join.mutateAsync();
+            await room.refetch();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function JoinPanel({
+  canJoin,
+  isJoining,
+  error,
+  onJoin,
+}: {
+  canJoin: boolean;
+  isJoining: boolean;
+  error: unknown;
+  onJoin: () => Promise<void>;
+}) {
+  if (!canJoin) {
+    return <p role="status">Вы не участник этой комнаты — отправка сообщений недоступна.</p>;
+  }
+
+  return (
+    <div>
+      <p role="status">Чтобы писать в комнату, нужно вступить в неё.</p>
+      {error ? <p role="alert">Не удалось вступить в комнату.</p> : null}
+      <button type="button" disabled={isJoining} onClick={() => void onJoin()}>
+        {isJoining ? 'Вступаем…' : 'Вступить в комнату'}
+      </button>
+    </div>
   );
 }
