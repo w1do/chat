@@ -1,6 +1,6 @@
 # Установка
 
-Статус: in progress (артефакты готовы; финальная проверка — задача 2.6 `smoke runtime`)
+Статус: implemented (runtime smoke пройден против dev-стека 2026-08-24)
 
 Основной способ установки — Docker Compose (ADR-007).
 

@@ -13,6 +13,7 @@
         "laravel/framework": "^13.17",
         "laravel/horizon": "*",
         "laravel/octane": "*",
+        "laravel/reverb": "^1.11",
         "laravel/tinker": "^3.0",
         "predis/predis": "^2.0",
         "vendor/administration": "^0.1",

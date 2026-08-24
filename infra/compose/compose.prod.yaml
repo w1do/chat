@@ -11,6 +11,7 @@ x-api-image: &api-image
       required: false
   environment:
     APP_ENV: production
+    OCTANE_SERVER: frankenphp
     DB_HOST: postgres
     REDIS_HOST: redis
     TYPESENSE_HOST: typesense

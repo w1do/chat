@@ -11,7 +11,8 @@ WORKDIR /build
 COPY packages/backend/ packages/backend/
 COPY apps/chat-api/composer.json apps/chat-api/composer.lock apps/chat-api/
 RUN cd apps/chat-api \
-    && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+    && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction \
+        --ignore-platform-req=ext-pcntl --ignore-platform-req=ext-redis
 
 # --- Stage 2: runtime -------------------------------------------------------
 FROM dunglas/frankenphp:1.9-php8.4 AS runtime
@@ -29,6 +30,7 @@ WORKDIR /app
 COPY --chown=app:app apps/chat-api/ /app/
 COPY --chown=app:app packages/backend/ /packages/backend/
 COPY --from=composer-deps --chown=app:app /build/apps/chat-api/vendor/ /app/vendor/
+COPY --from=composer-deps /usr/bin/composer /usr/local/bin/composer
 RUN sed -i 's#"url": "../../packages/backend/#"url": "/packages/backend/#g' composer.json \
     && composer dump-autoload --optimize --no-dev \
     && php artisan package:discover --ansi \

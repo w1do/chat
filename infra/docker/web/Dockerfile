@@ -20,12 +20,12 @@ FROM nginxinc/nginx-unprivileged:1.28-alpine AS runtime
 
 COPY infra/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY infra/docker/web/entrypoint.sh /docker-entrypoint.d/40-render-config.sh
-COPY --from=build /build/apps/chat-web/dist/ /usr/share/nginx/html/
+COPY --from=build --chown=nginx:nginx /build/apps/chat-web/dist/ /usr/share/nginx/html/
 COPY apps/chat-web/public/config.template.json /usr/share/nginx/config.template.json
 
 USER root
 RUN chmod +x /docker-entrypoint.d/40-render-config.sh \
-    && chown nginx:nginx /usr/share/nginx/html
+    && chown -R nginx:nginx /usr/share/nginx/html
 USER nginx
 
 EXPOSE 8080
