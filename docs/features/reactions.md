@@ -1,16 +1,12 @@
 # Реакции
 
-Статус: planned
+Статус: implemented
 
-## Назначение
+- Переключение emoji-реакции (`POST /messages/{message}/reactions`):
+  добавляет либо снимает; только участники комнаты.
+- Уникальность `(message_id, user_id, emoji)` на уровне БД.
+- Ответ — итоговое состояние `{emoji, count, reacted_by_me}`.
+- UI: `ReactionBar` с optimistic-переключением и rollback.
 
-Реакции emoji с уникальностью (message_id, user_id, emoji). Этап 6.
-
-## Содержание документа (заполняется на этапе реализации)
-
-- Сценарии и UX
-- Права и роли
-- API (ссылки на OpenAPI)
-- Real-time события (если применимо)
-- Edge cases
-- Критерии приёмки
+Проверки: package-тесты uniqueness/toggle, feature-тест «toggles reactions for
+members only», компонентный тест reaction-флоу.

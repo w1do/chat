@@ -1,0 +1,64 @@
+/messages/{message}:
+  parameters:
+    - name: message
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: getMessage
+    tags: [messages]
+    summary: Сообщение по идентификатору
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Сообщение.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Message' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Не найдено.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+  patch:
+    operationId: editMessage
+    tags: [messages]
+    summary: Редактирование своего сообщения в пределах окна
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [body]
+            properties:
+              body: { type: string, maxLength: 4000 }
+    responses:
+      '200':
+        description: Обновлённое сообщение (edited_at заполнен).
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Message' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+  delete:
+    operationId: deleteMessage
+    tags: [messages]
+    summary: Мягкое удаление (автор или owner/admin комнаты)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Сообщение помечено удалённым; ответы сохраняются. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }

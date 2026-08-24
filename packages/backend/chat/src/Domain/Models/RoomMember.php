@@ -18,6 +18,7 @@ use Vendor\Chat\Domain\Enums\RoomRole;
  * @property string $user_id
  * @property RoomRole $role
  * @property Carbon $joined_at
+ * @property ?string $last_read_message_id
  */
 class RoomMember extends Model
 {

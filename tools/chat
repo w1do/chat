@@ -63,6 +63,9 @@ case "$cmd" in
         done
         exit $rc
         ;;
+      chat-messages)
+        (cd "$ROOT/packages/backend/chat" && ./vendor/bin/pest --filter "Message")
+        ;;
       identity|chat|notifications|ai|administration|shared-kernel)
         (cd "$ROOT/packages/backend/$sub" && composer test)
         ;;

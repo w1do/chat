@@ -39,3 +39,34 @@ export const roomsApi = {
     );
   },
 };
+
+// --- Сообщения ---------------------------------------------------------------
+
+import { messagePageSchema, messageSchema, reactionSchema } from './schemas/message';
+import type { Message, MessagePage, Reaction, SendMessageInput } from './schemas/message';
+
+export const messagesApi = {
+  async list(client: ApiClient, roomId: string, cursor?: string | null, limit = 50): Promise<MessagePage> {
+    return messagePageSchema.parse(
+      await client.get(`/rooms/${roomId}/messages`, { query: { cursor: cursor ?? undefined, limit } }),
+    );
+  },
+  async send(client: ApiClient, roomId: string, input: SendMessageInput, idempotencyKey?: string): Promise<Message> {
+    return messageSchema.parse(
+      ((await client.post(`/rooms/${roomId}/messages`, { body: input, idempotencyKey })) as { data: unknown }).data,
+    );
+  },
+  async edit(client: ApiClient, messageId: string, body: string): Promise<Message> {
+    return messageSchema.parse(
+      ((await client.patch(`/messages/${messageId}`, { body: { body } })) as { data: unknown }).data,
+    );
+  },
+  async remove(client: ApiClient, messageId: string): Promise<void> {
+    await client.delete(`/messages/${messageId}`);
+  },
+  async toggleReaction(client: ApiClient, messageId: string, emoji: string): Promise<Reaction> {
+    return reactionSchema.parse(
+      ((await client.post(`/messages/${messageId}/reactions`, { body: { emoji } })) as { data: unknown }).data,
+    );
+  },
+};

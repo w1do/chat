@@ -1,0 +1,6 @@
+type: object
+required: [emoji, count, reacted_by_me]
+properties:
+  emoji: { type: string }
+  count: { type: integer, minimum: 0 }
+  reacted_by_me: { type: boolean }

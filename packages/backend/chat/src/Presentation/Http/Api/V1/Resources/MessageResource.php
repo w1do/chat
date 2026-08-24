@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Chat\Presentation\Http\Api\V1\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Vendor\Chat\Application\DTOs\MessageData;
+use Vendor\Chat\Application\DTOs\ReactionData;
+
+/** @property MessageData $resource */
+final class MessageResource extends JsonResource
+{
+    /** @return array<string, mixed> */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->resource->id,
+            'room_id' => $this->resource->roomId,
+            'author_id' => $this->resource->authorId,
+            'author_name' => $this->resource->authorName,
+            'reply_to_id' => $this->resource->replyToId,
+            'body' => $this->resource->body,
+            'mentions' => $this->resource->mentions,
+            'edited_at' => $this->resource->editedAt,
+            'deleted' => $this->resource->deleted,
+            'created_at' => $this->resource->createdAt,
+            'reactions' => array_map(fn (ReactionData $reaction): array => [
+                'emoji' => $reaction->emoji,
+                'count' => $reaction->count,
+                'reacted_by_me' => $reaction->reactedByMe,
+            ], $this->resource->reactions),
+        ];
+    }
+}

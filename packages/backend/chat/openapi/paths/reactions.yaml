@@ -1,0 +1,33 @@
+/messages/{message}/reactions:
+  parameters:
+    - name: message
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    operationId: toggleReaction
+    tags: [messages]
+    summary: Переключение реакции (добавляет либо снимает)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [emoji]
+            properties:
+              emoji: { type: string, minLength: 1, maxLength: 32 }
+    responses:
+      '200':
+        description: Итоговое состояние реакции.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Reaction' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '422': { $ref: '#/components/responses/ValidationError' }

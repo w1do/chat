@@ -7,6 +7,23 @@
 
 ### Added
 
+- Сообщения, ответы, реакции, упоминания (этап 6 roadmap):
+  - миграции `messages` (self-FK ответов с restrict, soft delete, индекс
+    (room_id,id) под ULID-курсор) и `message_reactions` (уникальность
+    message+user+emoji), forward-миграция `last_read_message_id`;
+  - VO MessageBody/MentionList/MessageCursor, контракт MessageSanitizer,
+    MessagePolicy (окно редактирования 15 мин, delete автором/модератором);
+  - команды SendMessage (идемпотентность по Idempotency-Key, reply в той же
+    комнате), EditMessage/DeleteMessage (row-lock), ToggleReaction,
+    MarkRoomRead (монотонная отметка) и запросы ListMessages (cursor),
+    GetMessage, GetUnreadCounters; доменные события для этапа 7;
+  - V1 endpoints `/rooms/{room}/messages`, `/messages/{message}`,
+    `/messages/{message}/reactions`;
+  - OpenAPI-фрагменты + регенерированный клиент;
+  - `@vendor/chat`: MessageList/MessageItem/MessageComposer/ReplyPreview/
+    ReactionBar/MentionPicker, хуки с optimistic updates и rollback,
+    безопасный текстовый рендер; сообщения в `ChatPage`;
+  - ADR-004 (лёгкий CQRS), `docs/features/{messaging,replies,reactions,mentions}.md`.
 - Комнаты и членство (этап 5 roadmap):
   - пакет `vendor/chat`: миграции `rooms`/`room_members` (ULID, частичный
     уникальный индекс «один owner на комнату»), rich-модели Room/RoomMember,

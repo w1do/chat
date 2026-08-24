@@ -1,16 +1,35 @@
 # Сообщения
 
-Статус: planned
+Статус: implemented
 
-## Назначение
+## Сценарии
 
-Отправка, редактирование, мягкое удаление, cursor-пагинация истории. Этап 6.
+- Отправка сообщения участником комнаты; тело хранится каноничным plain text
+  (управляющие символы удаляются, HTML — как текст), лимит 4000 символов.
+- Cursor-пагинация истории (новые → старые, ULID-курсор, стабильный порядок
+  без дублей при появлении новых сообщений).
+- Редактирование своего сообщения в окне 15 минут (`edited_at`).
+- Мягкое удаление автором либо owner/admin: строка остаётся, тело скрывается
+  (`deleted: true`, `body: null`), ответы сохраняются.
+- Идемпотентная отправка по `Idempotency-Key` (повтор возвращает 200 с тем же
+  сообщением; в БД одна строка).
 
-## Содержание документа (заполняется на этапе реализации)
+## Реализация
 
-- Сценарии и UX
-- Права и роли
-- API (ссылки на OpenAPI)
-- Real-time события (если применимо)
-- Edge cases
-- Критерии приёмки
+- Backend: `packages/backend/chat` — VO `MessageBody`/`MessageCursor`,
+  контракт `MessageSanitizer` (+ `PlainTextSanitizer`), `MessagePolicy`,
+  команды Send/Edit/Delete/MarkRoomRead + запросы ListMessages/GetMessage/
+  GetUnreadCounters; транзакции с `lockForUpdate`; доменные события
+  MessageCreated/Updated/Deleted (broadcast — этап 7).
+- Frontend: `MessageList`/`MessageItem`/`MessageComposer` в `@vendor/chat`,
+  optimistic-отправка с rollback, безопасный текстовый рендер.
+
+## API
+
+`GET/POST /rooms/{room}/messages`, `GET/PATCH/DELETE /messages/{message}` —
+см. OpenAPI dist.
+
+## Критерии приёмки / проверки
+
+- `./tools/chat test chat-messages` (домен) и `./tools/chat test api
+  tests/Feature/MessagesTest.php` (9 feature-тестов); `./tools/chat web test chat`.

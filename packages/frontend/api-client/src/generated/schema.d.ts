@@ -123,6 +123,46 @@ export interface paths {
         patch: operations["updateProfile"];
         trace?: never;
     };
+    "/messages/{message}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        /** Сообщение по идентификатору */
+        get: operations["getMessage"];
+        put?: never;
+        post?: never;
+        /** Мягкое удаление (автор или owner/admin комнаты) */
+        delete: operations["deleteMessage"];
+        options?: never;
+        head?: never;
+        /** Редактирование своего сообщения в пределах окна */
+        patch: operations["editMessage"];
+        trace?: never;
+    };
+    "/messages/{message}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Переключение реакции (добавляет либо снимает) */
+        post: operations["toggleReaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -222,6 +262,26 @@ export interface paths {
         patch: operations["changeMemberRole"];
         trace?: never;
     };
+    "/rooms/{room}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        /** История сообщений комнаты (cursor-пагинация, новые → старые) */
+        get: operations["listMessages"];
+        put?: never;
+        /** Отправка сообщения (идемпотентна по Idempotency-Key) */
+        post: operations["sendMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -245,6 +305,28 @@ export interface components {
             joined_at: string;
             /** @description Имя пользователя. */
             name: string | null;
+        };
+        Message: {
+            /** @description ULID сообщения. */
+            id: string;
+            room_id: string;
+            author_id: string;
+            author_name: string | null;
+            reply_to_id: string | null;
+            /** @description null для удалённых сообщений — тело не раскрывается. */
+            body: string | null;
+            mentions: string[];
+            /** Format: date-time */
+            edited_at: string | null;
+            deleted: boolean;
+            /** Format: date-time */
+            created_at: string;
+            reactions: components["schemas"]["Reaction"][];
+        };
+        Reaction: {
+            emoji: string;
+            count: number;
+            reacted_by_me: boolean;
         };
         Room: {
             /** @description ULID комнаты. */
@@ -545,6 +627,129 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сообщение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Не найдено. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    deleteMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сообщение помечено удалённым; ответы сохраняются. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    editMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Обновлённое сообщение (edited_at заполнен). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    toggleReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    emoji: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Итоговое состояние реакции. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Reaction"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
         };
     };
@@ -856,6 +1061,87 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listMessages: {
+        parameters: {
+            query?: {
+                /** @description ULID последнего сообщения предыдущей страницы. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Страница истории. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"][];
+                        meta: {
+                            next_cursor: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    sendMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                    reply_to_id?: string | null;
+                    mentions?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Повтор с тем же Idempotency-Key — возвращается ранее созданное сообщение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"];
+                    };
+                };
+            };
+            /** @description Сообщение создано. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
         };
     };
