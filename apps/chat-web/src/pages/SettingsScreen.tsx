@@ -6,6 +6,8 @@ import {
 } from '@vendor/notifications';
 import { Avatar, Group, Row, Segmented, Sheet, Toggle, useElementHeight, type ThemeTokens } from '@vendor/ui';
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSystemStatus } from '../app/admin';
 import type { AppSettings } from '../app/settings';
 
 interface SettingsScreenProps {
@@ -32,6 +34,10 @@ export function SettingsScreen({
   const headerHeight = useElementHeight(headerRef);
   const [sheet, setSheet] = useState<SheetId>(null);
   const { user, logout, updateProfile, updateEmail, changePassword } = useAuth();
+  const navigate = useNavigate();
+  // Признак администратора — успешный ответ админского эндпоинта: у обычного
+  // пользователя он 403, и раздел просто не появляется.
+  const admin = useSystemStatus();
   const preferences = useNotificationPreferences();
   const updatePreferences = useUpdatePreferences();
 
@@ -133,6 +139,18 @@ export function SettingsScreen({
             last
           />
         </Group>
+
+        {admin.isSuccess ? (
+          <Group theme={theme} label="Администрирование">
+            <Row
+              theme={theme}
+              title="Панель администратора"
+              hint="Состояние, выключатель AI, журнал"
+              onClick={() => navigate('/admin')}
+              last
+            />
+          </Group>
+        ) : null}
 
         <Group theme={theme}>
           <Row

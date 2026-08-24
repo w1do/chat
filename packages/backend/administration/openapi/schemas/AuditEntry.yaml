@@ -1,0 +1,19 @@
+AuditEntry:
+  type: object
+  required: [id, action, created_at]
+  properties:
+    id: { type: string }
+    actor_id: { type: [string, "null"] }
+    actor_label: { type: [string, "null"] }
+    action:
+      type: string
+      description: Namespaced действие, например `administration.settings.updated`.
+    subject_type: { type: [string, "null"] }
+    subject_id: { type: [string, "null"] }
+    context:
+      type: object
+      additionalProperties: true
+      description: >
+        Безопасные метаданные. Секреты и приватный текст заменены пометкой
+        `[redacted]`, длинные строки обрезаны.
+    created_at: { type: string, format: date-time }

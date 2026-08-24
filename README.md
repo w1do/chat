@@ -55,6 +55,7 @@ docker compose --env-file .env -f compose.prod.yaml up -d
 ./tools/chat check boundaries    проверка границ пакетов
 ./tools/chat contracts validate  валидация JSON Schema real-time событий
 ./tools/chat smoke search        индексация и поиск в настоящем Typesense
+./tools/chat api chat:grant-admin <логин>   назначить администратора
 ./tools/chat lint | stan         Pint / PHPStan
 ```
 

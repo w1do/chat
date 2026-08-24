@@ -1,0 +1,133 @@
+/admin/status:
+  get:
+    operationId: adminStatus
+    tags: [administration]
+    summary: Состояние зависимостей и включённых возможностей
+    description: Требует права `administration.system.view`.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Сводка состояния.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [components, features, version]
+                  properties:
+                    components:
+                      type: object
+                      additionalProperties:
+                        type: object
+                        required: [status]
+                        properties:
+                          status: { type: string, enum: [ok, fail] }
+                          detail: { type: string }
+                    features:
+                      type: object
+                      required: [ai, search]
+                      properties:
+                        ai: { type: boolean }
+                        search: { type: boolean }
+                    version: { type: string }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+/admin/settings:
+  get:
+    operationId: adminSettings
+    tags: [administration]
+    summary: Текущие выключатели
+    description: Требует права `administration.system.view`.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Значения выключателей.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [ai_enabled]
+                  properties:
+                    ai_enabled: { type: boolean }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+  patch:
+    operationId: updateAdminSettings
+    tags: [administration]
+    summary: Включить или выключить AI-помощника
+    description: >
+      Требует права `administration.settings.update`. Выключение помощника не
+      влияет на переписку: чат работает как обычно.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ai_enabled]
+            properties:
+              ai_enabled: { type: boolean }
+    responses:
+      '200':
+        description: Новое значение.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [ai_enabled]
+                  properties:
+                    ai_enabled: { type: boolean }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+/admin/audit-logs:
+  get:
+    operationId: listAuditLogs
+    tags: [administration]
+    summary: Журнал административных и AI-действий
+    description: Требует права `administration.audit.view`.
+    security: [{ sanctumCookie: [] }]
+    parameters:
+      - name: action
+        in: query
+        schema: { type: string }
+      - name: actor_id
+        in: query
+        schema: { type: string }
+      - name: cursor
+        in: query
+        schema: { type: string }
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    responses:
+      '200':
+        description: Страница журнала, новые записи первыми.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, meta]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/AuditEntry' }
+                meta:
+                  type: object
+                  required: [next_cursor]
+                  properties:
+                    next_cursor: { type: [string, "null"] }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }

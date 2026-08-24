@@ -85,7 +85,8 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // Доступ к dashboard ограничен gate `viewHorizon` (CLAUDE.md §14).
+    'middleware' => ['web', 'auth:sanctum'],
 
     /*
     |--------------------------------------------------------------------------

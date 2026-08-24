@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\ApplyRuntimeSettings;
 use App\Support\ApiErrorEnvelope;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanctum cookie SPA auth: stateful-запросы фронтенда проходят
         // session/CSRF стек (ADR-005).
         $middleware->statefulApi();
+
+        // Выключатели администратора применяются к каждому запросу API.
+        $middleware->appendToGroup('api', ApplyRuntimeSettings::class);
 
         // Reverse proxy стека (ADR-007) — явный allowlist через env.
         $middleware->trustProxies(at: array_values(array_filter(

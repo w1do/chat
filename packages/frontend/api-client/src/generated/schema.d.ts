@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Журнал административных и AI-действий
+         * @description Требует права `administration.audit.view`.
+         */
+        get: operations["listAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Текущие выключатели
+         * @description Требует права `administration.system.view`.
+         */
+        get: operations["adminSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Включить или выключить AI-помощника
+         * @description Требует права `administration.settings.update`. Выключение помощника не влияет на переписку: чат работает как обычно.
+         */
+        patch: operations["updateAdminSettings"];
+        trace?: never;
+    };
+    "/admin/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Состояние зависимостей и включённых возможностей
+         * @description Требует права `administration.system.view`.
+         */
+        get: operations["adminStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/message-revisions": {
         parameters: {
             query?: never;
@@ -458,6 +522,7 @@ export interface components {
             };
             trace_id: string | null;
         };
+        AuditEntry: unknown;
         Member: {
             /** @description ULID записи членства. */
             id: string;
@@ -633,6 +698,134 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAuditLogs: {
+        parameters: {
+            query?: {
+                action?: string;
+                actor_id?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Страница журнала, новые записи первыми. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditEntry"][];
+                        meta: {
+                            next_cursor: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Значения выключателей. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            ai_enabled: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateAdminSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ai_enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Новое значение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            ai_enabled: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    adminStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сводка состояния. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            components: {
+                                [key: string]: {
+                                    /** @enum {string} */
+                                    status: "ok" | "fail";
+                                    detail?: string;
+                                };
+                            };
+                            features: {
+                                ai: boolean;
+                                search: boolean;
+                            };
+                            version: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     reviseMessage: {
         parameters: {
             query?: never;

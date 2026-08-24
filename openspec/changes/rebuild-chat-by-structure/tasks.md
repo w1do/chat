@@ -98,10 +98,10 @@
 
 ## 11. Stage 11 — Administration And Audit (API + Web)
 
-- [ ] 11.1 Implement administration package: `audit_logs`/`system_settings` migrations, `AuditRecorder` contract + Eloquent implementation, RecordAudit/ListAudit/UpdateSettings/GetSystemStatus, `/admin/*` V1 endpoints, and verify tests cover admin allowed, non-admin forbidden, guest unauthenticated (скиллы: `laravel-activitylog`, `laravel-permission-development`, `architecture-ddd`, `spatie-laravel-php`)
-- [ ] 11.2 Wire audit recording for administrative and AI actions via `PackageWiringProvider`, restrict Horizon dashboard by gate, and verify tests cover redaction, pagination, and Horizon denial for non-admins (скиллы: `laravel-activitylog`, `laravel-permission-development`, `spatie-security`)
-- [ ] 11.3 Update OpenAPI, regenerate client, implement admin-only React screens (status, AI toggle, audit list) in `chat-web` from `@vendor/ui` primitives per design decision 1a, with guarded routes, and verify frontend tests cover forbidden navigation and settings/audit states
-- [ ] 11.4 Documentation gate: write `docs/features/administration.md`, update `docs/security/threat-model.md` audit section, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test administration` passes (скиллы: `documentation`)
+- [x] 11.1 Implement administration package: `audit_logs`/`system_settings` migrations, `AuditRecorder` contract + Eloquent implementation, RecordAudit/ListAudit/UpdateSettings/GetSystemStatus, `/admin/*` V1 endpoints, and verify tests cover admin allowed, non-admin forbidden, guest unauthenticated (скиллы: `laravel-activitylog`, `laravel-permission-development`, `architecture-ddd`, `spatie-laravel-php`)
+- [x] 11.2 Wire audit recording for administrative and AI actions via `PackageWiringProvider`, restrict Horizon dashboard by gate, and verify tests cover redaction, pagination, and Horizon denial for non-admins (скиллы: `laravel-activitylog`, `laravel-permission-development`, `spatie-security`)
+- [x] 11.3 Update OpenAPI, regenerate client, implement admin-only React screens (status, AI toggle, audit list) in `chat-web` from `@vendor/ui` primitives per design decision 1a, with guarded routes, and verify frontend tests cover forbidden navigation and settings/audit states
+- [x] 11.4 Documentation gate: write `docs/features/administration.md`, update `docs/security/threat-model.md` audit section, `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat test administration` passes (скиллы: `documentation`)
 
 ## 12. Stage 12 — Hardening And Release Readiness
 

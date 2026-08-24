@@ -33,7 +33,7 @@
 | notifications/offline-delivery | Уведомления тем, кого нет в комнате (presence-реестр как источник истины), категории и каналы с предпочтениями, группировка шумных событий, идемпотентные очереди с retry/backoff/failed и дайджест; лента, счётчик и настройки в интерфейсе. 19 package-тестов, 5 интеграционных, 7 компонентных | implemented |
 | search/message-search | Поиск по комнатам пользователя: индекс Typesense с безопасными полями, идемпотентная синхронизация после commit, права проверяются по PostgreSQL, документированная деградация 503, команда `chat:search-reindex`; лист поиска в шапке комнаты. Выключен по умолчанию. 11 package-тестов, 5 feature, 5 компонентных, `smoke search` против настоящего Typesense | implemented |
 | ai/text-revisions | Помощник за контрактом `TextRevisionProvider`: Polza (OpenAI-совместимый), Null и Fake; квоты, таймаут, повтор, circuit breaker; endpoint `/ai/message-revisions`; аудит без промптов и ответов; лист помощника в композере (принять/отклонить/отменить/вернуть). 20 package-тестов, 4 интеграционных, 6 компонентных | implemented |
-| administration/system-controls | Скелет пакета `backend/administration` | planned |
+| administration/system-controls | Права `administration.*` и роль `super-admin` (spatie/laravel-permission без teams, ADR-010), `/admin/status`, выключатель AI в `system_settings` с применением на каждый запрос, журнал `audit_logs` с редактированием секретов и приватного текста, аудит AI-обращений, Horizon за gate; экран `/admin` в SPA. 12 package-тестов, 8 интеграционных, 4 компонентных | implemented |
 
 ## Ограничения текущего состояния
 

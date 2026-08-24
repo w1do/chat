@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vendor\Ai\Application\Handlers\Commands;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Events\Dispatcher;
 use Vendor\Ai\Application\AiUnavailable;
 use Vendor\Ai\Application\Commands\ReviseDraftCommand;
 use Vendor\Ai\Application\DTOs\RevisionData;
@@ -12,6 +13,7 @@ use Vendor\Ai\Domain\Contracts\ProviderUnavailable;
 use Vendor\Ai\Domain\Contracts\TextRevisionProvider;
 use Vendor\Ai\Domain\Enums\RequestStatus;
 use Vendor\Ai\Domain\Enums\RevisionOperation;
+use Vendor\Ai\Domain\Events\RevisionRecorded;
 use Vendor\Ai\Domain\ValueObjects\DraftText;
 use Vendor\Ai\Infrastructure\Quota\QuotaExceeded;
 use Vendor\Ai\Infrastructure\Quota\RateLimiter;
@@ -32,6 +34,7 @@ final readonly class ReviseDraftHandler
         private CircuitBreaker $breaker,
         private RetryPolicy $retries,
         private Repository $config,
+        private Dispatcher $events,
     ) {}
 
     /**
@@ -71,7 +74,7 @@ final readonly class ReviseDraftHandler
                 )),
             );
         } catch (ProviderUnavailable $exception) {
-            $this->recorder->record(
+            $failed = $this->recorder->record(
                 userId: $command->userId,
                 operation: $operation,
                 provider: $this->provider->name(),
@@ -80,6 +83,15 @@ final readonly class ReviseDraftHandler
                 durationMs: $this->elapsedMs($startedAt),
                 failureReason: $exception->getMessage(),
             );
+
+            $this->events->dispatch(new RevisionRecorded(
+                requestId: $failed->id,
+                userId: $command->userId,
+                operation: $operation,
+                provider: $this->provider->name(),
+                status: $failed->status,
+                durationMs: $this->elapsedMs($startedAt),
+            ));
 
             throw $exception;
         }
@@ -94,6 +106,18 @@ final readonly class ReviseDraftHandler
             model: $result->model,
             usage: $result->usage,
         );
+
+        $this->events->dispatch(new RevisionRecorded(
+            requestId: $record->id,
+            userId: $command->userId,
+            operation: $operation,
+            provider: $this->provider->name(),
+            status: RequestStatus::Succeeded,
+            model: $result->model,
+            promptTokens: $result->usage->promptTokens,
+            completionTokens: $result->usage->completionTokens,
+            durationMs: $this->elapsedMs($startedAt),
+        ));
 
         return new RevisionData(
             requestId: $record->id,

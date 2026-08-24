@@ -7,6 +7,26 @@
 
 ### Added
 
+- Администрирование и аудит (этап 11 roadmap):
+  - пакет `vendor/administration`: таблицы `audit_logs` и `system_settings`,
+    контракты `AuditRecorder` и `SystemProbe`, права
+    `administration.{system.view,settings.update,audit.view}`, endpoints
+    `/admin/status`, `/admin/settings` и `/admin/audit-logs`;
+  - `spatie/laravel-permission` без teams-режима (ADR-010): роль `super-admin`
+    через `Gate::before`, отдельное право можно выдать и без роли, guard прав
+    зафиксирован; первый администратор — `php artisan chat:grant-admin <логин>`;
+  - выключатель AI хранится в `system_settings` и применяется к каждому
+    запросу: помощник отвечает 503, переписка продолжает работать;
+  - журнал пишет административные изменения и AI-обращения (событие
+    `RevisionRecorded` из пакета `ai`); из контекста вычищаются секреты и
+    приватный текст, числа и флаги остаются;
+  - Horizon dashboard закрыт gate `viewHorizon`;
+  - экран `/admin` в SPA (состояние, переключатель AI, журнал с фильтром) и
+    пункт в настройках, видимый только администратору;
+  - `docs/features/administration.md`, `docs/decisions/ADR-010-permissions-without-teams.md`.
+
+### Added
+
 - Поиск по сообщениям (этап 9 roadmap):
   - индекс Typesense за контрактом `MessageIndex` (адаптеры `typesense`/`null`
     и `FakeMessageIndex` для тестов); в документе только безопасные поля —
