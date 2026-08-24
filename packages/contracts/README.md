@@ -14,15 +14,15 @@
 | `realtime/room.member_changed.v1.schema.json` | `room.member_changed.v1` |
 | `realtime/typing.changed.v1.schema.json` | `typing.changed.v1` |
 
-Схемы сейчас описывают общий конверт (`event`, `version`, `room_id`, `occurred_at`);
-поля payload конкретных событий фиксируются на этапе 3 (задача 3.4) до появления
-первых потребителей.
+Каждая схема описывает общий конверт (`event`, `version`, `room_id`,
+`occurred_at`) и объект `data` с полями конкретного события;
+`additionalProperties: false` защищает от утечки недекларированных полей.
+Фикстуры и контрактный тест — `apps/chat-api/tests/{fixtures/realtime,Contract/RealtimeSchemaTest.php}`.
 
 ## Потребители
 
 - **PHP** (`apps/chat-api`): контрактный тест `tests/Contract/RealtimeSchemaTest.php`
-  валидирует payload broadcast-классов пакетов против этих схем (justinrainbow/json-schema
-  или opis/json-schema в require-dev приложения). Broadcast-классы живут в
+  валидирует payload broadcast-классов пакетов против этих схем (opis/json-schema в require-dev приложения). Broadcast-классы живут в
   `packages/backend/<pkg>/src/Infrastructure/Broadcasting/` и обязаны соответствовать схеме.
 - **TypeScript** (`packages/frontend/chat`): типы событий в `src/realtime/eventMap.ts`
   генерируются из схем инструментом `json-schema-to-typescript` (задача 3.4/7.4);

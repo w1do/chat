@@ -7,6 +7,19 @@
 
 ### Added
 
+- Контракты API и real-time (этап 3 roadmap):
+  - единый JSON error envelope (`code`, `message`, `details`, `trace_id`) для
+    всех ошибок API + заголовок `X-Trace-Id`; feature-тесты на все классы ошибок;
+  - сборка OpenAPI 3.1 из фрагментов пакетов (`openapi/build.php`) в
+    коммитящийся `openapi/dist/openapi.json`; `./tools/chat openapi build|validate`;
+  - генерация TypeScript-типов клиента из dist (`openapi-typescript`) и обёртка
+    `@vendor/api-client` (envelope, trace_id, 401/419/429, Idempotency-Key);
+    `./tools/chat client generate`;
+  - финальные JSON Schema шести real-time событий (draft 2020-12,
+    `additionalProperties: false`) + контрактный тест с фикстурами;
+  - `docs/api/{rest-guidelines,error-envelope,realtime-events,versioning}.md`,
+    ADR-008 (OpenAPI как источник истины);
+  - подключён `@tanstack/react-query` в `chat-web` (QueryClient в провайдерах).
 - Self-hosted runtime (этап 2 roadmap):
   - ADR-007 (Docker Compose как способ поставки) и ADR-009 (FrankenPHP как
     Octane application server);

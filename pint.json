@@ -4,6 +4,7 @@
         "declare_strict_types": true
     },
     "exclude": [
+        "apps/chat-api/bootstrap/cache",
         "bootstrap/cache",
         "vendor",
         "node_modules"

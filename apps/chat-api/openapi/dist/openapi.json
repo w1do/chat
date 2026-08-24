@@ -1,0 +1,85 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Self-Hosted Chat API",
+        "version": "0.1.0",
+        "description": "Публичный HTTP-контракт чата. Собирается из фрагментов backend-пакетов (packages/backend/*/openapi/) скриптом openapi/build.php."
+    },
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "sanctumCookie": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "laravel_session",
+                "description": "Sanctum cookie-based SPA session."
+            }
+        },
+        "schemas": {
+            "ApiError": {
+                "type": "object",
+                "required": [
+                    "code",
+                    "message",
+                    "details",
+                    "trace_id"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "details": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "trace_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            }
+        },
+        "responses": {
+            "ValidationError": {
+                "description": "Ошибка валидации входных данных.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                }
+            },
+            "Unauthenticated": {
+                "description": "Требуется аутентификация.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                }
+            },
+            "Forbidden": {
+                "description": "Действие запрещено политикой доступа.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "paths": {}
+}

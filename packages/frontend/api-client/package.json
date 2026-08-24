@@ -4,12 +4,16 @@
   "private": true,
   "description": "TypeScript-клиент, генерируемый из apps/chat-api/openapi/dist/openapi.json.",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "generate": "openapi-typescript ../../../apps/chat-api/openapi/dist/openapi.json -o src/generated/schema.d.ts"
   },
   "devDependencies": {
     "@vendor/tooling": "workspace:*",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "openapi-typescript": "^7.4.0"
   }
 }

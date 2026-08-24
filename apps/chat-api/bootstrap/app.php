@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\ApiErrorEnvelope;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,9 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // JSON-only rendering и единый error envelope (App\Support\ApiErrorEnvelope)
-        // подключаются полностью на этапе 3 (задача 3.1).
+        // API всегда отвечает JSON, включая исключения (docs/api/error-envelope.md).
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiErrorEnvelope::fromThrowable($e, $request);
+            }
+
+            return null;
+        });
     })->create();

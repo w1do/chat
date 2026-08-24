@@ -2,14 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.chat.local/realtime/room.member_changed.v1.schema.json",
   "title": "room.member_changed.v1",
-  "description": "Versioned real-time event payload for room.member_changed (v1). Payload contains only data the subscriber is already authorized to read via the HTTP API.",
+  "description": "Versioned real-time event payload for room.member_changed.v1. Payload contains only data the subscriber is already authorized to read via the HTTP API.",
   "type": "object",
-  "required": ["event", "version", "room_id", "occurred_at"],
+  "required": ["event", "version", "room_id", "occurred_at", "data"],
+  "additionalProperties": false,
   "properties": {
     "event": { "const": "room.member_changed.v1" },
     "version": { "const": 1 },
     "room_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
-    "occurred_at": { "type": "string", "format": "date-time" }
-  },
-  "additionalProperties": true
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "data": {
+      "type": "object",
+      "required": ["user_id", "action", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "user_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
+        "action": { "enum": ["joined", "left", "invited", "role_changed", "removed"] },
+        "role": { "type": ["string", "null"], "enum": ["owner", "admin", "member", null] }
+      }
+    }
+  }
 }

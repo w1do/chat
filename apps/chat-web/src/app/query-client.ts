@@ -1,6 +1,10 @@
-// Единственный QueryClient приложения создаётся здесь и передаётся
-// feature-пакетам через провайдер (§4.2). Зависимость @tanstack/react-query
-// подключается на этапе 3 вместе с генерируемым api-client.
-export function createQueryClient(): null {
-  return null;
+import { QueryClient } from '@tanstack/react-query';
+
+// Единственный QueryClient приложения; feature-пакеты получают его через провайдер (§4.2).
+export function createQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: 1, staleTime: 10_000 },
+    },
+  });
 }

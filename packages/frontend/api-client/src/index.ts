@@ -1,3 +1,12 @@
 // Публичный entrypoint @vendor/api-client.
-// client.ts / errors.ts (envelope, trace_id, 401/419/429) — этап 3, задача 3.3.
-export {};
+export { ApiClient, type ApiClientOptions, type RequestOptions } from './client';
+export {
+  ApiError,
+  type ApiErrorEnvelope,
+  CsrfTokenMismatchError,
+  isApiError,
+  NetworkError,
+  RateLimitedError,
+  UnauthenticatedError,
+} from './errors';
+export type { components, paths } from './generated/schema';

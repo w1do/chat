@@ -20,6 +20,9 @@ Commands:
   check boundaries        запрет cross-package internal imports и Domain/ в apps
   contracts validate      валидация JSON Schema в packages/contracts
   lint | stan             pint / phpstan из корня
+  openapi build           сборка openapi/dist/openapi.json из base + фрагментов пакетов
+  openapi validate        проверка актуальности dist и структуры спецификации
+  client generate         генерация packages/frontend/api-client/src/generated из dist
   compose config [prod|dev]  валидация compose-профилей (по умолчанию оба)
   build images            сборка production-образов api и web
   supervisor check        валидация синтаксиса infra/supervisor/*.conf
@@ -112,6 +115,37 @@ case "$cmd" in
     else
       echo "Unknown contracts command: $sub" >&2; exit 64
     fi
+    ;;
+  openapi)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      build)
+        (cd "$API_DIR" && php openapi/build.php)
+        ;;
+      validate)
+        (cd "$API_DIR" && php openapi/build.php --check)
+        php -r '
+          $spec = json_decode((string) file_get_contents($argv[1]), true);
+          if (!is_array($spec)) { fwrite(STDERR, "dist is not valid JSON\n"); exit(1); }
+          foreach (["openapi", "info", "paths"] as $k) {
+              if (!array_key_exists($k, $spec)) { fwrite(STDERR, "missing key: $k\n"); exit(1); }
+          }
+          if (!str_starts_with((string) $spec["openapi"], "3.1")) { fwrite(STDERR, "not OpenAPI 3.1\n"); exit(1); }
+          foreach ($spec["paths"] as $p => $ops) {
+              if (!str_starts_with($p, "/")) { fwrite(STDERR, "invalid path: $p\n"); exit(1); }
+          }
+          echo "openapi validate: OK\n";
+        ' "$API_DIR/openapi/dist/openapi.json"
+        ;;
+      *)
+        echo "Unknown openapi command: $sub" >&2; exit 64
+        ;;
+    esac
+    ;;
+  client)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "generate" ]] || { echo "Unknown client command: $sub" >&2; exit 64; }
+    (cd "$ROOT/packages/frontend/api-client" && pnpm run generate)
     ;;
   compose)
     sub="${1:-}"; shift || true

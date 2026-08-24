@@ -21,11 +21,11 @@
 
 ## 3. Stage 3 — API And Real-Time Contracts Baseline
 
-- [ ] 3.1 Implement `/api/v1` group, JSON-only exception rendering, `app/Support/{ApiErrorEnvelope,TraceId}` wiring in `bootstrap/app.php`, and verify feature tests cover validation, unauthenticated, forbidden, not-found, conflict, rate-limit, and unexpected error envelopes
-- [ ] 3.2 Implement OpenAPI assembly: `apps/chat-api/openapi/build.php` merges `openapi.base.yaml` with package `openapi/{paths,schemas}` fragments into committed `openapi/dist/openapi.json`, and verify `./tools/chat openapi validate` passes with no uncommitted diff
-- [ ] 3.3 Wire `packages/frontend/api-client` generation (`codegen.config.ts` → `src/generated/**`, wrapper `src/{client.ts,errors.ts}` handling envelope, trace_id, 401/419/429), and verify `./tools/chat client generate && ./tools/chat web typecheck` passes
-- [ ] 3.4 Finalize `packages/contracts` JSON Schemas for the six events and add `apps/chat-api/tests/Contract/RealtimeSchemaTest.php`, and verify payload fixtures validate against schemas
-- [ ] 3.5 Documentation gate: write `docs/api/{rest-guidelines,error-envelope,realtime-events,versioning}.md` and ADR-008 (OpenAPI as source of truth), update `SUMMARY.md` contracts row, `README.md`, `CHANGELOG.md`, and verify docs reference the committed OpenAPI and schema paths
+- [x] 3.1 Implement `/api/v1` group, JSON-only exception rendering, `app/Support/{ApiErrorEnvelope,TraceId}` wiring in `bootstrap/app.php`, and verify feature tests cover validation, unauthenticated, forbidden, not-found, conflict, rate-limit, and unexpected error envelopes
+- [x] 3.2 Implement OpenAPI assembly: `apps/chat-api/openapi/build.php` merges `openapi.base.yaml` with package `openapi/{paths,schemas}` fragments into committed `openapi/dist/openapi.json`, and verify `./tools/chat openapi validate` passes with no uncommitted diff
+- [x] 3.3 Wire `packages/frontend/api-client` generation (`codegen.config.ts` → `src/generated/**`, wrapper `src/{client.ts,errors.ts}` handling envelope, trace_id, 401/419/429), and verify `./tools/chat client generate && ./tools/chat web typecheck` passes
+- [x] 3.4 Finalize `packages/contracts` JSON Schemas for the six events and add `apps/chat-api/tests/Contract/RealtimeSchemaTest.php`, and verify payload fixtures validate against schemas
+- [x] 3.5 Documentation gate: write `docs/api/{rest-guidelines,error-envelope,realtime-events,versioning}.md` and ADR-008 (OpenAPI as source of truth), update `SUMMARY.md` contracts row, `README.md`, `CHANGELOG.md`, and verify docs reference the committed OpenAPI and schema paths
 
 ## 4. Stage 4 — Identity (API + Web)
 

@@ -19,7 +19,7 @@
 |---|---|---|
 | platform/monorepo-foundation | Каркас монорепозитория: apps, packages, contracts, tools/chat, boundary-check; app-тесты и typecheck проходят | in progress |
 | operations/self-hosted-runtime | ADR-007/009; compose prod/dev (`compose config` ок); образы api (FrankenPHP+Octane+Horizon+Reverb) и web собираются (`build images` ок); Supervisor-конфиги (`supervisor check` ок); readiness `/api/v1/readiness` + `/up`; `smoke runtime` против dev-стека — все компоненты ok; graceful reload (octane/horizon/reverb) проверен в контейнерах | implemented |
-| contracts/api-and-realtime | `openapi.base.yaml`, каркас `build.php`, схемы-конверты 6 событий; полная сборка — этап 3 | planned |
+| contracts/api-and-realtime | Единый error envelope + `X-Trace-Id` (9 feature-тестов: validation/401/403/404/409/429/500); сборка OpenAPI из фрагментов пакетов в коммитящийся `dist/openapi.json` (`openapi validate` ок); генерация `api-client` из dist (`client generate` + typecheck ок) с обёрткой 401/419/429; финальные JSON Schema 6 событий + `RealtimeSchemaTest` (8 тестов) | implemented |
 | identity/authentication-and-profile | Скелет пакетов `backend/identity`, `frontend/identity` | planned |
 | chat/rooms-and-messages | Скелет пакетов `backend/chat`, `frontend/chat` | planned |
 | chat/realtime-presence | Скелеты broadcast/presence не начаты; схемы событий в `packages/contracts` | planned |
