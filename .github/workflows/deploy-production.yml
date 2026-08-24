@@ -1,0 +1,62 @@
+name: deploy-production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Тег версии (например, v0.1.0)
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy (manual approval required)
+    runs-on: ubuntu-24.04
+    # Защищённый environment: одобрение и секреты настраиваются в GitHub.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: sigstore/cosign-installer@v3
+      - name: Verify the image signature before touching production
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/release.yml@.*" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/${{ github.repository }}/chat-api:${{ inputs.version }}
+
+      - name: Backup, deploy, migrate, reload
+        env:
+          VERSION: ${{ inputs.version }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          install -m 600 /dev/stdin key <<< "$SSH_KEY"
+          ssh -i key -o StrictHostKeyChecking=accept-new "$SSH_HOST" bash -s <<EOSSH
+            set -euo pipefail
+            cd /opt/chat
+            ./scripts/backup-db.sh                       # шаг 1 чек-листа релиза
+            sed -i "s|^CHAT_API_IMAGE=.*|CHAT_API_IMAGE=ghcr.io/${{ github.repository }}/chat-api:$VERSION|" .env
+            sed -i "s|^CHAT_WEB_IMAGE=.*|CHAT_WEB_IMAGE=ghcr.io/${{ github.repository }}/chat-web:$VERSION|" .env
+            docker compose --env-file .env -f compose.prod.yaml pull
+            docker compose --env-file .env -f compose.prod.yaml up -d
+            docker compose -p chat exec -T api php artisan migrate --force
+            docker compose -p chat exec -T api php artisan octane:reload
+            docker compose -p chat exec -T worker php artisan horizon:terminate
+            docker compose -p chat exec -T reverb php artisan reverb:restart
+          EOSSH
+
+      - name: Smoke the deployed stack
+        env:
+          CHAT_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+        run: ./tools/chat smoke runtime
+
+      - name: Rollback hint on failure
+        if: failure()
+        run: |
+          echo "Верните предыдущие теги образов в .env и повторите up -d;"
+          echo "при несовместимой миграции восстановите БД из копии этого запуска."
+          echo "Полная процедура: docs/operations/release-checklist.md"

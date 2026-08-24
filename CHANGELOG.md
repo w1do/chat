@@ -7,6 +7,37 @@
 
 ### Added
 
+- Закалка и готовность к релизу (этап 12 roadmap):
+  - `./tools/chat check boundaries` дополнен проверкой сгенерированных файлов
+    (OpenAPI dist и клиент не расходятся с генерацией);
+  - `./tools/chat check docs` не даёт документации обгонять код: статус
+    `implemented`/`verified` обязан называть существующую команду проверки, а
+    `verified` — ещё и E2E или smoke;
+  - `./tools/chat check selftest` подкладывает нарушения во временное дерево и
+    требует, чтобы проверки на них падали;
+  - `./tools/chat ci` повторяет локально шаги `pull-request.yml`;
+  - workflows `pull-request`, `security`, `release`, `deploy-staging`,
+    `deploy-production` (подписанные образы, SBOM, checksum, compose-бандл,
+    защищённый production-environment с проверкой подписи перед деплоем);
+  - E2E `auth`, `messaging`, `ai-revision` и `./tools/chat e2e critical`;
+  - `./tools/chat smoke all`; smoke websocket и search больше не привязаны к
+    dev-ключам и работают против production-профиля;
+  - `docs/security/{threat-model,hardening,disclosure,secret-rotation}.md`,
+    `docs/operations/release-checklist.md`, `SECURITY.md`, `SUPPORT.md`.
+
+### Fixed
+
+- Production-профиль Compose (найдено финальным гейтом при реальном
+  `docker compose up -d`):
+  - healthcheck Redis не мог аутентифицироваться — пароль не передавался
+    внутрь контейнера;
+  - API не получал `DB_CONNECTION`, из-за чего readiness показывал базу
+    недоступной на чистой установке;
+  - readiness не знал адрес Reverb (`REVERB_SERVER_HOST`/`PORT`) и считал
+    WebSocket неработающим.
+
+### Added
+
 - Администрирование и аудит (этап 11 roadmap):
   - пакет `vendor/administration`: таблицы `audit_logs` и `system_settings`,
     контракты `AuditRecorder` и `SystemProbe`, права

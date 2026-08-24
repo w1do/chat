@@ -1,0 +1,48 @@
+name: deploy-staging
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Тег версии (например, v0.1.0)
+        required: true
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy and smoke
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy the pinned version
+        env:
+          VERSION: ${{ inputs.version || github.event.workflow_run.head_branch }}
+          SSH_HOST: ${{ secrets.STAGING_HOST }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 600 /dev/stdin key <<< "$SSH_KEY"
+          ssh -i key -o StrictHostKeyChecking=accept-new "$SSH_HOST" bash -s <<EOSSH
+            set -euo pipefail
+            cd /opt/chat
+            ./scripts/backup-db.sh
+            sed -i "s|^CHAT_API_IMAGE=.*|CHAT_API_IMAGE=ghcr.io/${{ github.repository }}/chat-api:$VERSION|" .env
+            sed -i "s|^CHAT_WEB_IMAGE=.*|CHAT_WEB_IMAGE=ghcr.io/${{ github.repository }}/chat-web:$VERSION|" .env
+            docker compose --env-file .env -f compose.prod.yaml pull
+            docker compose --env-file .env -f compose.prod.yaml up -d
+            docker compose -p chat exec -T api php artisan migrate --force
+            docker compose -p chat exec -T api php artisan octane:reload
+          EOSSH
+
+      - name: Smoke the deployed stack
+        env:
+          CHAT_API_URL: ${{ secrets.STAGING_API_URL }}
+        run: ./tools/chat smoke runtime

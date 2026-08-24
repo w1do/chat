@@ -1,6 +1,6 @@
 # Членство в комнатах
 
-Статус: implemented
+Статус: verified (E2E `./tools/chat e2e messaging`)
 
 ## Роли и права
 
@@ -34,3 +34,6 @@
 ## Критерии приёмки / проверки
 
 - `./tools/chat test chat`, `./tools/chat test api`, `./tools/chat web test chat` — проходят.
+
+Запуск E2E: `./tools/chat e2e messaging` — вступление в открытую комнату и доступ
+к переписке после него.

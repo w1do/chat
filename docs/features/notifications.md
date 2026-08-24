@@ -1,6 +1,6 @@
 # Уведомления
 
-Статус: implemented
+Статус: verified (E2E `./tools/chat e2e messaging`)
 
 ## Главное правило
 
@@ -64,3 +64,6 @@
 - `./tools/chat test api tests/Integration/NotificationsWiringTest.php` —
   сквозной путь chat → notifications (5 тестов);
 - `./tools/chat web test notifications` — лента и настройки (7 тестов).
+
+Запуск E2E: `./tools/chat e2e messaging` — сообщение, отправленное, пока получателя
+нет в комнате, доходит до его ленты уведомлений.

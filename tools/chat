@@ -5,6 +5,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Проверки границ и статусов умеют работать против другого дерева: так их
+# самопроверка убеждается, что нарушение действительно ловится.
+CHECK_ROOT="${CHAT_CHECK_ROOT:-$ROOT}"
+DOCS_DIR="${CHAT_DOCS_DIR:-$ROOT/docs/features}"
 API_DIR="$ROOT/apps/chat-api"
 BACKEND_PKGS=(shared-kernel identity chat notifications ai administration)
 
@@ -17,7 +21,11 @@ Commands:
   web <script> [args…]    pnpm-скрипт в apps/chat-web (typecheck, build, test)
   test packages           изолированные тесты каждого backend-пакета
   test api                тесты apps/chat-api (Pest)
-  check boundaries        запрет cross-package internal imports и Domain/ в apps
+  check boundaries        запрет cross-package internal imports, deep imports,
+                          правок сгенерированных файлов и Domain/ в apps
+  check docs              статусы docs/features/* подтверждены командами проверки
+  check selftest          проверки границ и статусов ловят подложенное нарушение
+  ci                      полный локальный прогон того же, что и pull-request.yml
   contracts validate      валидация JSON Schema в packages/contracts
   lint | stan             pint / phpstan из корня
   openapi build           сборка openapi/dist/openapi.json из base + фрагментов пакетов
@@ -32,7 +40,8 @@ Commands:
   smoke search            индексация и поиск тестового сообщения в Typesense
   smoke polza             необязательная проверка настоящего AI (нужен AI_API_KEY)
   up | down               локальный полный стек в браузере (http://localhost:8088)
-  e2e <spec>              Playwright-сценарий против локального стека
+  smoke all               runtime + websocket + search (search — если поднят Typesense)
+  e2e <spec> | e2e critical  Playwright: один сценарий или все критические
 EOF
 }
 
@@ -85,7 +94,7 @@ case "$cmd" in
       boundaries)
         rc=0
         # 1) Domain/ или Application/ внутри apps/* запрещены (STRUCTURE.md §9)
-        if find "$ROOT/apps" -type d \( -name Domain -o -name Application \) -not -path '*/vendor/*' | grep .; then
+        if find "$CHECK_ROOT/apps" -type d \( -name Domain -o -name Application \) -not -path '*/vendor/*' | grep .; then
           echo "FAIL: Domain/ или Application/ внутри apps/*" >&2; rc=1
         fi
         # 2) cross-package internal imports: пакет не использует чужой Vendor\<Pkg>\ namespace,
@@ -94,17 +103,112 @@ case "$cmd" in
         for pkg in "${!NS[@]}"; do
           for other in "${!NS[@]}"; do
             [[ "$pkg" == "$other" ]] && continue
-            if grep -rn "Vendor\\\\${NS[$other]}\\\\" "$ROOT/packages/backend/$pkg/src" 2>/dev/null; then
+            if grep -rn "Vendor\\\\${NS[$other]}\\\\" "$CHECK_ROOT/packages/backend/$pkg/src" 2>/dev/null; then
               echo "FAIL: $pkg импортирует внутренности $other" >&2; rc=1
             fi
           done
         done
         # 3) deep imports во frontend-пакетах: @vendor/<pkg>/src/... запрещены
         if grep -rn --include='*.ts' --include='*.tsx' -E "from ['\"]@vendor/[a-z-]+/src/" \
-            "$ROOT/packages/frontend" "$ROOT/apps/chat-web/src" 2>/dev/null; then
+            "$CHECK_ROOT/packages/frontend" "$CHECK_ROOT/apps/chat-web/src" 2>/dev/null; then
           echo "FAIL: deep import @vendor/*/src/**" >&2; rc=1
         fi
+        # 4) сгенерированные файлы не правят руками: dist OpenAPI и клиент
+        #    должны совпадать с результатом генерации.
+        if [[ "$CHECK_ROOT" == "$ROOT" ]]; then
+          if ! (cd "$API_DIR" && php openapi/build.php --check >/dev/null); then
+            echo "FAIL: openapi/dist отличается от сборки — перегенерируйте" >&2; rc=1
+          fi
+          before="$(sha1sum "$ROOT/packages/frontend/api-client/src/generated/schema.d.ts" | cut -d" " -f1)"
+          (cd "$ROOT/packages/frontend/api-client" && pnpm run generate >/dev/null 2>&1) || true
+          after="$(sha1sum "$ROOT/packages/frontend/api-client/src/generated/schema.d.ts" | cut -d" " -f1)"
+          if [[ "$before" != "$after" ]]; then
+            echo "FAIL: generated-клиент отличается от dist — закоммитьте перегенерацию" >&2; rc=1
+          fi
+        fi
         [[ $rc -eq 0 ]] && echo "boundaries: OK"
+        exit $rc
+        ;;
+      docs)
+        # Статус implemented/verified подтверждается командой проверки, которую
+        # можно выполнить: иначе документация обгоняет код (CLAUDE.md §16).
+        rc=0
+        shopt -s nullglob
+        for doc in "$DOCS_DIR"/*.md; do
+          status="$(grep -m1 '^Статус:' "$doc" | sed 's/^Статус: *//')"
+          name="$(basename "$doc")"
+          case "$status" in
+            planned*|'in progress'*)
+              continue
+              ;;
+            implemented*|verified*)
+              if ! grep -q '`\./tools/chat ' "$doc"; then
+                echo "FAIL: $name заявляет «$status», но не называет команду проверки" >&2; rc=1
+                continue
+              fi
+              # Каждая названная подкоманда должна существовать в этом файле.
+              while read -r target; do
+                [[ -z "$target" ]] && continue
+                if ! grep -q "^  $target)" "$ROOT/tools/chat" && ! grep -q "^      $target)" "$ROOT/tools/chat"; then
+                  echo "FAIL: $name ссылается на несуществующую команду «chat $target»" >&2; rc=1
+                fi
+              done < <(grep -o '`\./tools/chat [a-z0-9-]*' "$doc" | awk '{print $2}' | sort -u)
+              if [[ "$status" == verified* ]] && ! grep -qE '`\./tools/chat (e2e|smoke) ' "$doc"; then
+                echo "FAIL: $name заявляет «verified» без E2E или smoke-команды" >&2; rc=1
+              fi
+              ;;
+            *)
+              echo "FAIL: $name без распознанного статуса" >&2; rc=1
+              ;;
+          esac
+        done
+        shopt -u nullglob
+        [[ $rc -eq 0 ]] && echo "docs status: OK"
+        exit $rc
+        ;;
+      selftest)
+        # Проверки бесполезны, если не падают на нарушении: подкладываем его
+        # во временное дерево и требуем ненулевой код возврата.
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        rc=0
+
+        mkdir -p "$tmp/apps/chat-api/app/Domain" "$tmp/packages/backend/chat/src" \
+                 "$tmp/packages/frontend/chat/src" "$tmp/apps/chat-web/src"
+        if CHAT_CHECK_ROOT="$tmp" "$0" check boundaries >/dev/null 2>&1; then
+          echo "FAIL: Domain/ внутри apps/* не пойман" >&2; rc=1
+        fi
+
+        rm -rf "$tmp/apps/chat-api/app/Domain"
+        printf '<?php use Vendor\\Identity\\Domain\\Models\\User;' > "$tmp/packages/backend/chat/src/Leak.php"
+        if CHAT_CHECK_ROOT="$tmp" "$0" check boundaries >/dev/null 2>&1; then
+          echo "FAIL: cross-package import не пойман" >&2; rc=1
+        fi
+
+        rm -f "$tmp/packages/backend/chat/src/Leak.php"
+        printf "import { x } from '@vendor/ui/src/internal';" > "$tmp/apps/chat-web/src/deep.ts"
+        if CHAT_CHECK_ROOT="$tmp" "$0" check boundaries >/dev/null 2>&1; then
+          echo "FAIL: deep import не пойман" >&2; rc=1
+        fi
+
+        docs="$tmp/docs"
+        mkdir -p "$docs"
+        printf '# Ложный статус\n\nСтатус: implemented\n' > "$docs/fake.md"
+        if CHAT_DOCS_DIR="$docs" "$0" check docs >/dev/null 2>&1; then
+          echo "FAIL: статус implemented без команды проверки не пойман" >&2; rc=1
+        fi
+
+        printf '# Ложный verified\n\nСтатус: verified\n\n`./tools/chat test api`\n' > "$docs/fake.md"
+        if CHAT_DOCS_DIR="$docs" "$0" check docs >/dev/null 2>&1; then
+          echo "FAIL: статус verified без E2E/smoke не пойман" >&2; rc=1
+        fi
+
+        printf '# Несуществующая команда\n\nСтатус: implemented\n\n`./tools/chat frobnicate`\n' > "$docs/fake.md"
+        if CHAT_DOCS_DIR="$docs" "$0" check docs >/dev/null 2>&1; then
+          echo "FAIL: ссылка на несуществующую команду не поймана" >&2; rc=1
+        fi
+
+        [[ $rc -eq 0 ]] && echo "check selftest: OK (все нарушения пойманы)"
         exit $rc
         ;;
       *)
@@ -269,19 +373,30 @@ PY
       # Реальная доставка события: publish через pusher-протокол Reverb →
       # получение по WebSocket node-клиентом (pusher-js).
       ws_host="${REVERB_SMOKE_HOST:-127.0.0.1}" ws_port="${REVERB_SMOKE_PORT:-8080}"
-      node "$ROOT/tools/smoke-websocket.mjs" "$ws_host" "$ws_port" &
+      node "$ROOT/tools/smoke-websocket.mjs" "$ws_host" "$ws_port" "${REVERB_APP_KEY:-devkey}" &
       listener=$!
       sleep 2
       php -r '
         require $argv[1]."/apps/chat-api/vendor/autoload.php";
-        $pusher = new Pusher\Pusher("devkey", "devsecret", "1001", [
+        // Ключи берутся из окружения: смоук работает и против dev-стека,
+        // и против production-профиля с собственными секретами.
+        $pusher = new Pusher\Pusher($argv[4], $argv[5], $argv[6], [
             "host" => $argv[2], "port" => (int) $argv[3], "scheme" => "http", "useTLS" => false,
         ]);
         $pusher->trigger("smoke-channel", "smoke.event.v1", ["ok" => true, "sent_at" => date("c")]);
         echo "event published\n";
-      ' "$ROOT" "$ws_host" "$ws_port"
+      ' "$ROOT" "$ws_host" "$ws_port" "${REVERB_APP_KEY:-devkey}" "${REVERB_APP_SECRET:-devsecret}" "${REVERB_APP_ID:-1001}"
       wait $listener
       exit $?
+    fi
+    if [[ "$sub" == "all" ]]; then
+      rc=0
+      for target in runtime websocket search; do
+        echo "== smoke $target =="
+        "$0" smoke "$target" || rc=1
+      done
+      [[ $rc -eq 0 ]] && echo "smoke all: OK" || echo "smoke all: FAIL"
+      exit $rc
     fi
     if [[ "$sub" == "search" ]]; then
       # Реальный Typesense из dev-стека: создаём коллекцию, индексируем
@@ -346,12 +461,52 @@ PY
     ;;
   e2e)
     sub="${1:-realtime}"; shift || true
+    if [[ "$sub" == "critical" ]]; then
+      # Критические сценарии релиза: регистрация, переписка двоих, real-time,
+      # помощник, уведомление о пропущенном и поиск.
+      "$0" e2e-stack-up
+      docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true \
+        -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web \
+        mcr.microsoft.com/playwright:v1.58.1-noble \
+        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts --reporter=line"
+      rc=$?
+      "$0" e2e-stack-down
+      exit $rc
+    fi
     # E2E-стек: postgres+redis (dev compose) + api/reverb/web + smoke-proxy,
     # Playwright — в официальном контейнере с браузерами (адрес внутри сети).
     "$0" e2e-stack-up
     docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true       -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web       mcr.microsoft.com/playwright:v1.58.1-noble       bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/$sub.spec.ts --reporter=line"
     rc=$?
     "$0" e2e-stack-down
+    exit $rc
+    ;;
+  ci)
+    # Тот же порядок шагов, что в .github/workflows/pull-request.yml.
+    rc=0
+    step() {
+      echo "== $1 =="
+      shift
+      if "$@"; then echo "OK"; else echo "FAIL"; rc=1; fi
+    }
+    step "pint" "$ROOT/vendor/bin/pint" --test packages apps/chat-api/app apps/chat-api/tests
+    step "phpstan" "$0" stan
+    step "package tests" "$0" test packages
+    step "application tests" "$0" test api
+    step "frontend typecheck" "$0" web typecheck
+    step "frontend build" "$0" web build
+    for pkg in chat notifications; do
+      step "frontend tests: $pkg" "$0" web test "$pkg"
+    done
+    step "frontend tests: chat-web" "$0" web test
+    step "contracts" "$0" contracts validate
+    step "openapi" "$0" openapi validate
+    step "boundaries" "$0" check boundaries
+    step "docs status" "$0" check docs
+    step "check selftest" "$0" check selftest
+    step "compose config" "$0" compose config
+    step "supervisor" "$0" supervisor check
+    [[ $rc -eq 0 ]] && echo "ci: OK" || echo "ci: FAIL"
     exit $rc
     ;;
   up)

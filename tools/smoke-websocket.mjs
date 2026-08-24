@@ -1,14 +1,14 @@
 // Smoke-клиент WebSocket: подписка на канал Reverb и ожидание события.
-// Использование: node tools/smoke-websocket.mjs <host> <port>
+// Использование: node tools/smoke-websocket.mjs <host> <port> [app-key]
 import { createRequire } from 'node:module';
 
 // pusher-js установлен в workspace chat-web (pnpm isolation).
 const require = createRequire(new URL('../apps/chat-web/package.json', import.meta.url));
 const Pusher = require('pusher-js');
 
-const [host = '127.0.0.1', port = '8080'] = process.argv.slice(2);
+const [host = '127.0.0.1', port = '8080', appKey = 'devkey'] = process.argv.slice(2);
 
-const client = new Pusher('devkey', {
+const client = new Pusher(appKey, {
   wsHost: host,
   wsPort: Number(port),
   forceTLS: false,

@@ -9,3 +9,5 @@
 
 Проверки: feature-тест «stores mentions of room members», компонентный тест
 mention-флоу.
+
+Запуск: `./tools/chat test chat`, `./tools/chat test api`, `./tools/chat web test chat`.

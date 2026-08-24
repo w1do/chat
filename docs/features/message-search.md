@@ -1,6 +1,6 @@
 # Поиск по сообщениям
 
-Статус: implemented
+Статус: verified (`./tools/chat smoke search` против настоящего Typesense)
 
 ## Что это
 

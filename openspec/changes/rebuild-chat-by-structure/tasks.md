@@ -105,12 +105,12 @@
 
 ## 12. Stage 12 — Hardening And Release Readiness
 
-- [ ] 12.1 Add dependency-boundary CI checks (no cross-package internals, no deep imports, no generated-file edits, no `Domain/` in apps) and verify they fail on injected violations (скиллы: `spatie-laravel-php`)
-- [ ] 12.2 Complete `.github/workflows/{pull-request,security,release,deploy-staging,deploy-production}.yml` per `STRUCTURE.md` §7, runnable locally via `./tools/chat ci`, and verify a full local CI run passes (скиллы: `laravel-deploy`, `spatie-version-control`)
-- [ ] 12.3 Add docs-status enforcement: CI check that no feature doc claims `implemented`/`verified` without its module test command existing and passing, and verify it catches an injected false status (скиллы: `documentation`)
-- [ ] 12.4 Add Playwright `e2e/{auth,messaging,ai-revision}.spec.ts` covering registration, room creation, two-user messaging, AI suggestion, offline notification, and search, and verify `./tools/chat e2e critical` passes
-- [ ] 12.5 Complete `docs/security/{threat-model,hardening,disclosure,secret-rotation}.md` and release artifacts (`LICENSE`, `SECURITY.md`, `SUPPORT.md`, upgrade notes, SBOM/checksum/provenance plan, compose bundle), and verify the release checklist has no undocumented manual step (скиллы: `spatie-security`, `laravel-deploy`, `documentation`)
-- [ ] 12.6 Final gate: run `docker compose up -d` plus `./tools/chat smoke all`, then set final module statuses in `SUMMARY.md`, finalize `README.md` and `CHANGELOG.md` for the release, and verify every `verified` status corresponds to a passing smoke/E2E command (скиллы: `laravel-deploy`, `documentation`)
+- [x] 12.1 Add dependency-boundary CI checks (no cross-package internals, no deep imports, no generated-file edits, no `Domain/` in apps) and verify they fail on injected violations (скиллы: `spatie-laravel-php`)
+- [x] 12.2 Complete `.github/workflows/{pull-request,security,release,deploy-staging,deploy-production}.yml` per `STRUCTURE.md` §7, runnable locally via `./tools/chat ci`, and verify a full local CI run passes (скиллы: `laravel-deploy`, `spatie-version-control`)
+- [x] 12.3 Add docs-status enforcement: CI check that no feature doc claims `implemented`/`verified` without its module test command existing and passing, and verify it catches an injected false status (скиллы: `documentation`)
+- [x] 12.4 Add Playwright `e2e/{auth,messaging,ai-revision}.spec.ts` covering registration, room creation, two-user messaging, AI suggestion, offline notification, and search, and verify `./tools/chat e2e critical` passes
+- [x] 12.5 Complete `docs/security/{threat-model,hardening,disclosure,secret-rotation}.md` and release artifacts (`LICENSE`, `SECURITY.md`, `SUPPORT.md`, upgrade notes, SBOM/checksum/provenance plan, compose bundle), and verify the release checklist has no undocumented manual step (скиллы: `spatie-security`, `laravel-deploy`, `documentation`)
+- [x] 12.6 Final gate: run `docker compose up -d` plus `./tools/chat smoke all`, then set final module statuses in `SUMMARY.md`, finalize `README.md` and `CHANGELOG.md` for the release, and verify every `verified` status corresponds to a passing smoke/E2E command (скиллы: `laravel-deploy`, `documentation`)
 
 ## 13. Stage 13 — Login-First Sign-In And Full Design-System Pass
 

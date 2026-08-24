@@ -56,11 +56,24 @@ docker compose --env-file .env -f compose.prod.yaml up -d
 ./tools/chat contracts validate  валидация JSON Schema real-time событий
 ./tools/chat smoke search        индексация и поиск в настоящем Typesense
 ./tools/chat api chat:grant-admin <логин>   назначить администратора
+./tools/chat check docs          статусы документации подтверждены командами
+./tools/chat ci                  всё, что проверяет pull-request.yml, локально
+./tools/chat e2e critical        критические сценарии в Playwright
+./tools/chat smoke all           готовность развёрнутого стека
 ./tools/chat lint | stan         Pint / PHPStan
 ```
 
 Поиск по сообщениям выключен по умолчанию: чат работает без Typesense. Как
 включить и перестроить индекс — [docs/operations/search-reindex.md](docs/operations/search-reindex.md).
+
+## Релиз и безопасность
+
+- [docs/operations/release-checklist.md](docs/operations/release-checklist.md) —
+  что выполняется перед тегом, на staging и в production;
+- [SECURITY.md](SECURITY.md) — как сообщить об уязвимости;
+- [SUPPORT.md](SUPPORT.md) — куда идти с вопросом;
+- [docs/security/hardening.md](docs/security/hardening.md) — обязательный
+  чек-лист того, кто разворачивает.
 
 ## Документация
 

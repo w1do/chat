@@ -14,3 +14,5 @@
 Проверки: package-тест «soft deletes preserving replies», feature-тест
 «foreign reply targets», компонентные тесты: начать ответ, отменить, отправить
 с целью, перейти к оригиналу, удалённый оригинал.
+
+Запуск: `./tools/chat test chat`, `./tools/chat test api`, `./tools/chat web test chat`.

@@ -12,11 +12,15 @@ x-api-image: &api-image
   environment:
     APP_ENV: production
     OCTANE_SERVER: frankenphp
+    DB_CONNECTION: pgsql
     DB_HOST: postgres
     REDIS_HOST: redis
     TYPESENSE_HOST: typesense
     SEARCH_ENABLED: ${SEARCH_ENABLED:-false}
     REVERB_HOST: reverb
+    # Адрес Reverb для readiness-проверки API (сам сервер слушает 0.0.0.0).
+    REVERB_SERVER_HOST: reverb
+    REVERB_SERVER_PORT: 8080
   depends_on:
     postgres:
       condition: service_healthy
@@ -123,6 +127,9 @@ services:
     image: redis:8.4-alpine
     restart: unless-stopped
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
+    environment:
+      # Пароль нужен и внутри контейнера: healthcheck аутентифицируется им.
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
     volumes:
       - redis-data:/data
     networks: [internal]

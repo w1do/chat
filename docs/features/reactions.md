@@ -13,3 +13,5 @@
 Проверки: package-тесты uniqueness/toggle, feature-тест «toggles reactions for
 members only», компонентные тесты выбора реакции из палитры и вставки эмодзи
 в черновик.
+
+Запуск: `./tools/chat test chat`, `./tools/chat test api`, `./tools/chat web test chat`.

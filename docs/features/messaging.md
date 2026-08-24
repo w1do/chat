@@ -1,6 +1,6 @@
 # Сообщения
 
-Статус: implemented
+Статус: verified (E2E `./tools/chat e2e messaging` и `./tools/chat e2e realtime`)
 
 ## Сценарии
 
@@ -41,3 +41,6 @@
 
 - `./tools/chat test chat-messages` (домен) и `./tools/chat test api
   tests/Feature/MessagesTest.php` (9 feature-тестов); `./tools/chat web test chat`.
+
+Запуск E2E: `./tools/chat e2e messaging` — двое в комнате, живая доставка,
+поиск по истории и удаление своего сообщения.

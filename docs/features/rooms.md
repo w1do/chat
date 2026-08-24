@@ -1,6 +1,6 @@
 # Комнаты
 
-Статус: implemented
+Статус: verified (E2E `./tools/chat e2e messaging`)
 
 ## Сценарии
 
@@ -28,3 +28,6 @@
 - `./tools/chat test chat` — матрица owner/admin/member/guest (8 тестов);
 - `./tools/chat test api tests/Feature/RoomsTest.php` — 9 feature-тестов;
 - `./tools/chat web test chat` — 8 компонентных тестов.
+
+Запуск E2E: `./tools/chat e2e messaging` — создание комнаты и вход в неё вторым
+участником.

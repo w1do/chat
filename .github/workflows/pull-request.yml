@@ -1,0 +1,131 @@
+name: pull-request
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, stan, tests)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18.1-alpine
+        env:
+          POSTGRES_DB: chat
+          POSTGRES_USER: chat
+          POSTGRES_PASSWORD: chat
+        options: >-
+          --health-cmd "pg_isready -U chat" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+      redis:
+        image: redis:8.4-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pcntl, redis, pdo_pgsql
+          coverage: none
+      - name: Install root and application dependencies
+        run: |
+          composer install --no-interaction --prefer-dist
+          composer install --no-interaction --prefer-dist --working-dir=apps/chat-api
+      - run: ./vendor/bin/pint --test packages apps/chat-api/app apps/chat-api/tests
+      - run: ./tools/chat stan
+      - name: Isolated package tests
+        run: |
+          for pkg in shared-kernel identity chat notifications ai administration; do
+            composer install --no-interaction --working-dir="packages/backend/$pkg"
+          done
+          ./tools/chat test packages
+      - name: Application tests (PostgreSQL + Redis)
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: chat
+          DB_USERNAME: chat
+          DB_PASSWORD: chat
+          REDIS_HOST: 127.0.0.1
+        run: |
+          php apps/chat-api/artisan migrate --force
+          ./tools/chat test api
+
+  frontend:
+    name: Frontend (typecheck, tests, build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.14.0', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: ./tools/chat web typecheck
+      - run: ./tools/chat web test chat
+      - run: ./tools/chat web test notifications
+      - run: ./tools/chat web test
+      - run: ./tools/chat web build
+
+  contracts:
+    name: Contracts, boundaries and docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', coverage: none }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.14.0', cache: pnpm }
+      - run: |
+          composer install --no-interaction --working-dir=apps/chat-api
+          pnpm install --frozen-lockfile
+      - run: ./tools/chat contracts validate
+      - run: ./tools/chat openapi validate
+      - name: Boundaries (includes generated-file drift)
+        run: ./tools/chat check boundaries
+      - name: Feature doc statuses are backed by commands
+        run: ./tools/chat check docs
+      - name: The checks themselves catch injected violations
+        run: ./tools/chat check selftest
+      - name: No uncommitted diff after generation
+        run: git diff --exit-code
+
+  delivery:
+    name: Images, compose and supervisor
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tools/chat compose config
+      - run: ./tools/chat supervisor check
+      - run: ./tools/chat build images
+
+  e2e:
+    name: Critical E2E
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend, delivery]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.14.0', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: ./tools/chat build images
+      - run: ./tools/chat e2e critical
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/chat-web/test-results/
