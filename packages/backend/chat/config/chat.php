@@ -15,6 +15,26 @@ return [
         'typing_ttl_seconds' => 7,
     ],
 
+    // Поиск по истории: PostgreSQL остаётся источником истины, индекс
+    // перестраиваем командой. Значения читаются только здесь (CLAUDE.md §12).
+    'search' => [
+        'enabled' => (bool) env('SEARCH_ENABLED', false),
+        'driver' => env('SEARCH_DRIVER', 'typesense'),
+        'collection' => env('SEARCH_COLLECTION', 'messages'),
+        'host' => env('TYPESENSE_HOST', '127.0.0.1'),
+        'port' => (int) env('TYPESENSE_PORT', 8108),
+        'protocol' => env('TYPESENSE_PROTOCOL', 'http'),
+        'api_key' => env('TYPESENSE_API_KEY'),
+        'timeout_seconds' => (int) env('SEARCH_TIMEOUT_SECONDS', 3),
+        'page_size' => (int) env('SEARCH_PAGE_SIZE', 20),
+        'queue' => env('SEARCH_QUEUE', 'search'),
+        'job' => [
+            'tries' => (int) env('SEARCH_JOB_TRIES', 3),
+            'timeout' => (int) env('SEARCH_JOB_TIMEOUT', 20),
+            'backoff' => [10, 60, 300],
+        ],
+    ],
+
     'routes' => [
         'enabled' => true,
         'prefix' => 'api/v1',

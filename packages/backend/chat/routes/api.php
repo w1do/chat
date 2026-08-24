@@ -7,6 +7,7 @@ use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\ReactionController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\RoomController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\SearchController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\TypingController;
 
 Route::prefix(config('chat.routes.prefix', 'api/v1'))
@@ -33,5 +34,6 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->name('messages.delete');
         Route::post('/messages/{message}/reactions', [ReactionController::class, 'toggle'])->name('reactions.toggle');
         Route::post('/rooms/{room}/typing', [TypingController::class, 'store'])->name('typing.set');
+        Route::get('/search/messages', [SearchController::class, 'index'])->name('search.messages');
         Route::post('/rooms/{room}/read', [MessageController::class, 'markRead'])->name('messages.read');
     });

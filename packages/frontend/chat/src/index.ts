@@ -1,5 +1,5 @@
 // Публичный entrypoint пакета @vendor/chat.
-export { aiApi, messagesApi, roomsApi } from './api';
+export { aiApi, messagesApi, roomsApi, searchApi } from './api';
 export { ChatProvider, useChatClient } from './adapters/ChatProvider';
 export { EchoAdapter } from './adapters/EchoAdapter';
 export type {
@@ -15,6 +15,8 @@ export { PresenceDots } from './components/PresenceDots';
 export { TypingIndicator } from './components/TypingIndicator';
 export { useRealtimeRoom, type JoinGreeting } from './hooks/useRealtimeRoom';
 export { EmojiPicker, EMOJI_GROUPS } from './components/mobile/EmojiPicker';
+export { SearchSheet } from './components/mobile/SearchSheet';
+export { useMessageSearch } from './hooks/useMessageSearch';
 export { SystemEntry, systemText } from './components/mobile/SystemEntry';
 export { splitTimeline, type TimelineEntry } from './format';
 export { useTyping } from './hooks/useTyping';

@@ -426,6 +426,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Поиск по истории комнат, доступных пользователю
+         * @description Индекс отдаёт только идентификаторы; тела сообщений читаются из PostgreSQL после проверки членства. Удалённые и системные записи не возвращаются. Если индекс недоступен, ответ — 503, а чат продолжает работать.
+         */
+        get: operations["searchMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -589,6 +609,15 @@ export interface components {
         };
         /** @description Действие запрещено политикой доступа. */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Зависимость временно недоступна; основной сценарий продолжает работать. */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1656,6 +1685,36 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    searchMessages: {
+        parameters: {
+            query: {
+                q: string;
+                /** @description Ограничить поиск одной комнатой. */
+                room_id?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Найденные сообщения, релевантные первыми. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Message"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
 }

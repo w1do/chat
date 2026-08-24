@@ -535,6 +535,16 @@
                         }
                     }
                 }
+            },
+            "ServiceUnavailable": {
+                "description": "Зависимость временно недоступна; основной сценарий продолжает работать.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                }
             }
         }
     },
@@ -2480,6 +2490,83 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/search/messages": {
+            "get": {
+                "operationId": "searchMessages",
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Поиск по истории комнат, доступных пользователю",
+                "description": "Индекс отдаёт только идентификаторы; тела сообщений читаются из PostgreSQL после проверки членства. Удалённые и системные записи не возвращаются. Если индекс недоступен, ответ — 503, а чат продолжает работать.\n",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 200
+                        }
+                    },
+                    {
+                        "name": "room_id",
+                        "in": "query",
+                        "description": "Ограничить поиск одной комнатой.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Найденные сообщения, релевантные первыми.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Message"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
                     }
                 }
             }

@@ -29,6 +29,7 @@ Commands:
   deploy reload           graceful octane:reload + horizon:terminate + reverb:restart
   smoke runtime           HTTP/queue/WebSocket readiness против dev Compose стека
   smoke websocket         реальная доставка события через Reverb
+  smoke search            индексация и поиск тестового сообщения в Typesense
   smoke polza             необязательная проверка настоящего AI (нужен AI_API_KEY)
   up | down               локальный полный стек в браузере (http://localhost:8088)
   e2e <spec>              Playwright-сценарий против локального стека
@@ -280,6 +281,33 @@ PY
         echo "event published\n";
       ' "$ROOT" "$ws_host" "$ws_port"
       wait $listener
+      exit $?
+    fi
+    if [[ "$sub" == "search" ]]; then
+      # Реальный Typesense из dev-стека: создаём коллекцию, индексируем
+      # документ и находим его. Индекс всегда перестраиваем, поэтому смоук
+      # безопасно оставляет за собой удалённый документ.
+      (cd "$API_DIR" && SEARCH_ENABLED=true \
+        TYPESENSE_HOST="${TYPESENSE_SMOKE_HOST:-127.0.0.1}" \
+        TYPESENSE_PORT="${TYPESENSE_PORT:-8108}" \
+        TYPESENSE_API_KEY="${TYPESENSE_API_KEY:-dev-typesense-key}" \
+        SEARCH_COLLECTION="${SEARCH_COLLECTION:-messages-smoke}" \
+        php artisan tinker --execute='
+          $index = app(Vendor\Chat\Domain\Contracts\MessageIndex::class);
+          $index->recreateCollection();
+          $id = (string) Illuminate\Support\Str::ulid();
+          $index->index(new Vendor\Chat\Domain\ValueObjects\IndexedMessage(
+              id: $id, roomId: "smoke-room", authorId: "smoke-author",
+              body: "борщ по бабушкиному рецепту", createdAt: time(),
+          ));
+          usleep(300000);
+          $hits = $index->search("борщ", ["smoke-room"], 5);
+          $index->remove($id);
+          if (! in_array($id, $hits, true)) {
+              echo "smoke search: FAIL (документ не найден)", PHP_EOL; exit(1);
+          }
+          echo "smoke search: OK (проиндексирован и найден)", PHP_EOL;
+        ')
       exit $?
     fi
     if [[ "$sub" == "polza" ]]; then

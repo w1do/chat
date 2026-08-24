@@ -7,6 +7,27 @@
 
 ### Added
 
+- Поиск по сообщениям (этап 9 roadmap):
+  - индекс Typesense за контрактом `MessageIndex` (адаптеры `typesense`/`null`
+    и `FakeMessageIndex` для тестов); в документе только безопасные поля —
+    `id`, `room_id`, `author_id`, `body`, `created_at`;
+  - `SearchConfig` проверяет конфигурацию на старте: при включённом поиске
+    пустой обязательный параметр — ошибка с именем ключа, без значения;
+  - `SyncMessageIndexJob` после commit приводит документ к состоянию строки в
+    PostgreSQL, поэтому правка, мягкое удаление, повтор и любой порядок
+    заданий идемпотентны, а откат в индекс не попадает;
+  - `GET /api/v1/search/messages`: результаты только из комнат пользователя,
+    тела читаются из PostgreSQL, удалённые и системные записи не выдаются;
+    недоступный индекс — `503 service_unavailable`, чат продолжает работать;
+  - команда `chat:search-reindex [--fresh] [--chunk=]` перестраивает индекс
+    из PostgreSQL;
+  - лист поиска в шапке комнаты с состояниями «ищем», «ничего не нашлось»,
+    «поиск недоступен» и «сообщение вне загруженной истории»;
+  - `./tools/chat smoke search` против настоящего Typesense;
+  - `docs/features/message-search.md`, `docs/operations/search-reindex.md`.
+
+### Added
+
 - Уведомления о пропущенном (этап 8 roadmap):
   - пакет `vendor/notifications`: таблицы `notifications` и
     `notification_preferences`, категории (message/mention/room_invite/security)

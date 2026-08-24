@@ -91,3 +91,12 @@ export function buildGroups<T extends { id: string; author_id: string; created_a
 
   return groups;
 }
+
+/** Индекс недоступен (503) — это не «ничего не найдено», а отдельное состояние. */
+export function isSearchUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const status = (error as { status?: number }).status;
+
+  return status === 503;
+}

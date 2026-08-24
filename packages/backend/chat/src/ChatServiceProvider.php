@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Vendor\Chat;
 
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Vendor\Chat\Domain\Contracts\MessageIndex;
 use Vendor\Chat\Domain\Contracts\MessageSanitizer;
 use Vendor\Chat\Domain\Contracts\PresenceRegistry;
 use Vendor\Chat\Domain\Events\MessageCreated;
@@ -21,9 +23,14 @@ use Vendor\Chat\Domain\Models\RoomMember;
 use Vendor\Chat\Domain\Policies\MembershipPolicy;
 use Vendor\Chat\Domain\Policies\MessagePolicy;
 use Vendor\Chat\Domain\Policies\RoomPolicy;
+use Vendor\Chat\Domain\ValueObjects\SearchConfig;
 use Vendor\Chat\Infrastructure\Broadcasting\BroadcastsDomainEvents;
 use Vendor\Chat\Infrastructure\Presence\RedisPresenceRegistry;
 use Vendor\Chat\Infrastructure\Sanitizing\PlainTextSanitizer;
+use Vendor\Chat\Infrastructure\Search\IndexesMessages;
+use Vendor\Chat\Infrastructure\Search\NullMessageIndex;
+use Vendor\Chat\Infrastructure\Search\TypesenseMessageIndex;
+use Vendor\Chat\Presentation\Console\ReindexMessagesCommand;
 
 final class ChatServiceProvider extends ServiceProvider
 {
@@ -38,6 +45,16 @@ final class ChatServiceProvider extends ServiceProvider
 
         // Stateless-адаптер Redis; приложение может заменить binding (§4.1).
         $this->app->bind(PresenceRegistry::class, RedisPresenceRegistry::class);
+
+        // Конфигурация поиска проверяется при первом обращении: пустой
+        // обязательный параметр — ошибка, а не тихо неработающий индекс.
+        $this->app->bind(MessageIndex::class, function ($app): MessageIndex {
+            $config = SearchConfig::fromArray((array) config('chat.search', []));
+
+            return $config->enabled
+                ? new TypesenseMessageIndex($app->make(Factory::class), $config)
+                : new NullMessageIndex;
+        });
     }
 
     public function boot(): void
@@ -55,6 +72,15 @@ final class ChatServiceProvider extends ServiceProvider
         Event::listen(ReactionChanged::class, [BroadcastsDomainEvents::class, 'onReactionChanged']);
         Event::listen(RoomMemberChanged::class, [BroadcastsDomainEvents::class, 'onRoomMemberChanged']);
         Event::listen(TypingChanged::class, [BroadcastsDomainEvents::class, 'onTypingChanged']);
+
+        // Индексация после commit; порядок и повторы безопасны (этап 9).
+        Event::listen(MessageCreated::class, [IndexesMessages::class, 'onMessageCreated']);
+        Event::listen(MessageUpdated::class, [IndexesMessages::class, 'onMessageUpdated']);
+        Event::listen(MessageDeleted::class, [IndexesMessages::class, 'onMessageDeleted']);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([ReindexMessagesCommand::class]);
+        }
 
         if (config('chat.routes.enabled', true)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/api.php');

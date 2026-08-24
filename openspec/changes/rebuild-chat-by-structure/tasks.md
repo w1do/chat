@@ -80,12 +80,12 @@
 
 ## 9. Stage 9 — Typesense Message Search (API + Web)
 
-- [ ] 9.1 Add Typesense config to chat package `config/chat.php` (or dedicated search section), index schema with safe fields only, and verify production-profile config tests reject missing required values (скиллы: `spatie-laravel-php`)
-- [ ] 9.2 Implement `Infrastructure/Search/` after-commit idempotent index jobs for create/edit/soft-delete, and verify tests cover commit indexing, rollback suppression, and deleted-body removal (скиллы: `architecture-ddd`, `spatie-laravel-php`)
-- [ ] 9.3 Implement permission-scoped search query + V1 endpoint with degraded response on outage, and verify feature tests cover member results, non-member privacy, and unavailable service (скиллы: `laravel-query-builder`, `spatie-laravel-php`)
-- [ ] 9.4 Implement reindex console command rebuilding from PostgreSQL, and verify command tests rebuild a fresh index (скиллы: `spatie-laravel-php`)
-- [ ] 9.5 Update OpenAPI, regenerate client, implement search UI in `packages/frontend/chat` from `@vendor/ui` primitives per design decision 1a (room-scoped input, results, empty/degraded states), and verify component tests and typecheck pass
-- [ ] 9.6 Documentation gate: write `docs/features/message-search.md` and `docs/operations/` reindex notes, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke search` indexes and finds a test message (скиллы: `documentation`)
+- [x] 9.1 Add Typesense config to chat package `config/chat.php` (or dedicated search section), index schema with safe fields only, and verify production-profile config tests reject missing required values (скиллы: `spatie-laravel-php`)
+- [x] 9.2 Implement `Infrastructure/Search/` after-commit idempotent index jobs for create/edit/soft-delete, and verify tests cover commit indexing, rollback suppression, and deleted-body removal (скиллы: `architecture-ddd`, `spatie-laravel-php`)
+- [x] 9.3 Implement permission-scoped search query + V1 endpoint with degraded response on outage, and verify feature tests cover member results, non-member privacy, and unavailable service (скиллы: `laravel-query-builder`, `spatie-laravel-php`)
+- [x] 9.4 Implement reindex console command rebuilding from PostgreSQL, and verify command tests rebuild a fresh index (скиллы: `spatie-laravel-php`)
+- [x] 9.5 Update OpenAPI, regenerate client, implement search UI in `packages/frontend/chat` from `@vendor/ui` primitives per design decision 1a (room-scoped input, results, empty/degraded states), and verify component tests and typecheck pass
+- [x] 9.6 Documentation gate: write `docs/features/message-search.md` and `docs/operations/` reindex notes, update `SUMMARY.md`, `README.md`, `CHANGELOG.md`, and verify `./tools/chat smoke search` indexes and finds a test message (скиллы: `documentation`)
 
 ## 10. Stage 10 — Polza AI Text Revisions (API + Web)
 

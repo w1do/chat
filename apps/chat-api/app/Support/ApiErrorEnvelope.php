@@ -16,6 +16,7 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Throwable;
 
 /**
@@ -51,6 +52,9 @@ final class ApiErrorEnvelope
             ],
             $e instanceof MethodNotAllowedHttpException => [
                 405, 'method_not_allowed', 'The HTTP method is not allowed for this endpoint.', [], $e->getHeaders(),
+            ],
+            $e instanceof ServiceUnavailableHttpException => [
+                503, 'service_unavailable', $e->getMessage() !== '' ? $e->getMessage() : 'The service is temporarily unavailable.', [], $e->getHeaders(),
             ],
             $e instanceof HttpExceptionInterface => [
                 $e->getStatusCode(), 'http_error', $e->getMessage() !== '' ? $e->getMessage() : 'HTTP error.', [], $e->getHeaders(),

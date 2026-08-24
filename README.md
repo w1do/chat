@@ -54,8 +54,12 @@ docker compose --env-file .env -f compose.prod.yaml up -d
 ./tools/chat test packages       изолированные тесты backend-пакетов
 ./tools/chat check boundaries    проверка границ пакетов
 ./tools/chat contracts validate  валидация JSON Schema real-time событий
+./tools/chat smoke search        индексация и поиск в настоящем Typesense
 ./tools/chat lint | stan         Pint / PHPStan
 ```
+
+Поиск по сообщениям выключен по умолчанию: чат работает без Typesense. Как
+включить и перестроить индекс — [docs/operations/search-reindex.md](docs/operations/search-reindex.md).
 
 ## Документация
 

@@ -71,6 +71,21 @@ export const messagesApi = {
   },
 };
 
+// --- Поиск -------------------------------------------------------------------
+
+export const searchApi = {
+  async messages(
+    client: ApiClient,
+    params: { q: string; roomId?: string; limit?: number },
+  ): Promise<Message[]> {
+    const response = (await client.get('/search/messages', {
+      query: { q: params.q, room_id: params.roomId, limit: params.limit },
+    })) as { data: unknown[] };
+
+    return response.data.map((message) => messageSchema.parse(message));
+  },
+};
+
 // --- Помощник (AI) -----------------------------------------------------------
 
 import { revisionSchema, type Revision, type RevisionRequest } from './schemas/revision';

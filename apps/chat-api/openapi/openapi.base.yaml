@@ -47,4 +47,10 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
+    ServiceUnavailable:
+      description: Зависимость временно недоступна; основной сценарий продолжает работать.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
 paths: {}

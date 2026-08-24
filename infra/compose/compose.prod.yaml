@@ -15,6 +15,7 @@ x-api-image: &api-image
     DB_HOST: postgres
     REDIS_HOST: redis
     TYPESENSE_HOST: typesense
+    SEARCH_ENABLED: ${SEARCH_ENABLED:-false}
     REVERB_HOST: reverb
   depends_on:
     postgres:

@@ -11,13 +11,14 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Send, Smile, Sparkles } from 'lucide-react';
+import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Search, Send, Smile, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel, formatTime, ROLE_LABEL, splitTimeline } from '../../format';
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Message, SendMessageInput } from '../../schemas/message';
 import { MentionPicker } from '../MentionPicker';
 import { EmojiPicker } from './EmojiPicker';
+import { SearchSheet } from './SearchSheet';
 import { SystemEntry } from './SystemEntry';
 import type { Member, Room } from '../../schemas/room';
 
@@ -99,6 +100,7 @@ export function ChatScreen({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [mentions, setMentions] = useState<string[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [reactionFor, setReactionFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
 
@@ -454,6 +456,15 @@ export function ChatScreen({
         </span>
         <button
           type="button"
+          onClick={() => setSearchOpen(true)}
+          className="tap grid place-items-center order-last shrink-0"
+          style={{ width: 34, height: 34, color: theme.text }}
+          aria-label="Поиск по комнате"
+        >
+          <Search size={19} />
+        </button>
+        <button
+          type="button"
           onClick={onOpenMembers}
           disabled={!onOpenMembers}
           aria-label="Участники комнаты"
@@ -482,6 +493,26 @@ export function ChatScreen({
           )}
         </button>
       </header>
+
+      {/* Монтируем только открытым: запрос поиска не живёт фоном. */}
+      {searchOpen ? (
+        <SearchSheet
+        open
+        roomId={room.id}
+        roomName={room.name}
+        theme={theme}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(messageId) => {
+          if (!messages.some((message) => message.id === messageId)) {
+            return false;
+          }
+
+          jumpToMessage(messageId);
+
+          return true;
+        }}
+        />
+      ) : null}
 
       <div
         ref={composerRef}
