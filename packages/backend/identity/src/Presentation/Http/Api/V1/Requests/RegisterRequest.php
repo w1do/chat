@@ -14,13 +14,23 @@ final class RegisterRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'login.unique' => 'Такой логин уже занят.',
+            'login.regex' => 'Логин может содержать латинские буквы, цифры, точку, дефис и подчёркивание.',
+        ];
+    }
+
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            // Вход максимально короткий: логин и пароль (design 1b).
+            'login' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-zA-Z0-9._-]+$/', 'unique:users,username'],
             'password' => ['required', 'string', Password::min((int) config('identity.password.min_length', 10))],
+            'name' => ['sometimes', 'string', 'max:255'],
         ];
     }
 }

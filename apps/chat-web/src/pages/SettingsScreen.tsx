@@ -1,4 +1,4 @@
-import { useAuth } from '@vendor/identity';
+import { EmailForm, PasswordForm, ProfileForm, useAuth } from '@vendor/identity';
 import { Avatar, Group, Row, Segmented, Sheet, Toggle, useElementHeight, type ThemeTokens } from '@vendor/ui';
 import { useRef, useState } from 'react';
 import type { AppSettings } from '../app/settings';
@@ -10,14 +10,14 @@ interface SettingsScreenProps {
   onToast: (text: string) => void;
 }
 
-type SheetId = 'appearance' | 'chat' | 'profile' | null;
+type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | null;
 
 /** Экран «Настройки»: короткий список, каждый пункт открывает отдельный лист. */
 export function SettingsScreen({ theme, settings, onChange, onToast }: SettingsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
   const headerHeight = useElementHeight(headerRef);
   const [sheet, setSheet] = useState<SheetId>(null);
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile, updateEmail, changePassword } = useAuth();
 
   const themeLabel = settings.theme === 'dark' ? 'Тёмная' : 'Светлая';
   const sizeLabel = { S: 'Мелкий', M: 'Обычный', L: 'Крупный' }[settings.textSize];
@@ -29,11 +29,18 @@ export function SettingsScreen({ theme, settings, onChange, onToast }: SettingsS
           <Row
             theme={theme}
             title={user?.name ?? 'Профиль'}
-            hint={user?.email}
+            hint={user ? `@${user.login}` : undefined}
             onClick={() => setSheet('profile')}
             right={user ? <Avatar userId={user.id} name={user.name} size={34} theme={theme} /> : undefined}
-            last
           />
+          <Row
+            theme={theme}
+            title="Почта"
+            hint={user?.email ? undefined : 'Не указана — нужна для восстановления пароля'}
+            value={user?.email ?? 'Добавить'}
+            onClick={() => setSheet('email')}
+          />
+          <Row theme={theme} title="Пароль" value="Изменить" onClick={() => setSheet('password')} last />
         </Group>
 
         <Group theme={theme} label="Оформление">
@@ -148,17 +155,44 @@ export function SettingsScreen({ theme, settings, onChange, onToast }: SettingsS
 
       <Sheet
         open={sheet === 'profile'}
-        title={user?.name ?? 'Профиль'}
-        subtitle={user?.email}
+        title="Профиль"
+        subtitle={user ? `@${user.login}` : undefined}
         theme={theme}
         onClose={() => setSheet(null)}
       >
         <div className="px-4 pb-6">
-          <Row theme={theme} title="Локаль" value={user?.locale ?? '—'} />
-          <Row theme={theme} title="Часовой пояс" value={user?.timezone ?? '—'} last />
-          <p className="text-[13px] mt-4" style={{ color: theme.muted }}>
-            Имя, локаль и часовой пояс меняются на странице профиля.
+          {user ? (
+            <ProfileForm
+              theme={theme}
+              defaultValues={{ name: user.name, locale: user.locale, timezone: user.timezone }}
+              onSubmit={(input) => updateProfile.mutateAsync(input)}
+            />
+          ) : null}
+          <p className="text-[12.5px] mt-3" style={{ color: theme.faint }}>
+            Логин менять нельзя — по нему вы входите.
           </p>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={sheet === 'email'}
+        title="Почта"
+        subtitle="Необязательна: нужна только для восстановления пароля и писем"
+        theme={theme}
+        onClose={() => setSheet(null)}
+      >
+        <div className="px-4 pb-6">
+          <EmailForm
+            theme={theme}
+            currentEmail={user?.email ?? null}
+            onSubmit={(input) => updateEmail.mutateAsync(input)}
+          />
+        </div>
+      </Sheet>
+
+      <Sheet open={sheet === 'password'} title="Пароль" theme={theme} onClose={() => setSheet(null)}>
+        <div className="px-4 pb-6">
+          <PasswordForm theme={theme} onSubmit={(input) => changePassword.mutateAsync(input)} />
         </div>
       </Sheet>
     </div>

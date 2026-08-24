@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Vendor\Chat\Domain\Enums\RoomRole;
+use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
 
@@ -152,7 +153,7 @@ it('reports unread counters in the room list and clears them on read', function 
     $reader = memberOf($room, RoomRole::Member);
     $author = memberOf($room, RoomRole::Owner);
 
-    $messages = Vendor\Chat\Domain\Models\Message::factory()
+    $messages = Message::factory()
         ->for($room)
         ->count(3)
         ->create(['author_id' => $author->getKey()])
@@ -169,7 +170,7 @@ it('reports unread counters in the room list and clears them on read', function 
     expect(collect($after->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBe(1);
 
     // Свои сообщения не считаются непрочитанными.
-    Vendor\Chat\Domain\Models\Message::factory()->for($room)->create(['author_id' => $reader->getKey()]);
+    Message::factory()->for($room)->create(['author_id' => $reader->getKey()]);
     $own = $this->getJson('/api/v1/rooms')->assertOk();
     expect(collect($own->json('data'))->firstWhere('id', $room->id)['unread_count'])->toBe(1);
 });

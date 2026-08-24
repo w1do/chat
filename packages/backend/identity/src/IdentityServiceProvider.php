@@ -40,7 +40,7 @@ final class IdentityServiceProvider extends ServiceProvider
     {
         RateLimiter::for('identity-login', fn (Request $request) => Limit::perMinute(
             (int) config('identity.limits.login', 5),
-        )->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
+        )->by(mb_strtolower((string) $request->input('login')).'|'.$request->ip()));
 
         RateLimiter::for('identity-register', fn (Request $request) => Limit::perMinute(
             (int) config('identity.limits.register', 10),

@@ -2,18 +2,25 @@
   post:
     operationId: register
     tags: [auth]
-    summary: Регистрация пользователя
+    summary: Регистрация по логину (почта не требуется)
     requestBody:
       required: true
       content:
         application/json:
           schema:
             type: object
-            required: [name, email, password]
+            required: [login, password]
             properties:
-              name: { type: string, maxLength: 255 }
-              email: { type: string, format: email }
+              login:
+                type: string
+                minLength: 3
+                maxLength: 64
+                pattern: '^[a-zA-Z0-9._-]+$'
               password: { type: string, minLength: 10 }
+              name:
+                type: string
+                maxLength: 255
+                description: Отображаемое имя; по умолчанию совпадает с логином.
     responses:
       '201':
         description: Пользователь создан, сессия начата.
@@ -33,16 +40,16 @@
   post:
     operationId: login
     tags: [auth]
-    summary: Вход (Sanctum cookie SPA)
+    summary: Вход по логину (Sanctum cookie SPA)
     requestBody:
       required: true
       content:
         application/json:
           schema:
             type: object
-            required: [email, password]
+            required: [login, password]
             properties:
-              email: { type: string, format: email }
+              login: { type: string, maxLength: 64 }
               password: { type: string }
               remember: { type: boolean, default: false }
     responses:
@@ -78,7 +85,7 @@
   post:
     operationId: forgotPassword
     tags: [auth]
-    summary: Запрос ссылки восстановления пароля
+    summary: Запрос ссылки восстановления пароля (работает только при заданной почте)
     requestBody:
       required: true
       content:

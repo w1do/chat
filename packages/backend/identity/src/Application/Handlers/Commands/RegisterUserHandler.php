@@ -24,10 +24,15 @@ final readonly class RegisterUserHandler
     {
         /** @var User $user */
         $user = $this->userModel->query()->create([
-            'name' => $command->name,
-            'email' => $command->email,
+            'username' => $command->username,
+            // Отображаемое имя по умолчанию совпадает с логином; меняется в настройках.
+            'name' => $command->name ?? $command->username,
             'password' => $command->password,
         ]);
+
+        // Значения по умолчанию (locale, timezone) задаёт БД — перечитываем,
+        // чтобы ответ не содержал пустых строк.
+        $user->refresh();
 
         /** @var StatefulGuard $guard */
         $guard = $this->auth->guard($this->config->get('identity.guard', 'web'));

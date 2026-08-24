@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Vendor\Identity\Presentation\Http\Api\V1\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
-final class LoginRequest extends FormRequest
+final class ChangePasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
         return [
-            'login' => ['required', 'string', 'max:64'],
-            'password' => ['required', 'string'],
-            'remember' => ['sometimes', 'boolean'],
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', Password::min((int) config('identity.password.min_length', 10))],
         ];
     }
 }

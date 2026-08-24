@@ -79,6 +79,11 @@ export function voiceHue(userId: string): string {
   return palette[hash % palette.length]!;
 }
 
+/** Полупрозрачная подложка поверх «своего» пузыря (цитата ответа). */
+export function overlayOnOwn(theme: ThemeTokens): string {
+  return `${theme.ownText}1A`;
+}
+
 /** Эмодзи-обложка комнаты: бэкенд её не хранит, выводим из имени. */
 export function roomEmoji(name: string): string {
   const emojis = ['🏡', '🍎', '📌', '⛺️', '🎮', '🔐', '💰', '📚', '🎧', '🌿'];

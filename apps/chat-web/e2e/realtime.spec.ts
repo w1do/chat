@@ -4,14 +4,14 @@ import { expect, test, type Page } from '@playwright/test';
 
 const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
+/** Вход максимально короткий: логин и пароль, без почты. */
 async function register(page: Page, name: string): Promise<void> {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Регистрация' }).click();
-  await page.getByRole('textbox', { name: 'Имя' }).fill(name);
-  await page.getByRole('textbox', { name: 'Email' }).fill(`${name.toLowerCase()}${suffix}@example.com`);
+  await page.getByRole('textbox', { name: 'Логин' }).fill(`${name.toLowerCase()}${suffix}`);
   await page.getByRole('textbox', { name: 'Пароль' }).fill('e2e-password-123');
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
-  await expect(page.getByRole('heading', { name: 'Чат' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Чаты' })).toBeVisible();
 }
 
 test('two users chat in real time with typing and reconnect resync', async ({ browser }) => {

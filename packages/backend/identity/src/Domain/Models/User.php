@@ -17,8 +17,9 @@ use Vendor\SharedKernel\Contracts\Actor;
  * Базовая модель пользователя.
  *
  * @property string $id
+ * @property string $username
  * @property string $name
- * @property string $email
+ * @property ?string $email
  * @property string $locale
  * @property string $timezone
  * @property ?Carbon $email_verified_at
@@ -41,6 +42,7 @@ class User extends Authenticatable implements Actor
     protected $table = 'users';
 
     protected $fillable = [
+        'username',
         'name',
         'email',
         'password',

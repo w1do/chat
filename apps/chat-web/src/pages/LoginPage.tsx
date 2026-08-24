@@ -1,5 +1,5 @@
 import { identityApi, LoginForm, RecoveryForm, RegisterForm, useAuth } from '@vendor/identity';
-import { RADIUS, THEMES, useTheme } from '@vendor/ui';
+import { RADIUS, THEMES, type ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../app/api';
@@ -13,14 +13,20 @@ const TITLES: Record<Mode, string> = {
   recovery: 'Восстановление пароля',
 };
 
+const SUBTITLES: Record<Mode, string> = {
+  login: 'Логин и пароль — больше ничего не нужно',
+  register: 'Придумайте логин и пароль, и вы в чате',
+  recovery: 'Работает, если в настройках указана почта',
+};
+
+/** Вход и регистрация в оформлении дизайн-системы (design 1a/1b). */
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const { login, register } = useAuth();
   const { settings } = useSettings();
-  const { theme: fallback } = useTheme();
   const navigate = useNavigate();
 
-  const theme = THEMES[settings.theme] ?? fallback;
+  const theme: ThemeTokens = THEMES[settings.theme];
 
   return (
     <div className="w-full flex justify-center" style={{ background: theme.bg, minHeight: '100dvh' }}>
@@ -29,12 +35,13 @@ export function LoginPage() {
           {TITLES[mode]}
         </h1>
         <p className="text-[14px] mb-5" style={{ color: theme.muted }}>
-          Чат для своих: комнаты, сообщения, уведомления.
+          {SUBTITLES[mode]}
         </p>
 
-        <div className="p-4 auth-form" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
+        <div className="p-4" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
           {mode === 'login' ? (
             <LoginForm
+              theme={theme}
               onSubmit={async (input) => {
                 await login.mutateAsync(input);
                 navigate('/');
@@ -43,6 +50,7 @@ export function LoginPage() {
           ) : null}
           {mode === 'register' ? (
             <RegisterForm
+              theme={theme}
               onSubmit={async (input) => {
                 await register.mutateAsync(input);
                 navigate('/');
@@ -50,11 +58,11 @@ export function LoginPage() {
             />
           ) : null}
           {mode === 'recovery' ? (
-            <RecoveryForm onSubmit={(input) => identityApi.forgotPassword(apiClient(), input)} />
+            <RecoveryForm theme={theme} onSubmit={(input) => identityApi.forgotPassword(apiClient(), input)} />
           ) : null}
         </div>
 
-        <nav aria-label="Способы входа" className="flex flex-wrap gap-3 mt-4">
+        <nav aria-label="Способы входа" className="flex flex-wrap gap-4 mt-4">
           {mode !== 'login' ? (
             <button type="button" className="text-[15px] tap" style={{ color: theme.text }} onClick={() => setMode('login')}>
               Вход
@@ -71,23 +79,6 @@ export function LoginPage() {
             </button>
           ) : null}
         </nav>
-
-        {/* Формы приходят из feature-пакета: оформление задаётся здесь. */}
-        <style>{`
-          .auth-form form { display: flex; flex-direction: column; gap: 12px; }
-          .auth-form label { display: block; font-size: 13px; margin-bottom: 4px; color: ${theme.muted}; }
-          .auth-form input {
-            width: 100%; font-size: 16px; padding: 10px 12px; outline: none;
-            background: ${theme.surfaceAlt}; color: ${theme.text}; border-radius: ${RADIUS.sm}px;
-          }
-          .auth-form input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px ${theme.danger}; }
-          .auth-form button[type="submit"] {
-            margin-top: 4px; padding: 11px 0; font-size: 15px; font-weight: 500;
-            background: ${theme.text}; color: ${theme.bg}; border-radius: ${RADIUS.sm}px;
-          }
-          .auth-form [role="alert"] { font-size: 13px; color: ${theme.danger}; }
-          .auth-form [role="status"] { font-size: 14px; color: ${theme.muted}; }
-        `}</style>
       </main>
     </div>
   );

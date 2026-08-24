@@ -1,14 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { forgotPasswordSchema, type ForgotPasswordInput } from '../schemas/auth';
-import { FormField } from './FormField';
+import { Field } from './Field';
+import { SubmitButton } from './SubmitButton';
 
 interface RecoveryFormProps {
+  theme: ThemeTokens;
   onSubmit: (input: ForgotPasswordInput) => Promise<unknown>;
 }
 
-export function RecoveryForm({ onSubmit }: RecoveryFormProps) {
+export function RecoveryForm({ theme, onSubmit }: RecoveryFormProps) {
   const [sent, setSent] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -28,16 +31,33 @@ export function RecoveryForm({ onSubmit }: RecoveryFormProps) {
   });
 
   if (sent) {
-    return <p role="status">Если такой email зарегистрирован, мы отправили ссылку для восстановления.</p>;
+    return (
+      <p role="status" className="text-[14px]" style={{ color: theme.muted }}>
+        Если к аккаунту привязана эта почта, мы отправили ссылку для восстановления. Восстановление
+        работает только для аккаунтов с указанной почтой — её добавляют в настройках.
+      </p>
+    );
   }
 
   return (
-    <form onSubmit={submit} aria-label="password-recovery" noValidate>
-      {serverError ? <p role="alert">{serverError}</p> : null}
-      <FormField label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
-      <button type="submit" disabled={isSubmitting}>
+    <form onSubmit={submit} aria-label="password-recovery" noValidate className="flex flex-col gap-3">
+      {serverError ? (
+        <p role="alert" className="text-[13px]" style={{ color: theme.danger }}>
+          {serverError}
+        </p>
+      ) : null}
+      <Field
+        theme={theme}
+        label="Почта"
+        type="email"
+        autoComplete="email"
+        hint="Восстановление доступно, только если почта указана в настройках"
+        error={errors.email?.message}
+        {...register('email')}
+      />
+      <SubmitButton theme={theme} busy={isSubmitting}>
         Отправить ссылку
-      </button>
+      </SubmitButton>
     </form>
   );
 }

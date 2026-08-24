@@ -14,32 +14,44 @@ it('binds the app user model through identity config', function (): void {
 });
 
 it('logs in through the composed application (happy path)', function (): void {
-    $user = User::factory()->create(['password' => 'correct-horse-battery']);
+    $user = User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'login' => 'alice',
         'password' => 'correct-horse-battery',
-    ])->assertOk()->assertJsonPath('data.email', $user->email);
+    ])->assertOk()->assertJsonPath('data.login', 'alice');
+});
+
+it('registers with a login only and renders the envelope on a taken login', function (): void {
+    $this->postJson('/api/v1/auth/register', ['login' => 'alice', 'password' => 'correct-horse-battery'])
+        ->assertCreated()
+        ->assertJsonPath('data.login', 'alice')
+        ->assertJsonPath('data.email', null);
+
+    $this->postJson('/api/v1/auth/register', ['login' => 'alice', 'password' => 'correct-horse-battery'])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'validation_failed')
+        ->assertJsonPath('details.errors.login.0', 'Такой логин уже занят.');
 });
 
 it('renders invalid credentials in the error envelope', function (): void {
-    $user = User::factory()->create(['password' => 'correct-horse-battery']);
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'login' => 'alice',
         'password' => 'nope',
     ])->assertStatus(401)->assertJsonPath('code', 'unauthenticated');
 });
 
 it('rate limits login attempts per email and renders the envelope', function (): void {
     RateLimiter::clear('identity-login');
-    $user = User::factory()->create(['password' => 'correct-horse-battery']);
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
     foreach (range(1, 5) as $i) {
-        $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'nope']);
+        $this->postJson('/api/v1/auth/login', ['login' => 'alice', 'password' => 'nope']);
     }
 
-    $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'nope'])
+    $this->postJson('/api/v1/auth/login', ['login' => 'alice', 'password' => 'nope'])
         ->assertStatus(429)
         ->assertJsonPath('code', 'rate_limited')
         ->assertHeader('Retry-After');
@@ -47,14 +59,14 @@ it('rate limits login attempts per email and renders the envelope', function ():
 
 it('requires CSRF for stateful frontend requests', function (): void {
     config()->set('sanctum.stateful', ['spa.test']);
-    $user = User::factory()->create(['password' => 'correct-horse-battery']);
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
     // ValidateCsrfToken пропускает проверку в env=testing — эмулируем боевое окружение.
     $this->app['env'] = 'local';
 
     // Запрос "из SPA" (stateful Referer) без XSRF-cookie отклоняется.
     $this->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'login' => 'alice',
         'password' => 'correct-horse-battery',
     ], ['Referer' => 'https://spa.test'])->assertStatus(419);
 });

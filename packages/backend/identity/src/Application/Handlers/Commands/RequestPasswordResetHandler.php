@@ -12,8 +12,9 @@ final readonly class RequestPasswordResetHandler
     public function __construct(private PasswordBrokerFactory $passwords) {}
 
     /**
-     * Всегда завершается успешно: не раскрываем существование email
-     * (защита от перечисления пользователей).
+     * Всегда завершается успешно: не раскрываем существование адреса
+     * (защита от перечисления пользователей). Аккаунты без почты письма
+     * не получают — интерфейс объясняет это отдельно (design 1b).
      */
     public function handle(RequestPasswordResetCommand $command): void
     {

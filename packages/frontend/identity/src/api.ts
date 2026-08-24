@@ -1,6 +1,8 @@
 import type { ApiClient } from '@vendor/api-client';
 import type {
+  EmailInput,
   ForgotPasswordInput,
+  PasswordChangeInput,
   LoginInput,
   ProfileInput,
   RegisterInput,
@@ -9,8 +11,9 @@ import type {
 
 export interface AuthUser {
   id: string;
+  login: string;
   name: string;
-  email: string;
+  email: string | null;
   locale: string;
   timezone: string;
   email_verified_at: string | null;
@@ -42,5 +45,14 @@ export const identityApi = {
   },
   async updateProfile(client: ApiClient, input: Partial<ProfileInput>): Promise<AuthUser> {
     return ((await client.patch('/me/profile', { body: input })) as UserEnvelope).data;
+  },
+  async updateEmail(client: ApiClient, input: EmailInput): Promise<AuthUser> {
+    // Пустая строка означает «убрать почту».
+    const email = input.email.trim() === '' ? null : input.email.trim();
+
+    return ((await client.patch('/me/email', { body: { email } })) as UserEnvelope).data;
+  },
+  async changePassword(client: ApiClient, input: PasswordChangeInput): Promise<void> {
+    await client.patch('/me/password', { body: input });
   },
 };

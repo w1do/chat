@@ -10,8 +10,10 @@ it('registers the identity package config', function (): void {
         ->and(config('identity.password.min_length'))->toBe(10);
 });
 
-it('creates users with ulid keys and hidden credentials', function (): void {
-    $user = User::factory()->create();
+it('creates users with ulid keys, a login and hidden credentials', function (): void {
+    $user = User::factory()->create(['username' => 'alice']);
+
+    expect($user->username)->toBe('alice')->and($user->email)->toBeNull();
 
     expect($user->externalId())->toMatch('/^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/')
         ->and($user->displayName())->toBe($user->name)

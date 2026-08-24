@@ -42,3 +42,62 @@
         $ref: '#/components/responses/Unauthenticated'
       '422':
         $ref: '#/components/responses/ValidationError'
+/me/email:
+  patch:
+    operationId: updateEmail
+    tags: [me]
+    summary: Добавление, смена или удаление почты
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email:
+                type: [string, "null"]
+                format: email
+                description: null очищает адрес.
+    responses:
+      '200':
+        description: Обновлённый профиль.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEnvelope'
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'
+/me/password:
+  patch:
+    operationId: changePassword
+    tags: [me]
+    summary: Смена пароля с подтверждением текущего
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [current_password, password]
+            properties:
+              current_password: { type: string }
+              password: { type: string, minLength: 10 }
+    responses:
+      '204': { description: Пароль изменён. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429':
+        description: Превышен rate limit.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiError'

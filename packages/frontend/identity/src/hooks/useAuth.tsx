@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UnauthenticatedError, type ApiClient } from '@vendor/api-client';
 import { createContext, useContext, type ReactNode } from 'react';
 import { identityApi, type AuthUser } from '../api';
-import type { LoginInput, ProfileInput, RegisterInput } from '../schemas/auth';
+import type { EmailInput, LoginInput, PasswordChangeInput, ProfileInput, RegisterInput } from '../schemas/auth';
 
 // ApiClient приходит от приложения через провайдер (§4.2) — пакет не создаёт
 // собственный экземпляр клиента.
@@ -58,6 +58,15 @@ export function useAuth() {
     onSuccess: (user) => queryClient.setQueryData(ME_KEY, user),
   });
 
+  const updateEmail = useMutation({
+    mutationFn: (input: EmailInput) => identityApi.updateEmail(client, input),
+    onSuccess: (user) => queryClient.setQueryData(ME_KEY, user),
+  });
+
+  const changePassword = useMutation({
+    mutationFn: (input: PasswordChangeInput) => identityApi.changePassword(client, input),
+  });
+
   return {
     user: me.data ?? null,
     isLoading: me.isLoading,
@@ -66,5 +75,7 @@ export function useAuth() {
     register,
     logout,
     updateProfile,
+    updateEmail,
+    changePassword,
   };
 }

@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Запрос ссылки восстановления пароля */
+        /** Запрос ссылки восстановления пароля (работает только при заданной почте) */
         post: operations["forgotPassword"];
         delete?: never;
         options?: never;
@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вход (Sanctum cookie SPA) */
+        /** Вход по логину (Sanctum cookie SPA) */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -64,7 +64,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Регистрация пользователя */
+        /** Регистрация по логину (почта не требуется) */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -104,6 +104,40 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/me/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Добавление, смена или удаление почты */
+        patch: operations["updateEmail"];
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Смена пароля с подтверждением текущего */
+        patch: operations["changePassword"];
         trace?: never;
     };
     "/me/profile": {
@@ -390,9 +424,14 @@ export interface components {
         User: {
             /** @description ULID пользователя. */
             id: string;
+            /** @description Уникальный логин — идентификатор входа. */
+            login: string;
             name: string;
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description Необязательна; задаётся в настройках.
+             */
+            email: string | null;
             /** @example ru */
             locale: string;
             /** @example Europe/Moscow */
@@ -491,8 +530,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** Format: email */
-                    email: string;
+                    login: string;
                     password: string;
                     /** @default false */
                     remember?: boolean;
@@ -551,10 +589,10 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    name: string;
-                    /** Format: email */
-                    email: string;
+                    login: string;
                     password: string;
+                    /** @description Отображаемое имя; по умолчанию совпадает с логином. */
+                    name?: string;
                 };
             };
         };
@@ -636,6 +674,83 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+        };
+    };
+    updateEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @description null очищает адрес.
+                     */
+                    email: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Обновлённый профиль. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            /** @description Превышен rate limit. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    current_password: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Пароль изменён. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            /** @description Превышен rate limit. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     updateProfile: {

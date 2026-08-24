@@ -1,14 +1,18 @@
 type: object
-required: [id, name, email, locale, timezone, email_verified_at, created_at]
+required: [id, login, name, email, locale, timezone, email_verified_at, created_at]
 properties:
   id:
     type: string
     description: ULID пользователя.
+  login:
+    type: string
+    description: Уникальный логин — идентификатор входа.
   name:
     type: string
   email:
-    type: string
+    type: [string, "null"]
     format: email
+    description: Необязательна; задаётся в настройках.
   locale:
     type: string
     example: ru

@@ -27,5 +27,9 @@ Route::prefix(config('identity.routes.prefix', 'api/v1'))
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/me', [MeController::class, 'show'])->name('me');
             Route::patch('/me/profile', [ProfileController::class, 'update'])->name('profile.update');
+            Route::patch('/me/email', [ProfileController::class, 'updateEmail'])
+                ->middleware('throttle:identity-password-reset')->name('profile.email');
+            Route::patch('/me/password', [ProfileController::class, 'changePassword'])
+                ->middleware('throttle:identity-password-reset')->name('profile.password');
         });
     });

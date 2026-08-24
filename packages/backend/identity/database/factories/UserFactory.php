@@ -18,9 +18,11 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'username' => fake()->unique()->userName(),
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
+            // Почта необязательна: аккаунт живёт и без неё (design 1b).
+            'email' => null,
+            'email_verified_at' => null,
             'password' => 'password',
             'locale' => 'en',
             'timezone' => 'UTC',
@@ -28,8 +30,11 @@ class UserFactory extends Factory
         ];
     }
 
-    public function unverified(): static
+    public function withEmail(?string $email = null): static
     {
-        return $this->state(fn (): array => ['email_verified_at' => null]);
+        return $this->state(fn (): array => [
+            'email' => $email ?? fake()->unique()->safeEmail(),
+            'email_verified_at' => now(),
+        ]);
     }
 }

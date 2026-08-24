@@ -4,16 +4,35 @@ Defines user identity, session, profile, and baseline authorization behavior for
 
 ## ADDED Requirements
 
-### Requirement: Users can manage sessions
-The system SHALL allow users to register, log in, log out, and recover passwords through JSON API flows.
+### Requirement: Sign-in is login based and requires no email
+The system SHALL let a person register with a chosen login and password only, and SHALL authenticate sessions by that login. Email SHALL NOT be required to register or to sign in.
+
+#### Scenario: Registration with login only
+- **WHEN** a visitor submits an unused login and a valid password
+- **THEN** the account is created without an email address and the visitor is signed in through the documented JSON contract
+
+#### Scenario: Login already taken
+- **WHEN** a visitor submits a login that already exists
+- **THEN** the API returns the documented validation error naming the login field
 
 #### Scenario: Successful login
-- **WHEN** a registered user submits valid credentials from the SPA
+- **WHEN** a registered user submits a valid login and password from the SPA
 - **THEN** the API creates an authenticated session and returns the current user through the documented JSON contract
 
 #### Scenario: Invalid login
 - **WHEN** a user submits invalid credentials
-- **THEN** the API returns the documented JSON error envelope without revealing whether the email exists
+- **THEN** the API returns the documented JSON error envelope without revealing whether the login exists
+
+### Requirement: Email is optional and managed in settings
+The system SHALL treat email as an optional profile field that a signed-in user can add or change in settings, and SHALL make email-dependent flows available only once an address is set.
+
+#### Scenario: Adding an email later
+- **WHEN** a signed-in user saves a valid, unused email in settings
+- **THEN** the API persists it on the profile and email-dependent flows become available
+
+#### Scenario: Password recovery without an email
+- **WHEN** a user asks to recover a password for an account that has no email address
+- **THEN** the API responds through the documented contract and the interface explains that recovery needs an email set in settings, instead of implying a message was sent
 
 ### Requirement: SPA authentication is cookie based
 The system SHALL authenticate the SPA with secure cookie-based Sanctum behavior and CSRF protection.
@@ -23,7 +42,7 @@ The system SHALL authenticate the SPA with secure cookie-based Sanctum behavior 
 - **THEN** the API rejects the request according to the CORS and authentication contract
 
 ### Requirement: Users can view and update profile
-The system SHALL allow authenticated users to view and update basic profile fields without exposing private security fields.
+The system SHALL allow authenticated users to view and update basic profile fields — including login, display name, optional email, locale, and timezone — without exposing private security fields.
 
 #### Scenario: Profile update
 - **WHEN** an authenticated user submits valid profile changes

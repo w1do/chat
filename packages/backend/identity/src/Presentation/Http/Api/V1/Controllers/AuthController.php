@@ -30,9 +30,9 @@ final class AuthController
         $validated = $request->validated();
 
         $user = $handler->handle(new RegisterUserCommand(
-            name: $validated['name'],
-            email: $validated['email'],
+            username: $validated['login'],
             password: $validated['password'],
+            name: $validated['name'] ?? null,
         ));
 
         if ($request->hasSession()) {
@@ -47,7 +47,7 @@ final class AuthController
         $validated = $request->validated();
 
         $user = $handler->handle(new LoginCommand(
-            email: $validated['email'],
+            username: $validated['login'],
             password: $validated['password'],
             remember: (bool) ($validated['remember'] ?? false),
         ));

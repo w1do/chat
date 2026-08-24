@@ -32,6 +32,32 @@ Each becomes an ADR during implementation, but the plan assumes:
 5. **No `admin-api`/`admin-web` in MVP**; administration is API endpoints in `packages/backend/administration` plus admin-only React screens in `chat-web`.
 6. **Presence**: Redis-backed `PresenceRegistry` in the chat package (per `STRUCTURE.md` §3) is the source of truth for "active in room" used by notification routing; Reverb presence channels feed it but are not the authority. Rejected alternative (Reverb channels as authority) couples notification correctness to socket lifecycle.
 
+### 1a. The `chat/` prototype is the single source of visual design
+
+Every screen — sign-in, rooms, conversation, members, settings, notifications,
+search, administration — is assembled from the ported design system: tokens and
+primitives in `packages/frontend/ui`, screens in the feature packages, composition
+in `apps/chat-web`. No ad-hoc markup, no per-page CSS blocks, no second visual
+language in the composition root. A screen that needs a new primitive adds it to
+`packages/frontend/ui` rather than styling in place. Mapping between the
+prototype's family model and the implemented domain is recorded in
+`docs/features/mobile-ui.md`.
+
+### 1b. Sign-in is login-first; email is optional
+
+Entry must be as short as possible: pick a login, pick a password, you are in.
+Consequences:
+
+- `users.username` is a required unique column; `users.email` becomes nullable
+  and unique-when-present. Post-release schema changes are forward migrations.
+- Registration and login requests carry `login` + `password`; the email field
+  disappears from those forms.
+- Email is added or changed in settings, together with password change.
+- Password recovery depends on a stored email: without one the interface says so
+  instead of pretending a letter was sent. Rate limits stay keyed by login and IP.
+- Identity OpenAPI fragments, the generated client, and the identity frontend
+  package change together with the endpoints.
+
 ### 2. Vertical slice definition per feature stage
 
 A feature stage is complete only when all of these exist, in `STRUCTURE.md` locations:

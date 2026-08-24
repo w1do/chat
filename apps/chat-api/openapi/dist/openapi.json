@@ -263,6 +263,7 @@
                 "type": "object",
                 "required": [
                     "id",
+                    "login",
                     "name",
                     "email",
                     "locale",
@@ -275,12 +276,20 @@
                         "type": "string",
                         "description": "ULID пользователя."
                     },
+                    "login": {
+                        "type": "string",
+                        "description": "Уникальный логин — идентификатор входа."
+                    },
                     "name": {
                         "type": "string"
                     },
                     "email": {
-                        "type": "string",
-                        "format": "email"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "description": "Необязательна; задаётся в настройках."
                     },
                     "locale": {
                         "type": "string",
@@ -355,7 +364,7 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Запрос ссылки восстановления пароля",
+                "summary": "Запрос ссылки восстановления пароля (работает только при заданной почте)",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -416,7 +425,7 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Вход (Sanctum cookie SPA)",
+                "summary": "Вход по логину (Sanctum cookie SPA)",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -424,13 +433,13 @@
                             "schema": {
                                 "type": "object",
                                 "required": [
-                                    "email",
+                                    "login",
                                     "password"
                                 ],
                                 "properties": {
-                                    "email": {
+                                    "login": {
                                         "type": "string",
-                                        "format": "email"
+                                        "maxLength": 64
                                     },
                                     "password": {
                                         "type": "string"
@@ -502,7 +511,7 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Регистрация пользователя",
+                "summary": "Регистрация по логину (почта не требуется)",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -510,22 +519,24 @@
                             "schema": {
                                 "type": "object",
                                 "required": [
-                                    "name",
-                                    "email",
+                                    "login",
                                     "password"
                                 ],
                                 "properties": {
-                                    "name": {
+                                    "login": {
                                         "type": "string",
-                                        "maxLength": 255
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
+                                        "minLength": 3,
+                                        "maxLength": 64,
+                                        "pattern": "^[a-zA-Z0-9._-]+$"
                                     },
                                     "password": {
                                         "type": "string",
                                         "minLength": 10
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "description": "Отображаемое имя; по умолчанию совпадает с логином."
                                     }
                                 }
                             }
@@ -639,6 +650,129 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/Unauthenticated"
+                    }
+                }
+            }
+        },
+        "/me/email": {
+            "patch": {
+                "operationId": "updateEmail",
+                "tags": [
+                    "me"
+                ],
+                "summary": "Добавление, смена или удаление почты",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "format": "email",
+                                        "description": "null очищает адрес."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Обновлённый профиль.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "description": "Превышен rate limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/password": {
+            "patch": {
+                "operationId": "changePassword",
+                "tags": [
+                    "me"
+                ],
+                "summary": "Смена пароля с подтверждением текущего",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "current_password",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "minLength": 10
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Пароль изменён."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "description": "Превышен rate limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
                     }
                 }
             }

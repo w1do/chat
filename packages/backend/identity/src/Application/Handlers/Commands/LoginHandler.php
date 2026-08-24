@@ -25,7 +25,7 @@ final readonly class LoginHandler
         $guard = $this->guard();
 
         if (! $guard->attempt(
-            ['email' => $command->email, 'password' => $command->password],
+            ['username' => $command->username, 'password' => $command->password],
             $command->remember,
         )) {
             throw new AuthenticationException('Invalid credentials.');

@@ -19,6 +19,7 @@ export {
   SPRING,
   TEXT_SIZE_PX,
   THEMES,
+  overlayOnOwn,
   roomEmoji,
   voiceHue,
   type TextSize,

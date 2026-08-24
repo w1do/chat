@@ -4,6 +4,7 @@ import {
   RADIUS,
   SPRING,
   TEXT_SIZE_PX,
+  overlayOnOwn,
   roomEmoji,
   useElementHeight,
   voiceHue,
@@ -241,7 +242,7 @@ export function ChatScreen({
                           <p
                             className="text-[12.5px] mb-1 px-2 py-1"
                             style={{
-                              background: own ? '#FFFFFF1A' : theme.surfaceAlt,
+                              background: own ? overlayOnOwn(theme) : theme.surfaceAlt,
                               borderRadius: 8,
                               color: own ? theme.ownText : theme.muted,
                             }}

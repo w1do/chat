@@ -7,8 +7,8 @@ namespace Vendor\Identity\Application\Commands;
 final readonly class RegisterUserCommand
 {
     public function __construct(
-        public string $name,
-        public string $email,
+        public string $username,
         public string $password,
+        public ?string $name = null,
     ) {}
 }
