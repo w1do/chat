@@ -1,0 +1,21 @@
+# Примеры переопределений production-стека.
+# Скопируйте нужные фрагменты в compose.override.yaml (не коммитится).
+
+services:
+  # Пример: внешний PostgreSQL вместо контейнера.
+  # api:
+  #   environment:
+  #     DB_HOST: db.internal.example.com
+  # (сервис postgres при этом уберите из стека: docker compose ... up --scale postgres=0)
+
+  # Пример: ограничение ресурсов worker'а.
+  # worker:
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+
+  # Пример: проброс порта API для отладки (не делайте это в production).
+  # api:
+  #   ports:
+  #     - "127.0.0.1:8000:8000"

@@ -7,6 +7,19 @@
 
 ### Added
 
+- Self-hosted runtime (этап 2 roadmap):
+  - ADR-007 (Docker Compose как способ поставки) и ADR-009 (FrankenPHP как
+    Octane application server);
+  - `infra/compose/{compose.prod.yaml,compose.dev.yaml,compose.override.example.yaml}`
+    с закреплёнными образами, health checks и одним процессом на контейнер;
+  - multi-stage non-root образы `infra/docker/{api,web}/Dockerfile`, примеры
+    reverse proxy `infra/docker/proxy/`;
+  - Supervisor-конфиги `infra/supervisor/*` для Linux/VM-профиля;
+  - liveness `/up` и readiness `/api/v1/readiness` (database, redis, queue,
+    websocket, search — без секретов) со smoke-тестами;
+  - команды `./tools/chat compose config | build images | supervisor check |
+    deploy reload | smoke runtime`;
+  - документация `docs/operations/{installation,configuration,supervisor,backup-restore,upgrade,troubleshooting}.md`.
 - Каркас монорепозитория, выровненный по `STRUCTURE.md` (этап 1 roadmap
   `rebuild-chat-by-structure`):
   - `apps/chat-api` — Laravel 13 composition root: провайдеры

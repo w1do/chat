@@ -18,7 +18,7 @@
 | Модуль | Что сделано | Статус |
 |---|---|---|
 | platform/monorepo-foundation | Каркас монорепозитория: apps, packages, contracts, tools/chat, boundary-check; app-тесты и typecheck проходят | in progress |
-| operations/self-hosted-runtime | Каталоги `infra/*` и `.env.example` компоуз-стека; Dockerfiles/Compose/Supervisor — этап 2 | planned |
+| operations/self-hosted-runtime | ADR-007/009; compose prod/dev (`docker compose config` ок); Dockerfiles api/web/proxy; Supervisor-конфиги (`supervisor check` ок); readiness `/api/v1/readiness` + `/up` со smoke-тестами; `deploy reload` в tools/chat. Не проверено: сборка образов и `smoke runtime` (docker daemon окружения недоступен) | in progress |
 | contracts/api-and-realtime | `openapi.base.yaml`, каркас `build.php`, схемы-конверты 6 событий; полная сборка — этап 3 | planned |
 | identity/authentication-and-profile | Скелет пакетов `backend/identity`, `frontend/identity` | planned |
 | chat/rooms-and-messages | Скелет пакетов `backend/chat`, `frontend/chat` | planned |

@@ -11,13 +11,16 @@
     "require": {
         "php": "^8.4",
         "laravel/framework": "^13.17",
+        "laravel/horizon": "*",
+        "laravel/octane": "*",
         "laravel/tinker": "^3.0",
-        "vendor/shared-kernel": "^0.1",
-        "vendor/identity": "^0.1",
-        "vendor/chat": "^0.1",
-        "vendor/notifications": "^0.1",
+        "predis/predis": "^2.0",
+        "vendor/administration": "^0.1",
         "vendor/ai": "^0.1",
-        "vendor/administration": "^0.1"
+        "vendor/chat": "^0.1",
+        "vendor/identity": "^0.1",
+        "vendor/notifications": "^0.1",
+        "vendor/shared-kernel": "^0.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

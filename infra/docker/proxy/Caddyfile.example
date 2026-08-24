@@ -1,0 +1,37 @@
+# Пример конфигурации reverse proxy (Caddy) для production-стека (ADR-007).
+# TLS и WebSocket termination выполняются здесь; порт Reverb наружу не публикуется.
+#
+# Замените chat.example.com на ваш домен. Caddy получит TLS-сертификат
+# автоматически (ACME); для внутренних установок настройте tls internal.
+
+chat.example.com {
+	encode zstd gzip
+
+	# Health для healthcheck самого proxy
+	handle_path /healthz {
+		respond "ok" 200
+	}
+
+	# WebSocket (Reverb): /app — протокол Pusher, /apps — API событий
+	@websocket path /app/* /apps/*
+	handle @websocket {
+		reverse_proxy reverb:8080
+	}
+
+	# HTTP API и broadcasting auth
+	@api path /api/* /up /broadcasting/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	# SPA-статика
+	handle {
+		reverse_proxy web:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

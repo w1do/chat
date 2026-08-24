@@ -32,8 +32,16 @@ pnpm install          # из корня репозитория
 ./tools/chat web dev  # dev-сервер Vite
 ```
 
-Production-развёртывание через Docker Compose появится на этапе 2
-(см. `infra/compose/` и `docs/operations/installation.md`).
+## Быстрый старт (production, Docker Compose)
+
+```bash
+cd infra/compose
+cp .env.example .env   # заполните секреты
+docker compose --env-file .env -f compose.prod.yaml up -d
+```
+
+Полная процедура — [docs/operations/installation.md](docs/operations/installation.md);
+обновление — [docs/operations/upgrade.md](docs/operations/upgrade.md).
 
 ## Команды
 

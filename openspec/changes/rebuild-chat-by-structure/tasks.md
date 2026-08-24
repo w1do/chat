@@ -11,13 +11,13 @@
 
 ## 2. Stage 2 — Self-Hosted Runtime
 
-- [ ] 2.1 Write ADR-009 (Octane application server choice) and ADR-007 (Compose delivery) in `docs/decisions/`, and verify each ADR has status, context, decision, alternatives, and revision criteria
-- [ ] 2.2 Create `infra/compose/{compose.prod.yaml,compose.dev.yaml,compose.override.example.yaml,.env.example}` covering proxy, web, api, worker, scheduler, reverb, postgres, redis, typesense, optional minio with pinned image tags, health checks, one main process per container, and verify `./tools/chat compose config` succeeds for both profiles
+- [x] 2.1 Write ADR-009 (Octane application server choice) and ADR-007 (Compose delivery) in `docs/decisions/`, and verify each ADR has status, context, decision, alternatives, and revision criteria
+- [x] 2.2 Create `infra/compose/{compose.prod.yaml,compose.dev.yaml,compose.override.example.yaml,.env.example}` covering proxy, web, api, worker, scheduler, reverb, postgres, redis, typesense, optional minio with pinned image tags, health checks, one main process per container, and verify `./tools/chat compose config` succeeds for both profiles
 - [ ] 2.3 Create `infra/docker/api/{Dockerfile,entrypoint.sh,php.ini,opcache.ini,healthcheck.sh}`, `infra/docker/web/{Dockerfile,nginx.conf,entrypoint.sh}` (entrypoint renders `config.json` from `config.template.json`), `infra/docker/proxy/{Caddyfile.example,nginx.proxy.conf.example}`, with multi-stage builds and non-root users, and verify `./tools/chat build images` completes
-- [ ] 2.4 Implement liveness `/up` and readiness endpoint reporting Octane API, PostgreSQL, Redis, Horizon, Reverb, Typesense without secrets, and verify `apps/chat-api/tests/Smoke/{HealthTest,ReadinessTest}` cover healthy and degraded states
-- [ ] 2.5 Create `infra/supervisor/{supervisord.conf,octane.conf,horizon.conf,scheduler.conf,reverb.conf}` with non-root user, autostart/autorestart, stopasgroup/killasgroup, horizon `stopwaitsecs` above longest job, separate logs, and verify `./tools/chat supervisor check` validates syntax
+- [x] 2.4 Implement liveness `/up` and readiness endpoint reporting Octane API, PostgreSQL, Redis, Horizon, Reverb, Typesense without secrets, and verify `apps/chat-api/tests/Smoke/{HealthTest,ReadinessTest}` cover healthy and degraded states
+- [x] 2.5 Create `infra/supervisor/{supervisord.conf,octane.conf,horizon.conf,scheduler.conf,reverb.conf}` with non-root user, autostart/autorestart, stopasgroup/killasgroup, horizon `stopwaitsecs` above longest job, separate logs, and verify `./tools/chat supervisor check` validates syntax
 - [ ] 2.6 Add deploy reload flow (`octane:reload`, `horizon:terminate`, `reverb:restart`) to `./tools/chat` and verify `./tools/chat smoke runtime` checks HTTP, queue, and WebSocket readiness against the dev Compose stack
-- [ ] 2.7 Documentation gate: write `docs/operations/{installation,configuration,supervisor,backup-restore,upgrade,troubleshooting}.md`, update `SUMMARY.md` runtime row, `README.md` quick start (`docker compose up -d` + `./tools/chat`), `CHANGELOG.md` entry, and verify runtime status is `implemented` only after 2.6 smoke passes
+- [x] 2.7 Documentation gate: write `docs/operations/{installation,configuration,supervisor,backup-restore,upgrade,troubleshooting}.md`, update `SUMMARY.md` runtime row, `README.md` quick start (`docker compose up -d` + `./tools/chat`), `CHANGELOG.md` entry, and verify runtime status is `implemented` only after 2.6 smoke passes
 
 ## 3. Stage 3 — API And Real-Time Contracts Baseline
 

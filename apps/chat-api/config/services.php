@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
 
     /*
@@ -33,6 +35,17 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'reverb_server' => [
+        'host' => env('REVERB_SERVER_HOST', '127.0.0.1'),
+        'port' => (int) env('REVERB_SERVER_PORT', 8080),
+    ],
+
+    'typesense' => [
+        'host' => env('TYPESENSE_HOST', '127.0.0.1'),
+        'port' => (int) env('TYPESENSE_PORT', 8108),
+        'api_key' => env('TYPESENSE_API_KEY'),
     ],
 
 ];

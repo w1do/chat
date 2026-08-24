@@ -20,6 +20,11 @@ Commands:
   check boundaries        запрет cross-package internal imports и Domain/ в apps
   contracts validate      валидация JSON Schema в packages/contracts
   lint | stan             pint / phpstan из корня
+  compose config [prod|dev]  валидация compose-профилей (по умолчанию оба)
+  build images            сборка production-образов api и web
+  supervisor check        валидация синтаксиса infra/supervisor/*.conf
+  deploy reload           graceful octane:reload + horizon:terminate + reverb:restart
+  smoke runtime           HTTP/queue/WebSocket readiness против dev Compose стека
 EOF
 }
 
@@ -107,6 +112,95 @@ case "$cmd" in
     else
       echo "Unknown contracts command: $sub" >&2; exit 64
     fi
+    ;;
+  compose)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "config" ]] || { echo "Unknown compose command: $sub" >&2; exit 64; }
+    cd "$ROOT/infra/compose"
+    envfile=".env"
+    if [[ ! -f .env ]]; then
+      cp .env.example .env.compose-check
+      envfile=".env.compose-check"
+    fi
+    profiles="${1:-both}"
+    rc=0
+    if [[ "$profiles" == "prod" || "$profiles" == "both" ]]; then
+      echo "== compose.prod.yaml =="
+      DB_PASSWORD="${DB_PASSWORD:-check}" REDIS_PASSWORD="${REDIS_PASSWORD:-check}" \
+      REVERB_APP_KEY="${REVERB_APP_KEY:-check}" TYPESENSE_API_KEY="${TYPESENSE_API_KEY:-check}" \
+        docker compose --env-file "$envfile" -f compose.prod.yaml config -q && echo OK || rc=1
+      echo "== compose.prod.yaml + s3 profile =="
+      DB_PASSWORD="${DB_PASSWORD:-check}" REDIS_PASSWORD="${REDIS_PASSWORD:-check}" \
+      REVERB_APP_KEY="${REVERB_APP_KEY:-check}" TYPESENSE_API_KEY="${TYPESENSE_API_KEY:-check}" \
+        docker compose --env-file "$envfile" -f compose.prod.yaml --profile s3 config -q && echo OK || rc=1
+    fi
+    if [[ "$profiles" == "dev" || "$profiles" == "both" ]]; then
+      echo "== compose.dev.yaml =="
+      docker compose -f compose.dev.yaml config -q && echo OK || rc=1
+    fi
+    rm -f .env.compose-check
+    exit $rc
+    ;;
+  build)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "images" ]] || { echo "Unknown build command: $sub" >&2; exit 64; }
+    docker build -f "$ROOT/infra/docker/api/Dockerfile" -t vendor/chat-api:0.1.0 "$ROOT"
+    docker build -f "$ROOT/infra/docker/web/Dockerfile" -t vendor/chat-web:0.1.0 "$ROOT"
+    ;;
+  supervisor)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "check" ]] || { echo "Unknown supervisor command: $sub" >&2; exit 64; }
+    python3 - "$ROOT/infra/supervisor" <<'PY'
+import configparser, glob, sys
+
+root = sys.argv[1]
+ok = True
+required = {"autostart", "autorestart", "stopasgroup", "killasgroup", "user"}
+for path in sorted(glob.glob(root + "/*.conf")):
+    cp = configparser.ConfigParser(strict=True, interpolation=None)
+    try:
+        cp.read(path)
+    except configparser.Error as e:
+        print(f"FAIL {path}: {e}"); ok = False; continue
+    for section in cp.sections():
+        if section.startswith("program:"):
+            missing = required - set(cp[section])
+            if missing:
+                print(f"FAIL {path} [{section}]: missing {sorted(missing)}"); ok = False
+    print(f"OK   {path}")
+sys.exit(0 if ok else 1)
+PY
+    ;;
+  deploy)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "reload" ]] || { echo "Unknown deploy command: $sub" >&2; exit 64; }
+    # Graceful reload после deploy: новый код подхватывается без drop'а трафика.
+    # В Compose команды выполняются в работающих контейнерах; на Linux/VM — напрямую.
+    if docker compose -p chat ps -q api >/dev/null 2>&1 && [[ -n "$(docker compose -p chat ps -q api 2>/dev/null)" ]]; then
+      docker compose -p chat exec api php artisan octane:reload
+      docker compose -p chat exec worker php artisan horizon:terminate
+      docker compose -p chat exec reverb php artisan reverb:restart
+    else
+      (cd "$API_DIR" && php artisan octane:reload && php artisan horizon:terminate && php artisan reverb:restart)
+    fi
+    ;;
+  smoke)
+    sub="${1:-}"; shift || true
+    [[ "$sub" == "runtime" ]] || { echo "Unknown smoke target: $sub" >&2; exit 64; }
+    # Readiness против dev-стека: HTTP liveness/readiness API + компоненты из readiness payload.
+    api_url="${CHAT_API_URL:-http://127.0.0.1:8000}"
+    rc=0
+    echo "== HTTP liveness =="
+    curl -fsS -m 5 "$api_url/up" >/dev/null && echo "up: OK" || { echo "up: FAIL"; rc=1; }
+    echo "== readiness =="
+    body="$(curl -fsS -m 10 "$api_url/api/v1/readiness" || true)"
+    echo "$body"
+    [[ -n "$body" ]] || { echo "readiness: FAIL"; rc=1; }
+    for compo in database redis queue websocket; do
+      echo "$body" | grep -q "\"$compo\":{\"status\":\"ok\"" || { echo "$compo: not ok"; rc=1; }
+    done
+    [[ $rc -eq 0 ]] && echo "smoke runtime: OK"
+    exit $rc
     ;;
   lint)
     (cd "$ROOT" && ./vendor/bin/pint --test "$@")

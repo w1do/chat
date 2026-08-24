@@ -1,0 +1,174 @@
+# Production-стек Self-Hosted Chat (ADR-007).
+# Один основной процесс на контейнер; restart policy и health checks — на runtime.
+# Запуск: docker compose --env-file .env -f compose.prod.yaml up -d
+name: chat
+
+x-api-image: &api-image
+  image: ${CHAT_API_IMAGE:-vendor/chat-api:0.1.0}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    APP_ENV: production
+    DB_HOST: postgres
+    REDIS_HOST: redis
+    TYPESENSE_HOST: typesense
+    REVERB_HOST: reverb
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks: [internal]
+  volumes:
+    - api-storage:/app/storage/app
+
+services:
+  proxy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ../docker/proxy/Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, api, reverb]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    image: ${CHAT_WEB_IMAGE:-vendor/chat-web:0.1.0}
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-/api/v1}
+      REVERB_HOST: ${REVERB_PUBLIC_HOST:-chat.example.com}
+      REVERB_PORT: ${REVERB_PUBLIC_PORT:-443}
+      REVERB_SCHEME: ${REVERB_PUBLIC_SCHEME:-https}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      APP_NAME: ${APP_NAME:-Self-Hosted Chat}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api:
+    <<: *api-image
+    command: ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000", "--max-requests=${OCTANE_MAX_REQUESTS:-500}"]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    <<: *api-image
+    command: ["php", "artisan", "horizon"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  scheduler:
+    <<: *api-image
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  reverb:
+    <<: *api-image
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    # Порт Reverb наружу не публикуется: WebSocket termination выполняет proxy.
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  postgres:
+    image: postgres:18.1-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-chat}
+      POSTGRES_USER: ${DB_USERNAME:-chat}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  typesense:
+    image: typesense/typesense:29.0
+    restart: unless-stopped
+    command: ["--data-dir", "/data", "--api-key", "${TYPESENSE_API_KEY:?}", "--enable-cors=false"]
+    volumes:
+      - typesense-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8108 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q ok <&3"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    # Опциональное S3-совместимое хранилище: включается профилем `s3`.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    profiles: [s3]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      - minio-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  internal:
+
+volumes:
+  api-storage:
+  postgres-data:
+  redis-data:
+  typesense-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
