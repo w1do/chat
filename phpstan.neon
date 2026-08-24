@@ -1,3 +1,6 @@
+includes:
+    - apps/chat-api/vendor/larastan/larastan/extension.neon
+
 parameters:
     level: 6
     bootstrapFiles:

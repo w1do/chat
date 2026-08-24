@@ -3,10 +3,23 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\RoomController;
 
-// Маршруты пакета vendor/chat. Endpoints добавляются на этапе реализации модуля.
 Route::prefix(config('chat.routes.prefix', 'api/v1'))
-    ->middleware(config('chat.routes.middleware', ['api']))
+    ->middleware([...config('chat.routes.middleware', ['api']), 'auth:sanctum'])
+    ->name('chat.')
+    ->scopeBindings()
     ->group(function (): void {
-        // planned
+        Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
+        Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
+        Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
+        Route::patch('/rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
+        Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.archive');
+
+        Route::get('/rooms/{room}/members', [MemberController::class, 'index'])->name('members.index');
+        Route::post('/rooms/{room}/members', [MemberController::class, 'store'])->name('members.invite');
+        Route::post('/rooms/{room}/members/me', [MemberController::class, 'join'])->name('members.join');
+        Route::delete('/rooms/{room}/members/me', [MemberController::class, 'leave'])->name('members.leave');
+        Route::patch('/rooms/{room}/members/{member}', [MemberController::class, 'update'])->name('members.role');
     });

@@ -1,0 +1,131 @@
+/rooms/{room}/members:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: listMembers
+    tags: [members]
+    summary: Участники комнаты
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Список участников.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Member' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+  post:
+    operationId: inviteMember
+    tags: [members]
+    summary: Приглашение пользователя (owner/admin)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user_id]
+            properties:
+              user_id: { type: string, description: ULID пользователя. }
+    responses:
+      '201':
+        description: Участник добавлен.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Member' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '409':
+        description: Пользователь уже участник.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+/rooms/{room}/members/me:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    operationId: joinRoom
+    tags: [members]
+    summary: Вступление в публичную комнату
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '201':
+        description: Вступление выполнено.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Member' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+  delete:
+    operationId: leaveRoom
+    tags: [members]
+    summary: Выход из комнаты (owner не может выйти)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Выход выполнен. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+/rooms/{room}/members/{member}:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+    - name: member
+      in: path
+      required: true
+      schema: { type: string }
+  patch:
+    operationId: changeMemberRole
+    tags: [members]
+    summary: Смена роли участника (только owner; роль owner не назначается)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [role]
+            properties:
+              role: { type: string, enum: [admin, member] }
+    responses:
+      '200':
+        description: Обновлённый участник.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Member' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Участник не найден в этой комнате.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+      '422': { $ref: '#/components/responses/ValidationError' }

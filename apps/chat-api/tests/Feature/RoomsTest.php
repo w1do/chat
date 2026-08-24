@@ -1,0 +1,148 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Vendor\Chat\Domain\Enums\RoomRole;
+use Vendor\Chat\Domain\Models\Room;
+use Vendor\Chat\Domain\Models\RoomMember;
+
+uses(RefreshDatabase::class);
+
+function memberOf(Room $room, RoomRole $role): User
+{
+    $user = User::factory()->create();
+    RoomMember::factory()->for($room)->role($role)->create(['user_id' => $user->getKey()]);
+
+    return $user;
+}
+
+it('creates a room and makes the creator its owner', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->postJson('/api/v1/rooms', [
+        'name' => 'General',
+        'visibility' => 'public',
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.name', 'General')
+        ->assertJsonPath('data.my_role', 'owner')
+        ->assertJsonPath('data.member_count', 1);
+
+    $this->assertDatabaseHas('room_members', [
+        'user_id' => $user->getKey(),
+        'role' => 'owner',
+    ]);
+});
+
+it('validates room creation input', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson('/api/v1/rooms', ['name' => '', 'visibility' => 'secret'])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'validation_failed');
+});
+
+it('hides private rooms from listings and direct access of non-members', function (): void {
+    $user = User::factory()->create();
+    $public = Room::factory()->create(['name' => 'Public room']);
+    $private = Room::factory()->privateRoom()->create(['name' => 'Secret room']);
+
+    $list = $this->actingAs($user)->getJson('/api/v1/rooms')->assertOk()->json('data');
+    expect(collect($list)->pluck('id'))->toContain($public->id)->not->toContain($private->id);
+
+    $this->getJson("/api/v1/rooms/{$private->id}")->assertStatus(403);
+});
+
+it('forbids room updates for plain members and guests', function (): void {
+    $room = Room::factory()->create();
+    memberOf($room, RoomRole::Owner);
+    $member = memberOf($room, RoomRole::Member);
+    $guest = User::factory()->create();
+
+    $this->actingAs($member)->patchJson("/api/v1/rooms/{$room->id}", ['name' => 'X'])
+        ->assertStatus(403)->assertJsonPath('code', 'forbidden');
+    $this->actingAs($guest)->patchJson("/api/v1/rooms/{$room->id}", ['name' => 'X'])->assertStatus(403);
+
+    $admin = memberOf($room, RoomRole::Admin);
+    $this->actingAs($admin)->patchJson("/api/v1/rooms/{$room->id}", ['name' => 'Renamed'])
+        ->assertOk()->assertJsonPath('data.name', 'Renamed');
+});
+
+it('archives a room only by its owner', function (): void {
+    $room = Room::factory()->create();
+    $owner = memberOf($room, RoomRole::Owner);
+    $admin = memberOf($room, RoomRole::Admin);
+
+    $this->actingAs($admin)->deleteJson("/api/v1/rooms/{$room->id}")->assertStatus(403);
+    $this->actingAs($owner)->deleteJson("/api/v1/rooms/{$room->id}")->assertNoContent();
+
+    expect($room->fresh()->isArchived())->toBeTrue();
+});
+
+it('handles invite, join, leave and duplicate-join conflicts', function (): void {
+    $room = Room::factory()->create();
+    $owner = memberOf($room, RoomRole::Owner);
+    $invitee = User::factory()->create();
+    $walkIn = User::factory()->create();
+
+    // invite (owner) → 201; повторно → 409
+    $this->actingAs($owner)->postJson("/api/v1/rooms/{$room->id}/members", ['user_id' => $invitee->getKey()])
+        ->assertCreated()->assertJsonPath('data.role', 'member');
+    $this->actingAs($owner)->postJson("/api/v1/rooms/{$room->id}/members", ['user_id' => $invitee->getKey()])
+        ->assertStatus(409)->assertJsonPath('code', 'conflict');
+
+    // member не может приглашать
+    $this->actingAs($invitee)->postJson("/api/v1/rooms/{$room->id}/members", ['user_id' => $walkIn->getKey()])
+        ->assertStatus(403);
+
+    // self-join публичной комнаты; повторный join → 403 (уже член)
+    $this->actingAs($walkIn)->postJson("/api/v1/rooms/{$room->id}/members/me")->assertCreated();
+    $this->actingAs($walkIn)->postJson("/api/v1/rooms/{$room->id}/members/me")->assertStatus(403);
+
+    // leave: member может, owner — нет
+    $this->actingAs($walkIn)->deleteJson("/api/v1/rooms/{$room->id}/members/me")->assertNoContent();
+    $this->actingAs($owner)->deleteJson("/api/v1/rooms/{$room->id}/members/me")->assertStatus(403);
+});
+
+it('changes member roles only by the owner and never the owner row', function (): void {
+    $room = Room::factory()->create();
+    $owner = memberOf($room, RoomRole::Owner);
+    $admin = memberOf($room, RoomRole::Admin);
+    $member = memberOf($room, RoomRole::Member);
+    $memberRow = $room->memberFor($member);
+    $ownerRow = $room->memberFor($owner);
+
+    $this->actingAs($admin)->patchJson("/api/v1/rooms/{$room->id}/members/{$memberRow->id}", ['role' => 'admin'])
+        ->assertStatus(403);
+
+    $this->actingAs($owner)->patchJson("/api/v1/rooms/{$room->id}/members/{$memberRow->id}", ['role' => 'admin'])
+        ->assertOk()->assertJsonPath('data.role', 'admin');
+
+    $this->actingAs($owner)->patchJson("/api/v1/rooms/{$room->id}/members/{$ownerRow->id}", ['role' => 'member'])
+        ->assertStatus(403);
+
+    $this->actingAs($owner)->patchJson("/api/v1/rooms/{$room->id}/members/{$memberRow->id}", ['role' => 'owner'])
+        ->assertStatus(422);
+});
+
+it('scopes member bindings to the room', function (): void {
+    $roomA = Room::factory()->create();
+    $roomB = Room::factory()->create();
+    $ownerA = memberOf($roomA, RoomRole::Owner);
+    memberOf($roomB, RoomRole::Owner);
+    $foreignRow = RoomMember::factory()->for($roomB)->role(RoomRole::Member)->create();
+
+    // Член другой комнаты недостижим через /rooms/{roomA}/members/{member}
+    $this->actingAs($ownerA)->patchJson("/api/v1/rooms/{$roomA->id}/members/{$foreignRow->id}", ['role' => 'admin'])
+        ->assertStatus(404)->assertJsonPath('code', 'not_found');
+});
+
+it('requires authentication for all room endpoints', function (): void {
+    $room = Room::factory()->create();
+
+    $this->getJson('/api/v1/rooms')->assertStatus(401);
+    $this->postJson('/api/v1/rooms', [])->assertStatus(401);
+    $this->getJson("/api/v1/rooms/{$room->id}/members")->assertStatus(401);
+});

@@ -11,6 +11,7 @@ import { RoomSettingsPage } from '../pages/RoomSettingsPage';
 export function createAppRouter() {
   return createBrowserRouter([
     { path: '/', element: <RequireAuth><ChatPage /></RequireAuth> },
+    { path: '/rooms/:roomId', element: <RequireAuth><ChatPage /></RequireAuth> },
     { path: '/login', element: <RedirectIfAuthenticated><LoginPage /></RedirectIfAuthenticated> },
     { path: '/rooms/:roomId/settings', element: <RequireAuth><RoomSettingsPage /></RequireAuth> },
     { path: '/profile', element: <RequireAuth><ProfilePage /></RequireAuth> },

@@ -7,6 +7,19 @@
 
 ### Added
 
+- Комнаты и членство (этап 5 roadmap):
+  - пакет `vendor/chat`: миграции `rooms`/`room_members` (ULID, частичный
+    уникальный индекс «один owner на комнату»), rich-модели Room/RoomMember,
+    enums, RoomPolicy/MembershipPolicy, команды CreateRoom/UpdateRoom/
+    ArchiveRoom/InviteMember/JoinRoom/LeaveRoom/ChangeMemberRole и запросы
+    ListRooms/GetRoom/ListMembers с DTO;
+  - V1 endpoints `/rooms`, `/rooms/{room}`, `/rooms/{room}/members*` со
+    scoped bindings, авторизацией политиками и 409 при повторном членстве;
+  - OpenAPI-фрагменты rooms/members → dist → регенерированный клиент;
+  - `@vendor/chat`: Zod-схемы, `useRooms`/`useMembers`/`useMembershipActions`,
+    `RoomList`/`RoomHeader`/`CreateRoomForm`/`MembershipManager`;
+    `ChatPage` и `RoomSettingsPage` в `chat-web`;
+  - `docs/features/{rooms,membership}.md`.
 - Identity (этап 4 roadmap):
   - пакет `vendor/identity`: миграции (users ULID, password_reset_tokens,
     personal_access_tokens), базовая модель User (наследуется приложением через

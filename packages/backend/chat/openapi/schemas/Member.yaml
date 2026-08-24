@@ -1,0 +1,9 @@
+type: object
+required: [id, room_id, user_id, role, joined_at, name]
+properties:
+  id: { type: string, description: ULID записи членства. }
+  room_id: { type: string }
+  user_id: { type: string }
+  role: { type: string, enum: [owner, admin, member] }
+  joined_at: { type: string, format: date-time }
+  name: { type: [string, "null"], description: Имя пользователя. }

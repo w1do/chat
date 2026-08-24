@@ -1,0 +1,118 @@
+/rooms:
+  get:
+    operationId: listRooms
+    tags: [rooms]
+    summary: Список видимых комнат (публичные + свои приватные)
+    security: [{ sanctumCookie: [] }]
+    parameters:
+      - name: visibility
+        in: query
+        schema: { type: string, enum: [public, private] }
+      - name: search
+        in: query
+        schema: { type: string }
+    responses:
+      '200':
+        description: Список комнат.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Room' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+  post:
+    operationId: createRoom
+    tags: [rooms]
+    summary: Создание комнаты (создатель становится owner)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, visibility]
+            properties:
+              name: { type: string, maxLength: 255 }
+              topic: { type: [string, "null"], maxLength: 500 }
+              visibility: { type: string, enum: [public, private] }
+    responses:
+      '201':
+        description: Комната создана.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Room' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+/rooms/{room}:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: getRoom
+    tags: [rooms]
+    summary: Комната по идентификатору
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Комната.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Room' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Комната не найдена.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+  patch:
+    operationId: updateRoom
+    tags: [rooms]
+    summary: Обновление комнаты (owner/admin)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name: { type: string, maxLength: 255 }
+              topic: { type: [string, "null"], maxLength: 500 }
+    responses:
+      '200':
+        description: Обновлённая комната.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Room' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+  delete:
+    operationId: archiveRoom
+    tags: [rooms]
+    summary: Архивация комнаты (только owner)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Комната архивирована. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }

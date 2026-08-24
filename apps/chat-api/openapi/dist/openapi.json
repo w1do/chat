@@ -47,6 +47,117 @@
                     }
                 }
             },
+            "Member": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "room_id",
+                    "user_id",
+                    "role",
+                    "joined_at",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ULID записи членства."
+                    },
+                    "room_id": {
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "owner",
+                            "admin",
+                            "member"
+                        ]
+                    },
+                    "joined_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Имя пользователя."
+                    }
+                }
+            },
+            "Room": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "topic",
+                    "visibility",
+                    "created_by",
+                    "archived_at",
+                    "created_at",
+                    "my_role",
+                    "member_count"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ULID комнаты."
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "topic": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": [
+                            "public",
+                            "private"
+                        ]
+                    },
+                    "created_by": {
+                        "type": "string"
+                    },
+                    "archived_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "my_role": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            null
+                        ],
+                        "description": "Роль текущего пользователя, null для не-участника."
+                    },
+                    "member_count": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
             "User": {
                 "type": "object",
                 "required": [
@@ -480,6 +591,574 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/rooms": {
+            "get": {
+                "operationId": "listRooms",
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Список видимых комнат (публичные + свои приватные)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "visibility",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "public",
+                                "private"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список комнат.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Room"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "createRoom",
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Создание комнаты (создатель становится owner)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "visibility"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "topic": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 500
+                                    },
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Комната создана.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Room"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/rooms/{room}": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "operationId": "getRoom",
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Комната по идентификатору",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Комната.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Room"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "description": "Комната не найдена.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "updateRoom",
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Обновление комнаты (owner/admin)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "topic": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 500
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Обновлённая комната.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Room"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "archiveRoom",
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Архивация комнаты (только owner)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Комната архивирована."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    }
+                }
+            }
+        },
+        "/rooms/{room}/members": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "operationId": "listMembers",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Участники комнаты",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список участников.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Member"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "inviteMember",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Приглашение пользователя (owner/admin)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "type": "string",
+                                        "description": "ULID пользователя."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Участник добавлен.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Member"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "409": {
+                        "description": "Пользователь уже участник.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/rooms/{room}/members/me": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "post": {
+                "operationId": "joinRoom",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Вступление в публичную комнату",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Вступление выполнено.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Member"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "leaveRoom",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Выход из комнаты (owner не может выйти)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Выход выполнен."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    }
+                }
+            }
+        },
+        "/rooms/{room}/members/{member}": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "member",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "patch": {
+                "operationId": "changeMemberRole",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Смена роли участника (только owner; роль owner не назначается)",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "role"
+                                ],
+                                "properties": {
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "admin",
+                                            "member"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Обновлённый участник.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Member"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "description": "Участник не найден в этой комнате.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"

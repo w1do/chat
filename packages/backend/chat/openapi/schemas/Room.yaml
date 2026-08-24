@@ -1,0 +1,15 @@
+type: object
+required: [id, name, topic, visibility, created_by, archived_at, created_at, my_role, member_count]
+properties:
+  id: { type: string, description: ULID комнаты. }
+  name: { type: string }
+  topic: { type: [string, "null"] }
+  visibility: { type: string, enum: [public, private] }
+  created_by: { type: string }
+  archived_at: { type: [string, "null"], format: date-time }
+  created_at: { type: string, format: date-time }
+  my_role:
+    type: [string, "null"]
+    enum: [owner, admin, member, null]
+    description: Роль текущего пользователя, null для не-участника.
+  member_count: { type: [integer, "null"] }

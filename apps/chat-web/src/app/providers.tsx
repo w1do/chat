@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { ChatProvider } from '@vendor/chat';
 import { IdentityProvider } from '@vendor/identity';
 import type { ReactNode } from 'react';
 import { apiClient } from './api';
@@ -11,7 +12,9 @@ const queryClient = createQueryClient();
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <IdentityProvider client={apiClient()}>{children}</IdentityProvider>
+      <IdentityProvider client={apiClient()}>
+        <ChatProvider client={apiClient()}>{children}</ChatProvider>
+      </IdentityProvider>
     </QueryClientProvider>
   );
 }

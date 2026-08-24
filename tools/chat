@@ -277,7 +277,7 @@ PY
     (cd "$ROOT" && ./vendor/bin/pint --test "$@")
     ;;
   stan)
-    (cd "$ROOT" && ./vendor/bin/phpstan analyse --memory-limit=1G "$@")
+    (cd "$ROOT" && apps/chat-api/vendor/bin/phpstan analyse -c phpstan.neon --memory-limit=1G "$@")
     ;;
   ""|help|-h|--help)
     usage
