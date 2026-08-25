@@ -12,6 +12,9 @@
   "push": {
     "publicKey": "${VAPID_PUBLIC_KEY}"
   },
+  "password": {
+    "minLength": "${PASSWORD_MIN_LENGTH}"
+  },
   "branding": {
     "appName": "${APP_NAME}"
   }

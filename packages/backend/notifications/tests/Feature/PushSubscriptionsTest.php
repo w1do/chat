@@ -41,6 +41,25 @@ it('keeps one record per device when the browser resubscribes', function (): voi
         ->and(PushSubscription::query()->sole()->p256dh)->toBe('BRotatedKey');
 });
 
+it('is safe to send the very same subscription on every app start', function (): void {
+    // Приложение сверяет подписку с сервером при каждом запуске: повтор не
+    // должен ни плодить записи, ни менять устройство.
+    $this->actingAsUser();
+
+    $this->postJson('/api/v1/push-subscriptions', subscribePayload())->assertCreated();
+    $first = PushSubscription::query()->sole();
+
+    $this->travel(2)->minutes();
+    $this->postJson('/api/v1/push-subscriptions', subscribePayload())->assertCreated();
+
+    $again = PushSubscription::query()->sole();
+    expect(PushSubscription::query()->count())->toBe(1)
+        ->and($again->id)->toBe($first->id)
+        ->and($again->endpoint)->toBe($first->endpoint)
+        // Устройство подтвердило, что живо.
+        ->and($again->last_used_at->greaterThan($first->last_used_at))->toBeTrue();
+});
+
 it('removes the subscription on unsubscribe', function (): void {
     $this->actingAsUser();
 

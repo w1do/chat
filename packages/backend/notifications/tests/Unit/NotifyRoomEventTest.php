@@ -12,6 +12,7 @@ use Vendor\Notifications\Domain\Enums\Category;
 use Vendor\Notifications\Domain\Enums\Channel;
 use Vendor\Notifications\Domain\Models\NotificationPreference;
 use Vendor\Notifications\Infrastructure\Jobs\DeliverNotificationJob;
+use Vendor\Notifications\Infrastructure\Jobs\SendDigestJob;
 
 /** Подменяем присутствие: список активных задаётся тестом. */
 function activeIn(array $activeUserIds): void
@@ -162,7 +163,7 @@ it('stops sending push once the user turns the channel off', function (): void {
     expect(DB::table('notifications')->where('notifiable_id', $recipient->getKey())->count())->toBe(1);
 });
 
-it('routes bulk messages and security to their own queues', function (): void {
+it('does not park a new message behind mass mailings', function (): void {
     Bus::fake();
     activeIn([]);
     $recipient = User::factory()->create();
@@ -176,8 +177,18 @@ it('routes bulk messages and security to their own queues', function (): void {
 
     app(NotifyRoomEventHandler::class)->handle(notifyCommand('actor-1', [(string) $recipient->getKey()]));
 
+    // Живой разговор идёт по обычной очереди уведомлений, а не по очереди рассылок.
     Bus::assertDispatched(
         DeliverNotificationJob::class,
-        fn (DeliverNotificationJob $job): bool => $job->queue === 'notifications-bulk',
+        fn (DeliverNotificationJob $job): bool => $job->queue === 'notifications',
     );
+});
+
+it('keeps every category on its own queue', function (): void {
+    expect(Category::Security->queue())->toBe('notifications-critical')
+        ->and(Category::Message->queue())->toBe('notifications')
+        ->and(Category::Mention->queue())->toBe('notifications')
+        ->and(Category::RoomInvite->queue())->toBe('notifications')
+        // Очередь рассылок остаётся сводкам: они могут подождать.
+        ->and((new SendDigestJob('u1', '2026-08-25T00:00:00Z'))->queue)->toBe('notifications-bulk');
 });

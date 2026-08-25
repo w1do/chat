@@ -11,7 +11,7 @@ use Vendor\Notifications\Domain\Models\PushSubscription;
 /** Транспорт для тестов: запоминает отправленное и отвечает заданным итогом. */
 final class FakePushTransport implements PushTransport
 {
-    /** @var list<array{endpoint: string, payload: string}> */
+    /** @var list<array{endpoint: string, payload: string, topic: ?string}> */
     public array $sent = [];
 
     private PushResult $result;
@@ -21,9 +21,9 @@ final class FakePushTransport implements PushTransport
         $this->result = $result ?? PushResult::delivered();
     }
 
-    public function deliver(PushSubscription $subscription, string $payload): PushResult
+    public function deliver(PushSubscription $subscription, string $payload, ?string $topic = null): PushResult
     {
-        $this->sent[] = ['endpoint' => $subscription->endpoint, 'payload' => $payload];
+        $this->sent[] = ['endpoint' => $subscription->endpoint, 'payload' => $payload, 'topic' => $topic];
 
         return $this->result;
     }

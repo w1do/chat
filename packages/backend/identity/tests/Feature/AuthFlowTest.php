@@ -194,6 +194,31 @@ it('changes the password only with the correct current one', function (): void {
     expect(Hash::check('brand-new-password-1', $user->refresh()->password))->toBeTrue();
 });
 
+it('accepts a short password when the installation asks for nothing more', function (): void {
+    // Ровно случай из отчёта: «123» сервер принимает, значит и форма обязана.
+    config()->set('identity.password.min_length', 1);
+    $user = User::factory()->create(['password' => 'old-password-value']);
+
+    $this->actingAs($user)->patchJson('/api/v1/me/password', [
+        'current_password' => 'old-password-value',
+        'password' => '123',
+    ])->assertNoContent();
+
+    expect(Hash::check('123', $user->refresh()->password))->toBeTrue();
+});
+
+it('follows the installation when it asks for a longer password', function (): void {
+    config()->set('identity.password.min_length', 12);
+    $user = User::factory()->create(['password' => 'old-password-value']);
+
+    $this->actingAs($user)->patchJson('/api/v1/me/password', [
+        'current_password' => 'old-password-value',
+        'password' => '123',
+    ])->assertStatus(422);
+
+    expect(Hash::check('old-password-value', $user->refresh()->password))->toBeTrue();
+});
+
 it('requires authentication for email and password changes', function (): void {
     $this->patchJson('/api/v1/me/email', ['email' => 'x@example.com'])->assertStatus(401);
     $this->patchJson('/api/v1/me/password', ['current_password' => 'a', 'password' => 'b'])->assertStatus(401);

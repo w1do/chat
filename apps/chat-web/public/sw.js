@@ -62,7 +62,6 @@ self.addEventListener('push', (event) => {
     }),
   );
 });
-
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? '/';
@@ -82,3 +81,63 @@ self.addEventListener('notificationclick', (event) => {
     }),
   );
 });
+
+/* Браузер перевыпускает и отзывает подписку сам — Chrome на Android делает это
+   регулярно. Пока это событие никто не слушал, устройство молча выпадало из
+   рассылки навсегда: сервер удалял подписку по ответу 410, а новая никуда не
+   уходила. Приложение в этот момент может быть закрыто, поэтому ключ берём не
+   из его памяти, а из той же /config.json. */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(resubscribe());
+});
+
+async function resubscribe() {
+  const config = await fetch('/config.json', { cache: 'no-store' })
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+
+  const key = config?.push?.publicKey;
+  if (!key) return;
+
+  const subscription = await self.registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: applicationServerKey(key),
+  });
+
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  // Сессия ходит cookie'ами, поэтому нужен и CSRF-заголовок. Прочитать cookie
+  // из worker можно только Cookie Store API; где его нет, подписку донесёт
+  // приложение при следующем запуске — оно сверяет её с сервером.
+  const token = await xsrfToken();
+  if (token) headers['X-XSRF-TOKEN'] = token;
+
+  await fetch(`${config.apiBaseUrl ?? '/api/v1'}/push-subscriptions`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(subscription.toJSON ? subscription.toJSON() : subscription),
+  });
+}
+
+async function xsrfToken() {
+  try {
+    const cookie = await self.cookieStore?.get('XSRF-TOKEN');
+
+    return cookie ? decodeURIComponent(cookie.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** base64url из конфигурации → формат, который ждёт браузер. */
+function applicationServerKey(key) {
+  const padded = (key + '='.repeat((4 - (key.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  const binary = self.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes.buffer;
+}

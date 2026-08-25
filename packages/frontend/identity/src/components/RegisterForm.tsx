@@ -3,12 +3,14 @@ import { isApiError } from '@vendor/api-client';
 import type { ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { registerSchema, type RegisterInput } from '../schemas/auth';
+import { registerSchema, passwordHint, type RegisterInput } from '../schemas/auth';
 import { Field } from './Field';
 import { SubmitButton } from './SubmitButton';
 
 interface RegisterFormProps {
   theme: ThemeTokens;
+  /** Минимальную длину пароля, заданную установкой, передаёт приложение. */
+  passwordMinLength: number;
   /** Логин, введённый на соседней вкладке формы: не теряется при переключении. */
   defaultLogin?: string;
   /** Каждое изменение логина уходит наверх — им делятся вход и регистрация. */
@@ -17,7 +19,7 @@ interface RegisterFormProps {
 }
 
 /** Регистрация: придумал логин и пароль — уже внутри. Почта — потом, в настройках. */
-export function RegisterForm({ theme, defaultLogin = '', onLoginChange, onSubmit }: RegisterFormProps) {
+export function RegisterForm({ theme, passwordMinLength, defaultLogin = '', onLoginChange, onSubmit }: RegisterFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -25,7 +27,7 @@ export function RegisterForm({ theme, defaultLogin = '', onLoginChange, onSubmit
     setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema(passwordMinLength)),
     defaultValues: { login: defaultLogin } as Partial<RegisterInput>,
   });
 
@@ -66,7 +68,7 @@ export function RegisterForm({ theme, defaultLogin = '', onLoginChange, onSubmit
         label="Пароль"
         type="password"
         autoComplete="new-password"
-        hint="Не короче 10 символов"
+        hint={passwordHint(passwordMinLength)}
         error={errors.password?.message}
         {...register('password')}
       />

@@ -73,7 +73,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: ./tools/chat web typecheck
       - run: ./tools/chat web test chat
+      - run: ./tools/chat web test identity
       - run: ./tools/chat web test notifications
+      - run: ./tools/chat web test ui
       - run: ./tools/chat web test
       - run: ./tools/chat web build
 

@@ -23,7 +23,7 @@ export const memberSchema = z.object({
 });
 
 export const createRoomSchema = z.object({
-  name: z.string().min(1, 'validation.required').max(255),
+  name: z.string().min(1, 'Название не может быть пустым').max(255),
   topic: z.string().max(500).optional(),
   visibility: z.enum(['public', 'private']),
 });

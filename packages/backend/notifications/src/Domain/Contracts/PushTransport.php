@@ -13,5 +13,10 @@ use Vendor\Notifications\Domain\Models\PushSubscription;
  */
 interface PushTransport
 {
-    public function deliver(PushSubscription $subscription, string $payload): PushResult;
+    /**
+     * @param  ?string  $topic  тема уведомления: push-сервис заменяет ею ещё не
+     *                          доставленное уведомление той же темы вместо того,
+     *                          чтобы копить устаревшие
+     */
+    public function deliver(PushSubscription $subscription, string $payload, ?string $topic = null): PushResult;
 }

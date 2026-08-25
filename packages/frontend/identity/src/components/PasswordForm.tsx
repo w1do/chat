@@ -3,16 +3,18 @@ import { isApiError } from '@vendor/api-client';
 import type { ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { passwordChangeSchema, type PasswordChangeInput } from '../schemas/auth';
+import { passwordChangeSchema, passwordHint, type PasswordChangeInput } from '../schemas/auth';
 import { Field } from './Field';
 import { SubmitButton } from './SubmitButton';
 
 interface PasswordFormProps {
   theme: ThemeTokens;
+  /** Минимальная длина пароля, заданную установкой передаёт приложение. */
+  passwordMinLength: number;
   onSubmit: (input: PasswordChangeInput) => Promise<unknown>;
 }
 
-export function PasswordForm({ theme, onSubmit }: PasswordFormProps) {
+export function PasswordForm({ theme, passwordMinLength, onSubmit }: PasswordFormProps) {
   const [saved, setSaved] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -21,7 +23,7 @@ export function PasswordForm({ theme, onSubmit }: PasswordFormProps) {
     setError,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<PasswordChangeInput>({ resolver: zodResolver(passwordChangeSchema) });
+  } = useForm<PasswordChangeInput>({ resolver: zodResolver(passwordChangeSchema(passwordMinLength)) });
 
   const submit = handleSubmit(async (input) => {
     setSaved(false);
@@ -65,7 +67,7 @@ export function PasswordForm({ theme, onSubmit }: PasswordFormProps) {
         label="Новый пароль"
         type="password"
         autoComplete="new-password"
-        hint="Не короче 10 символов"
+        hint={passwordHint(passwordMinLength)}
         error={errors.password?.message}
         {...register('password')}
       />

@@ -116,3 +116,51 @@ describe('usePushSubscription', () => {
     await waitFor(() => expect(result.current.state).toBe('denied'));
   });
 });
+
+describe('usePushSubscription: сверка с сервером при запуске', () => {
+  beforeEach(() => {
+    post.mockClear();
+    runtime.push.publicKey = 'BKeyForTests';
+    Object.defineProperty(window, 'PushManager', { value: class {}, configurable: true });
+    Object.defineProperty(window, 'Notification', {
+      value: { permission: 'granted', requestPermission: vi.fn() },
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it('переотправляет подписку и показывает «включено», когда сервер её принял', async () => {
+    const { manager, subscription } = pushManager(null);
+    manager.getSubscription.mockResolvedValue(subscription);
+    ready.mockResolvedValue({ pushManager: manager });
+
+    const { result } = renderHook(() => usePushSubscription());
+
+    await waitFor(() => expect(result.current.state).toBe('on'));
+    // Отвалившаяся на сервере подписка чинится сама, без участия человека.
+    expect(post).toHaveBeenCalledWith('/push-subscriptions', {
+      body: { endpoint: 'https://push.example.com/device', keys: { p256dh: 'k', auth: 'a' } },
+    });
+  });
+
+  it('не обещает уведомлений, если сервер подписку не принял', async () => {
+    const { manager, subscription } = pushManager(null);
+    manager.getSubscription.mockResolvedValue(subscription);
+    ready.mockResolvedValue({ pushManager: manager });
+    post.mockRejectedValueOnce(new Error('сеть недоступна'));
+
+    const { result } = renderHook(() => usePushSubscription());
+
+    await waitFor(() => expect(result.current.state).toBe('off'));
+  });
+
+  it('без подписки в браузере остаётся выключенным и никого не спрашивает', async () => {
+    const { manager } = pushManager(null);
+    ready.mockResolvedValue({ pushManager: manager });
+
+    const { result } = renderHook(() => usePushSubscription());
+
+    await waitFor(() => expect(result.current.state).toBe('off'));
+    expect(post).not.toHaveBeenCalled();
+  });
+});

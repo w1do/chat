@@ -62,6 +62,7 @@ services:
       REVERB_SCHEME: ${REVERB_PUBLIC_SCHEME:-https}
       REVERB_APP_KEY: ${REVERB_APP_KEY:?}
       AI_ENABLED: ${AI_ENABLED:-false}
+      PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-1}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       APP_NAME: ${APP_NAME:-Self-Hosted Chat}
     networks: [internal]

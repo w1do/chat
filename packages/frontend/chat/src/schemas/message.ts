@@ -33,7 +33,7 @@ export const messagePageSchema = z.object({
 });
 
 export const sendMessageSchema = z.object({
-  body: z.string().min(1, 'validation.required').max(4000),
+  body: z.string().min(1, 'Сообщение не может быть пустым').max(4000),
   reply_to_id: z.string().nullable().optional(),
   mentions: z.array(z.string()).max(20).optional(),
 });

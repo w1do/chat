@@ -9,6 +9,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSystemStatus } from '../app/admin';
 import { usePushSubscription, type PushState } from '../app/push';
+import { passwordMinLength } from '../app/runtime-config';
 import type { AppSettings } from '../app/settings';
 
 interface SettingsScreenProps {
@@ -323,7 +324,11 @@ export function SettingsScreen({
 
       <Sheet open={sheet === 'password'} title="Пароль" theme={theme} onClose={() => setSheet(null)}>
         <div className="px-4 pb-6">
-          <PasswordForm theme={theme} onSubmit={(input) => changePassword.mutateAsync(input)} />
+          <PasswordForm
+            theme={theme}
+            passwordMinLength={passwordMinLength()}
+            onSubmit={(input) => changePassword.mutateAsync(input)}
+          />
         </div>
       </Sheet>
     </div>

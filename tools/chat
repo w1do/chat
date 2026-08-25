@@ -495,7 +495,9 @@ PY
     step "application tests" "$0" test api
     step "frontend typecheck" "$0" web typecheck
     step "frontend build" "$0" web build
-    for pkg in chat notifications; do
+    # Все frontend-пакеты со своими тестами: пропуск пакета — это тест,
+    # который никого не держит.
+    for pkg in chat identity notifications ui; do
       step "frontend tests: $pkg" "$0" web test "$pkg"
     done
     step "frontend tests: chat-web" "$0" web test

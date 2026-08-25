@@ -27,7 +27,11 @@ final class SendDigestJob implements ShouldBeUnique, ShouldQueue
     public function __construct(
         public readonly string $recipientId,
         public readonly string $since,
-    ) {}
+    ) {
+        // Сводка — это и есть рассылка: её место в очереди рассылок, где она
+        // никого не задерживает.
+        $this->onQueue((string) config('notifications.queues.bulk', 'notifications-bulk'));
+    }
 
     public function tries(): int
     {
