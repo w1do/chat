@@ -1,4 +1,4 @@
-import { Avatar, Dots, RADIUS, roomEmoji, useElementHeight, voiceHue, type ThemeTokens } from '@vendor/ui';
+import { Avatar, Dots, RADIUS, roomEmoji, Screen, voiceHue, type ThemeTokens } from '@vendor/ui';
 import { Bell, Lock, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Room } from '../../schemas/room';
@@ -37,15 +37,63 @@ export function RoomsScreen({
   onCreateRoom,
 }: RoomsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
-  const headerHeight = useElementHeight(headerRef);
   const [creating, setCreating] = useState(false);
 
-  return (
-    <div className="relative h-full" style={{ background: theme.bg }}>
-      <div
-        className="absolute inset-0 overflow-y-auto scroll-area"
-        style={{ paddingTop: headerHeight, paddingBottom: 96 }}
+  /** Шапка — закреплённый край Screen: список прокручивается под ней. */
+  const renderHeader = () => (
+      <header
+        ref={headerRef}
+        className="px-5 pb-3 safe-top blur-chrome"
+        style={{ background: theme.chromeAlpha }}
       >
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-[28px] font-semibold" style={{ color: theme.text, letterSpacing: '-0.035em' }}>
+              Чаты
+            </h1>
+            <p className="text-[13px] mt-0.5" style={{ color: theme.muted }}>
+              {rooms ? `${rooms.length} комнат` : '…'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {onOpenNotifications ? (
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                className="tap relative grid place-items-center"
+                aria-label={
+                  unreadNotifications > 0
+                    ? `Уведомления, непрочитанных: ${unreadNotifications}`
+                    : 'Уведомления'
+                }
+                style={{ width: 40, height: 40, borderRadius: 14, background: theme.surfaceAlt, color: theme.text }}
+              >
+                <Bell size={18} />
+                {unreadNotifications > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute pop"
+                    style={{ top: 6, right: 6, width: 8, height: 8, borderRadius: 4, background: theme.amber }}
+                  />
+                ) : null}
+              </button>
+            ) : null}
+            <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
+            {currentUser ? (
+              <Avatar userId={currentUser.id} name={currentUser.name} size={40} theme={theme} online />
+            ) : null}
+            </button>
+          </div>
+        </div>
+      </header>
+  );
+
+  return (
+    <Screen
+      theme={theme}
+      header={renderHeader()}
+      contentStyle={{ paddingBottom: 96 }}
+    >
         <div className="px-3 pt-2">
           {isLoading ? (
             <p aria-busy="true" className="px-2 py-6 text-[15px]" style={{ color: theme.muted }}>
@@ -152,54 +200,7 @@ export function RoomsScreen({
             }}
           />
         </div>
-      </div>
-
-      <header
-        ref={headerRef}
-        className="absolute top-0 left-0 right-0 z-10 px-5 pb-3 safe-top blur-chrome"
-        style={{ background: theme.chromeAlpha }}
-      >
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-[28px] font-semibold" style={{ color: theme.text, letterSpacing: '-0.035em' }}>
-              Чаты
-            </h1>
-            <p className="text-[13px] mt-0.5" style={{ color: theme.muted }}>
-              {rooms ? `${rooms.length} комнат` : '…'}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {onOpenNotifications ? (
-              <button
-                type="button"
-                onClick={onOpenNotifications}
-                className="tap relative grid place-items-center"
-                aria-label={
-                  unreadNotifications > 0
-                    ? `Уведомления, непрочитанных: ${unreadNotifications}`
-                    : 'Уведомления'
-                }
-                style={{ width: 40, height: 40, borderRadius: 14, background: theme.surfaceAlt, color: theme.text }}
-              >
-                <Bell size={18} />
-                {unreadNotifications > 0 ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute pop"
-                    style={{ top: 6, right: 6, width: 8, height: 8, borderRadius: 4, background: theme.amber }}
-                  />
-                ) : null}
-              </button>
-            ) : null}
-            <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
-            {currentUser ? (
-              <Avatar userId={currentUser.id} name={currentUser.name} size={40} theme={theme} online />
-            ) : null}
-            </button>
-          </div>
-        </div>
-      </header>
-    </div>
+    </Screen>
   );
 }
 

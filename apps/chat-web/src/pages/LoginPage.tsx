@@ -1,5 +1,5 @@
 import { identityApi, LoginForm, RecoveryForm, RegisterForm, useAuth } from '@vendor/identity';
-import { RADIUS, THEMES, type ThemeTokens } from '@vendor/ui';
+import { RADIUS, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../app/api';
@@ -31,10 +31,9 @@ export function LoginPage() {
   const theme: ThemeTokens = THEMES[settings.theme];
 
   return (
-    <div
-      className="w-full grid place-items-center px-5"
-      style={{ background: theme.bg, minHeight: '100dvh', paddingTop: 24, paddingBottom: 24 }}
-    >
+    // Страница не прокручивается: карточка центрируется внутри Screen и
+    // остаётся доступной, когда на низком экране открыта клавиатура.
+    <Screen theme={theme} contentClassName="grid place-items-center px-5 py-6">
       <main className="w-full max-w-sm" style={{ color: theme.text }}>
         <div className="text-center mb-6">
           <span
@@ -105,6 +104,6 @@ export function LoginPage() {
           ) : null}
         </nav>
       </main>
-    </div>
+    </Screen>
   );
 }

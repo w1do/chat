@@ -121,6 +121,47 @@ describe('лента по макету', () => {
   });
 });
 
+describe('оболочка экрана переписки', () => {
+  it('держит одну область прокрутки: шапка и панель ввода вне её', () => {
+    const { container } = render(<Feed />);
+
+    // У листов есть своя прокрутка — считаем только области самого экрана.
+    const areas = [...container.querySelectorAll('.scroll-area')].filter(
+      (area) => area.closest('[role="dialog"]') === null,
+    );
+    expect(areas).toHaveLength(1);
+
+    const feed = areas[0]!;
+    // Лента прокручивается, края — нет.
+    expect(feed).toContainElement(screen.getByLabelText('Сообщение m1'));
+    expect(feed).not.toContainElement(screen.getByRole('banner'));
+    expect(feed).not.toContainElement(screen.getByRole('textbox', { name: 'Сообщение' }));
+  });
+
+  it('не полагается на абсолютное позиционирование краёв', () => {
+    const { container } = render(<Feed />);
+
+    const header = container.querySelector('header')!;
+    const composer = screen.getByRole('textbox', { name: 'Сообщение' }).closest('div[class*="blur-chrome"]')!;
+
+    expect(header.className).not.toContain('absolute');
+    expect(composer.className).not.toContain('absolute');
+  });
+
+  it('прокручивает ленту к новому сообщению, не двигая интерфейс', () => {
+    const scrollTo = vi.fn();
+    Element.prototype.scrollTo = scrollTo as never;
+
+    const { rerender } = render(<Feed messages={[message('m1')]} />);
+    scrollTo.mockClear();
+
+    rerender(<Feed messages={[message('m2'), message('m1')]} />);
+
+    expect(scrollTo).toHaveBeenCalled();
+    expect(window.scrollY).toBe(0);
+  });
+});
+
 describe('подсказка о жестах', () => {
   it('появляется один раз и запоминается', async () => {
     window.localStorage.clear();

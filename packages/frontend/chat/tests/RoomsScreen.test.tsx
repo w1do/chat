@@ -67,7 +67,10 @@ describe('RoomsScreen', () => {
 
     expect(screen.getByLabelText('Непрочитанных: 3')).toHaveTextContent('3');
 
-    await userEvent.keyboard('{Tab}{Enter}');
+    // Комната открывается с клавиатуры; порядок табуляции — шапка, затем список.
+    screen.getByRole('button', { name: /Общая/ }).focus();
+    await userEvent.keyboard('{Enter}');
+
     expect(onOpen).toHaveBeenCalledWith('r1');
   });
 

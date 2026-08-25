@@ -5,6 +5,7 @@ export { Confetti } from './components/Confetti';
 export { Dots } from './components/Dots';
 export { Group } from './components/Group';
 export { Row } from './components/Row';
+export { Screen } from './components/Screen';
 export { Segmented } from './components/Segmented';
 export { Sheet } from './components/Sheet';
 export { Toast } from './components/Toast';

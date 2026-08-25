@@ -3,11 +3,11 @@ import {
   Dots,
   MIN_INPUT_FONT,
   RADIUS,
+  Screen,
   SPRING,
   TEXT_SIZE_PX,
   overlayOnOwn,
   roomEmoji,
-  useElementHeight,
   voiceHue,
   type TextSize,
   type ThemeTokens,
@@ -108,8 +108,6 @@ export function ChatScreen({
   const headerRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const headerHeight = useElementHeight(headerRef);
-  const composerHeight = useElementHeight(composerRef);
   const [sendError, setSendError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -162,7 +160,7 @@ export function ChatScreen({
 
   useEffect(() => {
     scrollToBottom(false);
-  }, [keyboard, room.id, composerHeight]);
+  }, [keyboard, room.id]);
 
   const submit = async () => {
     const text = draft.trim();
@@ -203,126 +201,11 @@ export function ChatScreen({
 
   let lastDay: string | null = null;
 
-  return (
-    <div className="relative h-full" style={{ background: theme.bg }}>
-      <div
-        ref={scroller}
-        className="absolute inset-0 overflow-y-auto scroll-area px-3"
-        style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + 10 }}
-      >
-        {isLoading ? (
-          <p aria-busy="true" className="py-6 text-center text-[15px]" style={{ color: theme.muted }}>
-            Загрузка сообщений…
-          </p>
-        ) : error ? (
-          <p role="alert" className="py-6 text-center text-[15px]" style={{ color: theme.danger }}>
-            Не удалось загрузить сообщения.
-          </p>
-        ) : ordered.length === 0 ? (
-          <p role="status" className="py-6 text-center text-[15px]" style={{ color: theme.muted }}>
-            Пока тихо. Напишите первым.
-          </p>
-        ) : null}
-
-        {!hintSeen && ordered.length > 0 && canWrite ? (
-          <div className="flex justify-center pb-2">
-            <button
-              type="button"
-              onClick={() => {
-                setHintSeen(true);
-                rememberGestureHint();
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 text-[12.5px] tap"
-              style={{ background: theme.amberSoft, color: theme.amberText, borderRadius: 12 }}
-            >
-              Потяните сообщение влево — ответить, удерживайте — меню. Понятно
-            </button>
-          </div>
-        ) : null}
-
-        {hasMore ? (
-          <div className="flex justify-center py-2">
-            <button
-              type="button"
-              onClick={onLoadMore}
-              className="px-3 py-1.5 text-[13px] tap"
-              style={{ background: theme.surfaceAlt, color: theme.muted, borderRadius: 9 }}
-            >
-              Показать более ранние
-            </button>
-          </div>
-        ) : null}
-
-        {timeline.map((entry) => {
-          if (entry.type === 'system') {
-            const showSystemDay = dayKeyOf(entry.message.created_at) !== lastDay;
-            lastDay = dayKeyOf(entry.message.created_at);
-
-            return (
-              <div key={entry.key}>
-                {showSystemDay ? <DayDivider iso={entry.message.created_at} theme={theme} /> : null}
-                <SystemEntry
-                  message={entry.message}
-                  actorName={namesById.get(entry.message.payload?.actor_id ?? '') ?? 'Участник'}
-                  theme={theme}
-                />
-              </div>
-            );
-          }
-
-          const group = entry.group;
-          const author = namesById.get(group.authorId) ?? group.items[0]?.author_name ?? group.authorId;
-          const hue = voiceHue(group.authorId);
-          const own = group.authorId === currentUserId;
-          const showDay = group.day !== lastDay;
-          lastDay = group.day;
-
-          return (
-            <div key={group.key}>
-              {showDay ? <DayDivider iso={group.items[0]!.created_at} theme={theme} /> : null}
-
-              <div className={`flex items-end gap-2 mb-3 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
-                <Avatar userId={group.authorId} name={author} size={30} theme={theme} />
-
-                <div className="flex flex-col gap-0.5 min-w-0" style={{ maxWidth: 'calc(100% - 46px)' }}>
-                  {/* Имя автора над первым пузырём — у обеих сторон, как на макете. */}
-                  <span
-                    className={`text-[12.5px] font-semibold px-1 ${own ? 'text-right' : 'text-left'}`}
-                    style={{ color: own ? theme.muted : hue }}
-                  >
-                    {author}
-                  </span>
-
-                  {group.items.map((message, index) => (
-                    <MessageBubble
-                      key={message.id}
-                      message={message}
-                      reply={message.reply_to_id ? (byId.get(message.reply_to_id) ?? null) : null}
-                      replyAuthor={replyAuthorName(message)}
-                      own={own}
-                      first={index === 0}
-                      last={index === group.items.length - 1}
-                      theme={theme}
-                      fontSize={fontSize}
-                      highlighted={highlightedId === message.id}
-                      onReply={startReply}
-                      onQuickReaction={(target) => onToggleReaction(target.id, QUICK_REACTION)}
-                      onOpenActions={setActionsFor}
-                      onToggleReaction={onToggleReaction}
-                      onJump={jumpToMessage}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-      </div>
-
-      <header
-        ref={headerRef}
-        className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2.5 px-2 pb-2.5 safe-top blur-chrome"
+  /** Шапка и панель ввода — закреплённые края Screen, а не absolute-слои. */
+  const renderHeader = () => (
+    <header
+      ref={headerRef}
+        className="flex items-center gap-2.5 px-2 pb-2.5 safe-top blur-chrome"
         style={{ background: theme.chromeAlpha }}
       >
         <button
@@ -390,46 +273,12 @@ export function ChatScreen({
           )}
         </button>
       </header>
+  );
 
-      <MessageActionsSheet
-        message={actionsFor}
-        authorName={
-          actionsFor === null
-            ? ''
-            : (namesById.get(actionsFor.author_id) ?? actionsFor.author_name ?? 'Участник')
-        }
-        own={actionsFor?.author_id === currentUserId}
-        theme={theme}
-        onClose={() => setActionsFor(null)}
-        onReply={startReply}
-        onReact={(message, emoji) => onToggleReaction(message.id, emoji)}
-        onDelete={(message) => onDeleteMessage(message.id)}
-        onCopied={(ok) => onToast?.(ok ? 'Текст скопирован' : 'Не удалось скопировать текст')}
-      />
-
-      {/* Монтируем только открытым: запрос поиска не живёт фоном. */}
-      {searchOpen ? (
-        <SearchSheet
-        open
-        roomId={room.id}
-        roomName={room.name}
-        theme={theme}
-        onClose={() => setSearchOpen(false)}
-        onSelect={(messageId) => {
-          if (!messages.some((message) => message.id === messageId)) {
-            return false;
-          }
-
-          jumpToMessage(messageId);
-
-          return true;
-        }}
-        />
-      ) : null}
-
+  const renderComposer = () => (
       <div
         ref={composerRef}
-        className={`absolute bottom-0 left-0 right-0 z-10 px-3 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
+        className={`px-3 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
         style={{ background: theme.chromeAlpha }}
       >
         {sendError ? (
@@ -619,6 +468,164 @@ export function ChatScreen({
           </div>
         )}
       </div>
+  );
+
+  return (
+    <div className="relative h-full" style={{ background: theme.bg }}>
+      <Screen
+        theme={theme}
+        contentRef={scroller}
+        contentClassName="px-3"
+        header={renderHeader()}
+        footer={renderComposer()}
+      >
+        {isLoading ? (
+          <p aria-busy="true" className="py-6 text-center text-[15px]" style={{ color: theme.muted }}>
+            Загрузка сообщений…
+          </p>
+        ) : error ? (
+          <p role="alert" className="py-6 text-center text-[15px]" style={{ color: theme.danger }}>
+            Не удалось загрузить сообщения.
+          </p>
+        ) : ordered.length === 0 ? (
+          <p role="status" className="py-6 text-center text-[15px]" style={{ color: theme.muted }}>
+            Пока тихо. Напишите первым.
+          </p>
+        ) : null}
+
+        {!hintSeen && ordered.length > 0 && canWrite ? (
+          <div className="flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setHintSeen(true);
+                rememberGestureHint();
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[12.5px] tap"
+              style={{ background: theme.amberSoft, color: theme.amberText, borderRadius: 12 }}
+            >
+              Потяните сообщение влево — ответить, удерживайте — меню. Понятно
+            </button>
+          </div>
+        ) : null}
+
+        {hasMore ? (
+          <div className="flex justify-center py-2">
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="px-3 py-1.5 text-[13px] tap"
+              style={{ background: theme.surfaceAlt, color: theme.muted, borderRadius: 9 }}
+            >
+              Показать более ранние
+            </button>
+          </div>
+        ) : null}
+
+        {timeline.map((entry) => {
+          if (entry.type === 'system') {
+            const showSystemDay = dayKeyOf(entry.message.created_at) !== lastDay;
+            lastDay = dayKeyOf(entry.message.created_at);
+
+            return (
+              <div key={entry.key}>
+                {showSystemDay ? <DayDivider iso={entry.message.created_at} theme={theme} /> : null}
+                <SystemEntry
+                  message={entry.message}
+                  actorName={namesById.get(entry.message.payload?.actor_id ?? '') ?? 'Участник'}
+                  theme={theme}
+                />
+              </div>
+            );
+          }
+
+          const group = entry.group;
+          const author = namesById.get(group.authorId) ?? group.items[0]?.author_name ?? group.authorId;
+          const hue = voiceHue(group.authorId);
+          const own = group.authorId === currentUserId;
+          const showDay = group.day !== lastDay;
+          lastDay = group.day;
+
+          return (
+            <div key={group.key}>
+              {showDay ? <DayDivider iso={group.items[0]!.created_at} theme={theme} /> : null}
+
+              <div className={`flex items-end gap-2 mb-3 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
+                <Avatar userId={group.authorId} name={author} size={30} theme={theme} />
+
+                <div className="flex flex-col gap-0.5 min-w-0" style={{ maxWidth: 'calc(100% - 46px)' }}>
+                  {/* Имя автора над первым пузырём — у обеих сторон, как на макете. */}
+                  <span
+                    className={`text-[12.5px] font-semibold px-1 ${own ? 'text-right' : 'text-left'}`}
+                    style={{ color: own ? theme.muted : hue }}
+                  >
+                    {author}
+                  </span>
+
+                  {group.items.map((message, index) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      reply={message.reply_to_id ? (byId.get(message.reply_to_id) ?? null) : null}
+                      replyAuthor={replyAuthorName(message)}
+                      own={own}
+                      first={index === 0}
+                      last={index === group.items.length - 1}
+                      theme={theme}
+                      fontSize={fontSize}
+                      highlighted={highlightedId === message.id}
+                      onReply={startReply}
+                      onQuickReaction={(target) => onToggleReaction(target.id, QUICK_REACTION)}
+                      onOpenActions={setActionsFor}
+                      onToggleReaction={onToggleReaction}
+                      onJump={jumpToMessage}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+      </Screen>
+
+
+      <MessageActionsSheet
+        message={actionsFor}
+        authorName={
+          actionsFor === null
+            ? ''
+            : (namesById.get(actionsFor.author_id) ?? actionsFor.author_name ?? 'Участник')
+        }
+        own={actionsFor?.author_id === currentUserId}
+        theme={theme}
+        onClose={() => setActionsFor(null)}
+        onReply={startReply}
+        onReact={(message, emoji) => onToggleReaction(message.id, emoji)}
+        onDelete={(message) => onDeleteMessage(message.id)}
+        onCopied={(ok) => onToast?.(ok ? 'Текст скопирован' : 'Не удалось скопировать текст')}
+      />
+
+      {/* Монтируем только открытым: запрос поиска не живёт фоном. */}
+      {searchOpen ? (
+        <SearchSheet
+        open
+        roomId={room.id}
+        roomName={room.name}
+        theme={theme}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(messageId) => {
+          if (!messages.some((message) => message.id === messageId)) {
+            return false;
+          }
+
+          jumpToMessage(messageId);
+
+          return true;
+        }}
+        />
+      ) : null}
+
     </div>
   );
 }

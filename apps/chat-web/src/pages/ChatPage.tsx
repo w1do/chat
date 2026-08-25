@@ -121,7 +121,7 @@ export function ChatPage() {
         style={{ height: '100%', background: theme.bg, color: theme.text }}
       >
         <div
-          className={wide ? 'relative shrink-0' : 'absolute inset-0'}
+          className={wide ? 'relative shrink-0 min-w-0 overflow-hidden' : 'absolute inset-0'}
           style={
             wide
               ? { width: 380, height: '100%', borderRight: `1px solid ${theme.hairline}` }
@@ -253,7 +253,7 @@ export function ChatPage() {
         </div>
 
         <div
-          className={wide ? 'relative flex-1 min-w-0' : 'absolute inset-0'}
+          className={wide ? 'relative flex-1 min-w-0 overflow-hidden' : 'absolute inset-0'}
           style={
             wide
               ? { height: '100%' }

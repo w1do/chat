@@ -67,3 +67,36 @@ test('the desktop layout works from the keyboard', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: roomName })).toBeVisible();
 });
+
+test('neither the page nor the columns move the whole app', async ({ page }) => {
+  await register(page, 'Scroll');
+
+  const roomName = `E2E Scroll ${suffix}`;
+  await page.getByRole('button', { name: 'Новая комната' }).click();
+  await page.getByRole('textbox', { name: 'Название' }).fill(roomName);
+  await page.getByRole('button', { name: 'Создать' }).click();
+  await expect(page.getByRole('heading', { name: roomName })).toBeVisible();
+
+  // Набиваем историю, чтобы ленте было что прокручивать.
+  const composer = page.getByRole('textbox', { name: 'Сообщение' });
+  for (let index = 0; index < 12; index++) {
+    await composer.fill(`Сообщение номер ${index}`);
+    await composer.press('Enter');
+  }
+  await expect(page.locator('article', { hasText: 'Сообщение номер 11' }).first()).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // Прокрутка внутри ленты не двигает страницу.
+  const feed = page.locator('.scroll-area').first();
+  await feed.evaluate((element) => element.scrollBy(0, -400));
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBe(0);
+
+  // Документ вообще не прокручиваемый: его высота равна видимой области.
+  const overflows = await page.evaluate(
+    () => document.documentElement.scrollHeight > document.documentElement.clientHeight,
+  );
+  expect(overflows).toBe(false);
+});

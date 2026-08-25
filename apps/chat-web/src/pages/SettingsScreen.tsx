@@ -4,7 +4,7 @@ import {
   useNotificationPreferences,
   useUpdatePreferences,
 } from '@vendor/notifications';
-import { Avatar, Group, Row, Segmented, Sheet, Toggle, useElementHeight, type ThemeTokens } from '@vendor/ui';
+import { Avatar, Group, Row, Screen, Segmented, Sheet, Toggle, type ThemeTokens } from '@vendor/ui';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSystemStatus } from '../app/admin';
@@ -45,7 +45,6 @@ export function SettingsScreen({
   onToast,
 }: SettingsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
-  const headerHeight = useElementHeight(headerRef);
   const [sheet, setSheet] = useState<SheetId>(null);
   const { user, logout, updateProfile, updateEmail, changePassword } = useAuth();
   const navigate = useNavigate();
@@ -59,9 +58,22 @@ export function SettingsScreen({
   const themeLabel = settings.theme === 'dark' ? 'Тёмная' : 'Светлая';
   const sizeLabel = { S: 'Мелкий', M: 'Обычный', L: 'Крупный' }[settings.textSize];
 
+  /** Шапка закреплена: прокручивается только список настроек. */
+  const renderHeader = () => (
+      <header
+        ref={headerRef}
+        className="px-5 pb-3 safe-top blur-chrome"
+        style={{ background: theme.chromeAlpha }}
+      >
+        <h1 className="text-[28px] font-semibold" style={{ color: theme.text, letterSpacing: '-0.035em' }}>
+          Настройки
+        </h1>
+      </header>
+  );
+
   return (
     <div className="relative h-full" style={{ background: theme.bg }}>
-      <div className="absolute inset-0 overflow-y-auto scroll-area" style={{ paddingTop: headerHeight, paddingBottom: 96 }}>
+      <Screen theme={theme} header={renderHeader()} contentStyle={{ paddingBottom: 96 }}>
         <Group theme={theme} label="Профиль">
           <Row
             theme={theme}
@@ -199,17 +211,8 @@ export function SettingsScreen({
             last
           />
         </Group>
-      </div>
+      </Screen>
 
-      <header
-        ref={headerRef}
-        className="absolute top-0 left-0 right-0 z-10 px-5 pb-3 safe-top blur-chrome"
-        style={{ background: theme.chromeAlpha }}
-      >
-        <h1 className="text-[28px] font-semibold" style={{ color: theme.text, letterSpacing: '-0.035em' }}>
-          Настройки
-        </h1>
-      </header>
 
       <Sheet
         open={sheet === 'appearance'}
