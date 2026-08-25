@@ -106,7 +106,9 @@ services:
     depends_on: [api, reverb]
     # Вторая сеть — та, в которой живёт балансировщик панели: без неё Traefik
     # не видит контейнер и отвечает «404 not found» на ваш домен.
-    networks: [chat, proxy]
+    networks:
+      - chat
+      - dokploy-network
     # Маршрут для Traefik задаётся здесь, а не только в панели: контейнер
     # состоит в нескольких сетях, и балансировщику нужно явно указать нужную,
     # иначе домен отвечает 404. Панель может добавить свои метки — они не
@@ -114,18 +116,19 @@ services:
     # фиксировано (подстановка переменных в именах меток не работает): при
     # втором экземпляре на том же Traefik переименуйте его здесь.
     labels:
-      traefik.enable: "true"
-      traefik.docker.network: ${PROXY_NETWORK:-dokploy-network}
-      # Два маршрута: по http (пока нет сертификата) и по https.
-      traefik.http.routers.chat-http.rule: Host(`${APP_DOMAIN:-localhost}`)
-      traefik.http.routers.chat-http.entrypoints: ${TRAEFIK_HTTP_ENTRYPOINT:-web}
-      traefik.http.routers.chat-http.service: chat
-      traefik.http.routers.chat.rule: Host(`${APP_DOMAIN:-localhost}`)
-      traefik.http.routers.chat.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
-      traefik.http.routers.chat.tls: "true"
-      traefik.http.routers.chat.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
-      traefik.http.routers.chat.service: chat
-      traefik.http.services.chat.loadbalancer.server.port: "8080"
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      # Два маршрута на один и тот же контейнер: по http (пока сертификата нет)
+      # и по https. Панель дописывает в этот же список свои метки.
+      - "traefik.http.routers.chat-http.rule=Host(`${APP_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.chat-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT:-web}"
+      - "traefik.http.routers.chat-http.service=chat"
+      - "traefik.http.routers.chat.rule=Host(`${APP_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.chat.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.chat.tls=true"
+      - "traefik.http.routers.chat.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.chat.service=chat"
+      - "traefik.http.services.chat.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]
       interval: 30s
@@ -244,12 +247,10 @@ services:
 
 networks:
   chat:
-  # Сеть балансировщика. В Dokploy она создана заранее и называется
-  # dokploy-network; для другой панели задайте PROXY_NETWORK. На сервере без
-  # панели используйте docker-compose.standalone.yml — он создаст её сам.
-  proxy:
+  # Сеть балансировщика панели: она создана заранее. На сервере без панели
+  # её создаёт docker-compose.standalone.yml.
+  dokploy-network:
     external: true
-    name: ${PROXY_NETWORK:-dokploy-network}
 
 volumes:
   api-storage:

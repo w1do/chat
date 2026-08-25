@@ -12,6 +12,6 @@ services:
 # Сети балансировщика на таком сервере нет — создаём обычную сеть с тем же
 # именем, чтобы основной файл остался неизменным.
 networks:
-  proxy:
+  dokploy-network:
     external: false
     name: ${PROXY_NETWORK:-chat-proxy}
