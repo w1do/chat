@@ -1,0 +1,36 @@
+# Маршрут Traefik файлом — на случай, когда балансировщик не читает метки
+# docker-контейнеров (так работают compose-проекты в Dokploy: посмотрите на
+# соседние файлы в /etc/dokploy/traefik/dynamic/ — они помечены @file).
+#
+# Установка:
+#   1. скопируйте на сервер как /etc/dokploy/traefik/dynamic/chat.yml
+#   2. подставьте свой домен и имя контейнера приложения
+#      (docker ps --format '{{.Names}}' | grep web)
+#   3. ничего перезапускать не нужно: Traefik следит за каталогом
+#
+# Имя контейнера резолвится по DNS Docker внутри сети балансировщика,
+# поэтому контейнер должен быть в ней (в docker-compose.yml это сеть proxy).
+
+http:
+  routers:
+    chat-http:
+      rule: "Host(`ВАШ.ДОМЕН`)"
+      entryPoints:
+        - web
+      service: chat
+
+    chat-secure:
+      rule: "Host(`ВАШ.ДОМЕН`)"
+      entryPoints:
+        - websecure
+      service: chat
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    chat:
+      loadBalancer:
+        servers:
+          # Порт 8080 — nginx контейнера приложения: он отдаёт SPA и проксирует
+          # API и WebSocket внутрь.
+          - url: "http://ИМЯ-КОНТЕЙНЕРА-WEB:8080"

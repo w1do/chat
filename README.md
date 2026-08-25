@@ -79,8 +79,10 @@ docker compose exec api php artisan chat:grant-admin ваш_логин
   порт не нужно, домен направляется на сервис `web`, порт 8080.
 - Домен открывается, но отвечает `404 not found` — это ответ самого Traefik:
   маршрут до контейнера не найден. Проверьте, что `APP_DOMAIN` совпадает с
-  доменом в панели (из него собирается правило маршрутизации), а сеть панели
-  называется `dokploy-network` (иначе задайте `PROXY_NETWORK`).
+  доменом в панели, а сеть панели называется `dokploy-network` (иначе задайте
+  `PROXY_NETWORK`). Если балансировщик не читает метки контейнеров, задайте
+  маршрут файлом — шаблон `infra/traefik/chat.yml.example`, подробности в
+  [troubleshooting](docs/operations/troubleshooting.md).
 
 Остальные случаи — [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md).
 

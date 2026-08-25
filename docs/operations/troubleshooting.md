@@ -94,7 +94,18 @@ Traefik создаёт по ней маршрут с тем же доменом,
 docker exec $(docker ps -qf name=traefik | head -1) wget -qO- http://localhost:8080/api/http/routers | tr ',' '\n' | grep -iE 'rule|service|status'
 ```
 
-**Шаг 3. Остальное:
+**Шаг 3. Если маршрута всё равно нет — задайте его файлом.** Балансировщик
+может не читать метки docker-контейнеров (в Dokploy compose-проекты
+маршрутизируются файлами: соседние маршруты в `/etc/dokploy/traefik/dynamic/`
+помечены `@file`). Готовый шаблон — `infra/traefik/chat.yml.example`:
+
+```bash
+docker ps --format '{{.Names}}' | grep web        # имя контейнера приложения
+cp infra/traefik/chat.yml.example /etc/dokploy/traefik/dynamic/chat.yml
+# подставьте домен и имя контейнера, сохраните — Traefik подхватит сам
+```
+
+**Шаг 4. Остальное:
 
 - `APP_DOMAIN` должен совпадать с доменом в панели: из него собирается правило
   `Host(...)` в метках Traefik. Проверить, что реально прописано:
