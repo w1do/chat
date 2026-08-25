@@ -9,6 +9,7 @@ use Vendor\Notifications\Domain\Enums\Category;
 use Vendor\Notifications\Domain\Models\PushSubscription;
 use Vendor\Notifications\Infrastructure\Push\PushDeliveryFailed;
 use Vendor\Notifications\Infrastructure\Push\WebPushSender;
+use Vendor\Notifications\Infrastructure\Push\WebPushTransport;
 use Vendor\Notifications\Testing\FakePushTransport;
 
 /** Реальный ключ VAPID не нужен: проверяем настроенность и подготовку данных. */
@@ -112,6 +113,43 @@ it('delivers to every device of the recipient', function (): void {
 
     expect(app(WebPushSender::class)->send('u1', Category::Message, pushPayload()))->toBe(2)
         ->and($transport->sent)->toHaveCount(2);
+});
+
+it('marks every push urgent and gives it the room topic', function (): void {
+    configurePush();
+    $transport = fakeTransport();
+    subscribeDevice('u1', 'https://push.example.com/phone');
+
+    app(WebPushSender::class)->send('u1', Category::Message, pushPayload());
+
+    // Тема совпадает с ключом схлопывания на клиенте: одна комната — одно
+    // уведомление, и недоставленное заменяется новым.
+    expect($transport->sent[0]['topic'])->toBe('message:room-1');
+});
+
+it('sends every push as urgent with a topic the spec allows', function (): void {
+    configurePush();
+    config()->set('notifications.push.ttl_seconds', 1800);
+
+    $transport = app(WebPushTransport::class);
+    $options = (new ReflectionMethod($transport, 'options'))->invoke($transport, 'message:room-1');
+
+    // Без явной срочности push-сервис не будит спящий телефон.
+    expect($options['urgency'])->toBe('high')
+        ->and($options['TTL'])->toBe(1800)
+        // Тема ограничена 32 символами безопасного алфавита (RFC 8030 §5.4).
+        ->and($options['topic'])->toMatch('/^[A-Za-z0-9_-]{1,32}$/')
+        ->and($options['topic'])->toBe(
+            (new ReflectionMethod($transport, 'options'))->invoke($transport, 'message:room-1')['topic'],
+        );
+
+    // Разным комнатам — разные темы: иначе они вытесняли бы друг друга.
+    $other = (new ReflectionMethod($transport, 'options'))->invoke($transport, 'message:room-2');
+    expect($other['topic'])->not->toBe($options['topic']);
+
+    // Без темы заголовок не отправляется вовсе.
+    expect((new ReflectionMethod($transport, 'options'))->invoke($transport, null))
+        ->not->toHaveKey('topic');
 });
 
 it('drops a subscription the push service says is gone', function (): void {

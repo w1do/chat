@@ -41,7 +41,10 @@ final class ApiErrorEnvelope
                 403, 'forbidden', 'This action is not authorized.', [], [],
             ],
             $e instanceof ModelNotFoundException,
-            $e instanceof NotFoundHttpException => [
+            $e instanceof NotFoundHttpException,
+            // Политика может скрыть существование ресурса (denyAsNotFound) —
+            // Laravel превращает такой отказ в обычный HTTP 404.
+            $e instanceof HttpExceptionInterface && $e->getStatusCode() === 404 => [
                 404, 'not_found', 'The requested resource was not found.', [], [],
             ],
             $e instanceof ConflictHttpException => [

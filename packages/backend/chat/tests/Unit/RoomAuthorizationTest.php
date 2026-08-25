@@ -22,7 +22,7 @@ function makeRoomWith(RoomRole $role): array
 dataset('room matrix', [
     // [роль или null (гость), update, archive, invite, changeRole]
     'owner' => [RoomRole::Owner, true, true, true, true],
-    'admin' => [RoomRole::Admin, true, false, true, false],
+    'admin' => [RoomRole::Admin, true, true, true, false],
     'member' => [RoomRole::Member, false, false, false, false],
     'guest' => [null, false, false, false, false],
 ]);
@@ -45,6 +45,25 @@ it('enforces the room authorization matrix', function (?RoomRole $role, bool $up
         ->and($membershipPolicy->invite($user, $room))->toBe($invite)
         ->and($membershipPolicy->changeRole($user, $room, $target))->toBe($changeRole);
 })->with('room matrix');
+
+it('lets only the owner delete a room and hides it from outsiders', function (): void {
+    [$room, $owner] = makeRoomWith(RoomRole::Owner);
+    $admin = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Admin)->create(['user_id' => $admin->getKey()]);
+    $member = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Member)->create(['user_id' => $member->getKey()]);
+    $outsider = User::factory()->create();
+
+    $policy = new RoomPolicy;
+    $room = $room->fresh();
+
+    expect($policy->delete($owner, $room)->allowed())->toBeTrue()
+        ->and($policy->delete($admin, $room)->allowed())->toBeFalse()
+        ->and($policy->delete($admin, $room)->status())->toBeNull()
+        ->and($policy->delete($member, $room)->allowed())->toBeFalse()
+        ->and($policy->delete($outsider, $room)->allowed())->toBeFalse()
+        ->and($policy->delete($outsider, $room)->status())->toBe(404);
+});
 
 it('hides private rooms from non-members but shows public ones', function (): void {
     $user = User::factory()->create();

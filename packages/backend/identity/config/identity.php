@@ -18,11 +18,13 @@ return [
         'min_length' => (int) env('PASSWORD_MIN_LENGTH', 1),
     ],
 
-    // Rate limits (попыток в минуту).
+    // Rate limits (попыток в минуту). Значения по умолчанию рассчитаны на
+    // живых людей; установка (и E2E-стенд, где все браузеры приходят с одного
+    // адреса) может поднять их окружением — docs/security/hardening.md.
     'limits' => [
-        'login' => 5,
-        'register' => 10,
-        'password_reset' => 5,
+        'login' => (int) env('AUTH_LOGIN_PER_MINUTE', 5),
+        'register' => (int) env('AUTH_REGISTER_PER_MINUTE', 10),
+        'password_reset' => (int) env('AUTH_PASSWORD_RESET_PER_MINUTE', 5),
     ],
 
     'routes' => [

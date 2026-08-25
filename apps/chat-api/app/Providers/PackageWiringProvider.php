@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Administration\ReadinessSystemProbe;
 use App\Administration\RecordsAiAudit;
+use App\Administration\RecordsRoomAudit;
 use App\Models\User;
 use App\Notifications\NotifiesRoomActivity;
 use App\Notifications\PresenceActivityInspector;
@@ -21,6 +22,7 @@ use Spatie\Permission\PermissionRegistrar;
 use Vendor\Administration\Domain\Contracts\SystemProbe;
 use Vendor\Ai\Domain\Events\RevisionRecorded;
 use Vendor\Chat\Domain\Events\MessageCreated;
+use Vendor\Chat\Domain\Events\RoomDeleted;
 use Vendor\Chat\Domain\Events\RoomMemberChanged;
 use Vendor\Notifications\Domain\Contracts\ActivityInspector;
 
@@ -48,6 +50,9 @@ final class PackageWiringProvider extends ServiceProvider
 
         Event::listen(MessageCreated::class, [NotifiesRoomActivity::class, 'onMessageCreated']);
         Event::listen(RoomMemberChanged::class, [NotifiesRoomActivity::class, 'onRoomMemberChanged']);
+
+        // Удаление комнаты необратимо — записываем его в журнал аудита.
+        Event::listen(RoomDeleted::class, [RecordsRoomAudit::class, 'onRoomDeleted']);
 
         // AI-обращения попадают в журнал аудита безопасными метаданными.
         Event::listen(RevisionRecorded::class, [RecordsAiAudit::class, 'onRevisionRecorded']);

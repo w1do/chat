@@ -25,6 +25,8 @@ export function useRealtimeRoom(
   const [presentMembers, setPresentMembers] = useState<PresenceMember[]>([]);
   /** Кто только что присоединился — повод поздравить всю комнату. */
   const [joinGreeting, setJoinGreeting] = useState<JoinGreeting | null>(null);
+  /** Комнату удалили, пока она была открыта: читать больше нечего. */
+  const [deleted, setDeleted] = useState(false);
   const wasDisconnected = useRef(false);
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -33,8 +35,15 @@ export function useRealtimeRoom(
     // когда пользователь уже участник, и переподписываемся при его изменении.
     if (!adapter || !enabled) return;
 
+    setDeleted(false);
+
     const room = adapter.subscribeRoom(roomId, (event) => {
       applyRoomEvent(queryClient, event);
+
+      if (event.event === 'room.deleted.v1') {
+        setDeleted(true);
+        return;
+      }
 
       if (event.event === 'message.created.v1' && event.data.payload?.event === 'member.joined') {
         setJoinGreeting({
@@ -100,6 +109,7 @@ export function useRealtimeRoom(
     typingUserIds,
     presentMembers,
     joinGreeting,
+    deleted,
     dismissGreeting: () => setJoinGreeting(null),
   };
 }

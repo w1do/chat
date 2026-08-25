@@ -1,5 +1,12 @@
 import type { ApiClient } from '@vendor/api-client';
-import { memberSchema, roomSchema, type CreateRoomInput, type Member, type Room } from './schemas/room';
+import {
+  memberSchema,
+  roomSchema,
+  type CreateRoomInput,
+  type Member,
+  type Room,
+  type UpdateRoomInput,
+} from './schemas/room';
 
 export const roomsApi = {
   async list(client: ApiClient, params: { search?: string } = {}): Promise<Room[]> {
@@ -12,10 +19,14 @@ export const roomsApi = {
   async create(client: ApiClient, input: CreateRoomInput): Promise<Room> {
     return roomSchema.parse(((await client.post('/rooms', { body: input })) as { data: unknown }).data);
   },
-  async update(client: ApiClient, roomId: string, input: Partial<CreateRoomInput>): Promise<Room> {
+  async update(client: ApiClient, roomId: string, input: UpdateRoomInput): Promise<Room> {
     return roomSchema.parse(((await client.patch(`/rooms/${roomId}`, { body: input })) as { data: unknown }).data);
   },
   async archive(client: ApiClient, roomId: string): Promise<void> {
+    await client.post(`/rooms/${roomId}/archive`);
+  },
+  /** Удаление навсегда: комната и вся её переписка. Только владелец. */
+  async remove(client: ApiClient, roomId: string): Promise<void> {
     await client.delete(`/rooms/${roomId}`);
   },
   async members(client: ApiClient, roomId: string): Promise<Member[]> {

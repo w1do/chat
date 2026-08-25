@@ -42,12 +42,16 @@ final readonly class WebPushSender
         }
 
         $subscriptions = PushSubscription::query()->where('user_id', $recipientId)->get();
-        $body = (string) json_encode($this->notification($category, $payload), JSON_UNESCAPED_UNICODE);
+        $notification = $this->notification($category, $payload);
+        $body = (string) json_encode($notification, JSON_UNESCAPED_UNICODE);
+        // Тема та же, по которой клиент схлопывает уведомления: пока прошлое
+        // не доставлено, push-сервис заменит его новым вместо очереди устаревших.
+        $topic = (string) $notification['tag'];
         $delivered = 0;
         $failure = null;
 
         foreach ($subscriptions as $subscription) {
-            $result = $this->transport->deliver($subscription, $body);
+            $result = $this->transport->deliver($subscription, $body, $topic);
 
             if ($result->delivered) {
                 $delivered++;

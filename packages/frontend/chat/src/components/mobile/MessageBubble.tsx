@@ -94,7 +94,7 @@ export function MessageBubble({
             onOpenActions(message);
           }
         }}
-        className={`relative px-3.5 py-2 ${first ? (own ? 'enter-right' : 'enter-left') : ''}`}
+        className={`relative px-3.5 py-2 no-select ${first ? (own ? 'enter-right' : 'enter-left') : ''}`}
         style={{
           background: own ? theme.own : theme.surface,
           color: own ? theme.ownText : theme.text,
@@ -107,7 +107,6 @@ export function MessageBubble({
           transform: offset < 0 ? `translateX(${offset}px)` : undefined,
           transition: offset === 0 ? 'transform .2s ease, box-shadow .4s ease' : 'box-shadow .4s ease',
           touchAction: 'pan-y',
-          userSelect: 'none',
           cursor: 'default',
         }}
       >

@@ -83,7 +83,7 @@
   patch:
     operationId: updateRoom
     tags: [rooms]
-    summary: Обновление комнаты (owner/admin)
+    summary: Изменение названия и описания комнаты (owner/admin)
     security: [{ sanctumCookie: [] }]
     requestBody:
       required: true
@@ -92,7 +92,7 @@
           schema:
             type: object
             properties:
-              name: { type: string, maxLength: 255 }
+              name: { type: string, minLength: 1, maxLength: 255 }
               topic: { type: [string, "null"], maxLength: 500 }
     responses:
       '200':
@@ -108,11 +108,43 @@
       '403': { $ref: '#/components/responses/Forbidden' }
       '422': { $ref: '#/components/responses/ValidationError' }
   delete:
+    operationId: deleteRoom
+    tags: [rooms]
+    summary: Удаление комнаты навсегда (только owner)
+    description: >-
+      Комната, её сообщения, реакции, приглашения и участие удаляются
+      безвозвратно; восстановление возможно только из резервной копии базы.
+      Постороннему отвечаем 404: существование комнаты ему не показываем.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Комната удалена навсегда. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Комната не найдена.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+/rooms/{room}/archive:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  post:
     operationId: archiveRoom
     tags: [rooms]
-    summary: Архивация комнаты (только owner)
+    summary: Архивация комнаты (owner/admin)
+    description: >-
+      Архивная комната сохраняет переписку и доступна для чтения. Действие
+      отделено от удаления собственным адресом.
     security: [{ sanctumCookie: [] }]
     responses:
       '204': { description: Комната архивирована. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
       '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Комната не найдена.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }

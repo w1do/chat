@@ -112,12 +112,18 @@ importers:
 
   packages/frontend/chat:
     dependencies:
+      '@hookform/resolvers':
+        specifier: ^3.9.0
+        version: 3.10.0(react-hook-form@7.86.0(react@19.2.8))
       '@vendor/api-client':
         specifier: workspace:*
         version: link:../api-client
       '@vendor/ui':
         specifier: workspace:*
         version: link:../ui
+      react-hook-form:
+        specifier: ^7.54.0
+        version: 7.86.0(react@19.2.8)
       zod:
         specifier: ^3.24.0
         version: 3.25.76

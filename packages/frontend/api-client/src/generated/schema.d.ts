@@ -454,12 +454,37 @@ export interface paths {
         get: operations["getRoom"];
         put?: never;
         post?: never;
-        /** Архивация комнаты (только owner) */
-        delete: operations["archiveRoom"];
+        /**
+         * Удаление комнаты навсегда (только owner)
+         * @description Комната, её сообщения, реакции, приглашения и участие удаляются безвозвратно; восстановление возможно только из резервной копии базы. Постороннему отвечаем 404: существование комнаты ему не показываем.
+         */
+        delete: operations["deleteRoom"];
         options?: never;
         head?: never;
-        /** Обновление комнаты (owner/admin) */
+        /** Изменение названия и описания комнаты (owner/admin) */
         patch: operations["updateRoom"];
+        trace?: never;
+    };
+    "/rooms/{room}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Архивация комнаты (owner/admin)
+         * @description Архивная комната сохраняет переписку и доступна для чтения. Действие отделено от удаления собственным адресом.
+         */
+        post: operations["archiveRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/rooms/{room}/invites": {
@@ -1819,7 +1844,7 @@ export interface operations {
             };
         };
     };
-    archiveRoom: {
+    deleteRoom: {
         parameters: {
             query?: never;
             header?: never;
@@ -1830,7 +1855,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Комната архивирована. */
+            /** @description Комната удалена навсегда. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1839,6 +1864,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            /** @description Комната не найдена. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     updateRoom: {
@@ -1873,6 +1907,37 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    archiveRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Комната архивирована. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Комната не найдена. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     createRoomInvite: {

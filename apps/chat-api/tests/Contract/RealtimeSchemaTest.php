@@ -7,6 +7,7 @@ use Vendor\Chat\Infrastructure\Broadcasting\MessageCreatedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageDeletedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageUpdatedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\ReactionChangedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\RoomDeletedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\RoomMemberChangedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\TypingChangedV1;
 
@@ -16,6 +17,7 @@ const REALTIME_EVENTS = [
     'message.deleted.v1',
     'reaction.changed.v1',
     'room.member_changed.v1',
+    'room.deleted.v1',
     'typing.changed.v1',
 ];
 
@@ -119,6 +121,9 @@ it('produces broadcast payloads that validate against the contract schemas', fun
             'user_id' => $userId,
             'action' => 'joined',
             'role' => 'member',
+        ], $now),
+        new RoomDeletedV1($roomId, [
+            'name' => 'Семья',
         ], $now),
         new TypingChangedV1($roomId, [
             'user_id' => $userId,

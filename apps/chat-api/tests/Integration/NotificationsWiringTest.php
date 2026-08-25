@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Vendor\Chat\Domain\Contracts\PresenceRegistry;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
 use Vendor\Notifications\Domain\Contracts\PushTransport;
+use Vendor\Notifications\Domain\Enums\Category;
+use Vendor\Notifications\Domain\Enums\Channel;
 use Vendor\Notifications\Domain\Models\PushSubscription;
+use Vendor\Notifications\Infrastructure\Jobs\DeliverNotificationJob;
 use Vendor\Notifications\Testing\FakePushTransport;
 
 uses(RefreshDatabase::class);
@@ -155,7 +159,30 @@ it('pushes to devices of a member who is not in the room', function (): void {
     $notification = json_decode($transport->sent[0]['payload'], true);
     expect($notification['title'])->toBe($room->name)
         ->and($notification['body'])->toContain('пирог готов')
-        ->and($notification['url'])->toBe('/rooms/'.$room->id);
+        ->and($notification['url'])->toBe('/rooms/'.$room->id)
+        // Тема даёт push-сервису право заменить недоставленное уведомление
+        // о той же комнате новым, а не копить устаревшие.
+        ->and($transport->sent[0]['topic'])->toBe('message:'.$room->id);
+});
+
+it('queues a new message notification where it will not wait', function (): void {
+    Bus::fake([DeliverNotificationJob::class]);
+    config()->set('notifications.push.public_key', 'BPublicKeyForTests');
+    config()->set('notifications.push.private_key', 'PrivateKeyForTests');
+
+    presence();
+    [$room, $author] = roomWithTwo();
+
+    $this->actingAs($author)
+        ->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'пирог готов'])
+        ->assertCreated();
+
+    // Разговор не стоит за рассылками: очередь та же, что у упоминаний.
+    Bus::assertDispatched(
+        DeliverNotificationJob::class,
+        fn (DeliverNotificationJob $job): bool => $job->channel === Channel::Push
+            && $job->queue === 'notifications',
+    );
 });
 
 it('sends no push to the author or to someone reading the room', function (): void {
@@ -184,4 +211,17 @@ it('sends no push to the author or to someone reading the room', function (): vo
         ->assertCreated();
 
     expect($transport->sent)->toBe([]);
+});
+
+it('has a Horizon supervisor for every queue notifications use', function (): void {
+    $served = collect(config('horizon.defaults'))->flatMap(fn (array $group): array => $group['queue'])->all();
+
+    $used = collect(Category::cases())->map(fn (Category $category): string => $category->queue())
+        ->push((string) config('notifications.queues.bulk'))
+        ->unique();
+
+    // Очередь без обработчика — это уведомление, которое никогда не придёт.
+    foreach ($used as $queue) {
+        expect($served)->toContain($queue);
+    }
 });

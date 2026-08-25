@@ -63,5 +63,30 @@ describe('useKeyboardInsets', () => {
 
     expect(result.current.keyboard).toBe(0);
     expect(result.current.height).toBe(740);
+    // Именно эта полоса и прятала панель ввода: её надо отдать вёрстке.
+    expect(result.current.bottom).toBe(60);
+  });
+
+  it('считает нижнюю полосу только когда клавиатура закрыта', () => {
+    const viewport = fakeViewport(800);
+    const { result } = renderHook(() => useKeyboardInsets());
+
+    act(() => viewport.set({ height: 460 }));
+
+    // Открытая клавиатура — не полоса браузера: панель прижимается к ней.
+    expect(result.current.keyboard).toBe(340);
+    expect(result.current.bottom).toBe(0);
+  });
+
+  it('без visualViewport ничего не выдумывает', () => {
+    // Запасной путь — env(safe-area-inset-bottom) в CSS.
+    Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true, writable: true });
+
+    const { result } = renderHook(() => useKeyboardInsets());
+
+    expect(result.current.height).toBe(800);
+    expect(result.current.keyboard).toBe(0);
+    expect(result.current.bottom).toBe(0);
+    expect(result.current.offsetTop).toBe(0);
   });
 });

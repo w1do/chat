@@ -3,6 +3,7 @@ import { RADIUS, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../app/api';
+import { passwordMinLength } from '../app/runtime-config';
 import { useSettings } from '../app/settings';
 
 type Mode = 'login' | 'register' | 'recovery';
@@ -72,6 +73,7 @@ export function LoginPage() {
           ) : null}
           {mode === 'register' ? (
             <RegisterForm
+              passwordMinLength={passwordMinLength()}
               theme={theme}
               defaultLogin={sharedLogin}
               onLoginChange={setSharedLogin}

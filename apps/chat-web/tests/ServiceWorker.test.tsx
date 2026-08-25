@@ -11,9 +11,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  */
 type Listener = (event: unknown) => void;
 
-function loadWorker(): { listeners: Map<string, Listener>; registration: Record<string, ReturnType<typeof vi.fn>>; clients: Record<string, ReturnType<typeof vi.fn>> } {
+function loadWorker(pushManager?: Record<string, ReturnType<typeof vi.fn>>): {
+  listeners: Map<string, Listener>;
+  registration: Record<string, unknown>;
+  clients: Record<string, ReturnType<typeof vi.fn>>;
+} {
   const listeners = new Map<string, Listener>();
-  const registration = { showNotification: vi.fn() };
+  const registration = { showNotification: vi.fn(), pushManager };
   const clients = { matchAll: vi.fn().mockResolvedValue([]), openWindow: vi.fn(), claim: vi.fn() };
 
   const scope = {
@@ -21,6 +25,8 @@ function loadWorker(): { listeners: Map<string, Listener>; registration: Record<
     registration,
     clients,
     skipWaiting: vi.fn(),
+    atob: (value: string) => Buffer.from(value, 'base64').toString('binary'),
+    cookieStore: { get: vi.fn().mockResolvedValue({ value: 'csrf-token' }) },
     caches: { open: vi.fn().mockResolvedValue({ addAll: vi.fn() }), keys: vi.fn().mockResolvedValue([]), match: vi.fn() },
   };
 
@@ -92,5 +98,68 @@ describe('service worker', () => {
     listeners.get('fetch')?.({ request: { mode: 'cors', url: '/api/v1/rooms' }, respondWith });
 
     expect(respondWith).not.toHaveBeenCalled();
+  });
+});
+
+describe('service worker: перевыпуск подписки', () => {
+  /** Подписка, которую браузер выдаёт взамен отозванной. */
+  const fresh = {
+    toJSON: () => ({ endpoint: 'https://push.example.com/fresh', keys: { p256dh: 'p', auth: 'a' } }),
+  };
+
+  function fakeFetch() {
+    return vi.fn(async (url: string) => {
+      if (String(url).endsWith('/config.json')) {
+        return {
+          ok: true,
+          json: async () => ({ apiBaseUrl: '/api/v1', push: { publicKey: 'BQ' } }),
+        };
+      }
+
+      return { ok: true, json: async () => ({}) };
+    });
+  }
+
+  it('подписывается заново и отдаёт новую подписку серверу', async () => {
+    const fetchMock = fakeFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const subscribe = vi.fn().mockResolvedValue(fresh);
+    const { listeners } = loadWorker({ subscribe });
+
+    const waits: Promise<unknown>[] = [];
+    listeners.get('pushsubscriptionchange')?.({
+      waitUntil: (promise: Promise<unknown>) => waits.push(promise),
+    });
+    await Promise.all(waits);
+
+    expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({ userVisibleOnly: true }));
+
+    const [url, options] = fetchMock.mock.calls.at(-1) as [string, Record<string, unknown>];
+    expect(url).toBe('/api/v1/push-subscriptions');
+    expect(options.method).toBe('POST');
+    // Сессия ходит cookie'ами, значит нужен CSRF-заголовок.
+    expect((options.headers as Record<string, string>)['X-XSRF-TOKEN']).toBe('csrf-token');
+    expect(JSON.parse(String(options.body)).endpoint).toBe('https://push.example.com/fresh');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('молчит, когда push на сервере не настроен', async () => {
+    // Без ключа подписываться не на что — и запроса быть не должно.
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ push: { publicKey: '' } }) }));
+    vi.stubGlobal('fetch', fetchMock);
+    const subscribe = vi.fn();
+    const { listeners } = loadWorker({ subscribe });
+
+    const waits: Promise<unknown>[] = [];
+    listeners.get('pushsubscriptionchange')?.({
+      waitUntil: (promise: Promise<unknown>) => waits.push(promise),
+    });
+    await Promise.all(waits);
+
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.unstubAllGlobals();
   });
 });

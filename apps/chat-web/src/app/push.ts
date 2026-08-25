@@ -77,7 +77,22 @@ export function usePushSubscription(): {
     const registration = await serviceWorkerReady();
     const subscription = await registration?.pushManager.getSubscription();
 
-    setState(subscription ? 'on' : 'off');
+    if (!subscription) {
+      setState('off');
+
+      return;
+    }
+
+    // Подписка в браузере ещё не значит, что уведомления придут: сервер мог
+    // забыть устройство, когда push-сервис перевыпустил подписку. Отправляем
+    // её заново — запрос идемпотентен по endpoint, поэтому это и починка, и
+    // честный ответ на вопрос «а сервер про нас знает?».
+    try {
+      await apiClient().post('/push-subscriptions', { body: subscription.toJSON() });
+      setState('on');
+    } catch {
+      setState('off');
+    }
   }, []);
 
   useEffect(() => {

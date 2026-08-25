@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roomsApi } from '../api';
 import { useChatClient } from '../adapters/ChatProvider';
-import type { CreateRoomInput } from '../schemas/room';
+import type { CreateRoomInput, UpdateRoomInput } from '../schemas/room';
 
 const ROOMS_KEY = ['chat', 'rooms'] as const;
 const roomKey = (roomId: string) => ['chat', 'rooms', roomId] as const;
@@ -36,6 +36,32 @@ export function useCreateRoom() {
     mutationFn: (input: CreateRoomInput) => roomsApi.create(client, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ROOMS_KEY }),
   });
+}
+
+/** Управление самой комнатой: название с описанием и удаление навсегда. */
+export function useRoomActions(roomId: string) {
+  const client = useChatClient();
+  const queryClient = useQueryClient();
+
+  return {
+    update: useMutation({
+      mutationFn: (input: UpdateRoomInput) => roomsApi.update(client, roomId, input),
+      onSuccess: (room) => {
+        // Новое название видно сразу — и в шапке комнаты, и в списке.
+        queryClient.setQueryData(roomKey(roomId), room);
+        void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+      },
+    }),
+    remove: useMutation({
+      mutationFn: () => roomsApi.remove(client, roomId),
+      onSuccess: () => {
+        queryClient.removeQueries({ queryKey: roomKey(roomId) });
+        queryClient.removeQueries({ queryKey: membersKey(roomId) });
+        queryClient.removeQueries({ queryKey: ['chat', 'messages', roomId] });
+        void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+      },
+    }),
+  };
 }
 
 export function useMembershipActions(roomId: string) {

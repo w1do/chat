@@ -60,7 +60,7 @@ describe('LoginForm', () => {
 describe('RegisterForm', () => {
   it('registers with login and password only', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<RegisterForm theme={LIGHT} onSubmit={onSubmit} />);
+    render(<RegisterForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
 
     expect(screen.queryByLabelText(/Почта/)).toBeNull();
     expect(screen.getByText(/Почта не нужна для входа/)).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('RegisterForm', () => {
 
   it('maps a taken login onto the field', async () => {
     const onSubmit = vi.fn().mockRejectedValue(validationError('login', 'Такой логин уже занят.'));
-    render(<RegisterForm theme={LIGHT} onSubmit={onSubmit} />);
+    render(<RegisterForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
 
     await userEvent.type(screen.getByLabelText('Логин'), 'alice');
     await userEvent.type(screen.getByLabelText('Пароль'), 'long-enough-pass{Enter}');
@@ -83,7 +83,7 @@ describe('RegisterForm', () => {
 
   it('rejects a malformed login client-side', async () => {
     const onSubmit = vi.fn();
-    render(<RegisterForm theme={LIGHT} onSubmit={onSubmit} />);
+    render(<RegisterForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
 
     await userEvent.type(screen.getByLabelText('Логин'), 'алиса раз');
     await userEvent.type(screen.getByLabelText('Пароль'), 'long-enough-pass{Enter}');
@@ -140,7 +140,7 @@ describe('EmailForm', () => {
 describe('PasswordForm', () => {
   it('changes the password and clears the fields', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<PasswordForm theme={LIGHT} onSubmit={onSubmit} />);
+    render(<PasswordForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
 
     await userEvent.type(screen.getByLabelText('Текущий пароль'), 'old-password-value');
     await userEvent.type(screen.getByLabelText('Новый пароль'), 'brand-new-password{Enter}');
@@ -154,11 +154,48 @@ describe('PasswordForm', () => {
 
   it('marks a wrong current password on its field', async () => {
     const onSubmit = vi.fn().mockRejectedValue(validationError('current_password', 'wrong'));
-    render(<PasswordForm theme={LIGHT} onSubmit={onSubmit} />);
+    render(<PasswordForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
 
     await userEvent.type(screen.getByLabelText('Текущий пароль'), 'wrong-password');
     await userEvent.type(screen.getByLabelText('Новый пароль'), 'brand-new-password{Enter}');
 
     expect(await screen.findByText('Текущий пароль указан неверно.')).toBeInTheDocument();
+  });
+});
+
+describe('требование к паролю задаёт установка', () => {
+  it('принимает короткий пароль, когда установка не требует длиннее', async () => {
+    // Ровно случай из отчёта: сервер такой пароль принимает — форма обязана тоже.
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(<PasswordForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Текущий пароль'), '123');
+    await userEvent.type(screen.getByLabelText('Новый пароль'), '123{Enter}');
+
+    expect(onSubmit).toHaveBeenCalledWith({ current_password: '123', password: '123' });
+  });
+
+  it('называет ту длину, которую требует установка', async () => {
+    const onSubmit = vi.fn();
+    render(<PasswordForm theme={LIGHT} passwordMinLength={12} onSubmit={onSubmit} />);
+
+    expect(screen.getByText('Не короче 12 символов')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Текущий пароль'), 'old-password');
+    await userEvent.type(screen.getByLabelText('Новый пароль'), '123{Enter}');
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Человек читает объяснение с нужным числом, а не служебный код.
+    expect(await screen.findByText('Не короче 12 символов')).toBeInTheDocument();
+  });
+
+  it('при регистрации действует то же правило', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(<RegisterForm theme={LIGHT} passwordMinLength={1} onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Логин'), 'alice');
+    await userEvent.type(screen.getByLabelText('Пароль'), '123{Enter}');
+
+    expect(onSubmit).toHaveBeenCalledWith({ login: 'alice', password: '123' });
   });
 });

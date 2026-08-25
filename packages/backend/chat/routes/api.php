@@ -20,7 +20,8 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
         Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
         Route::patch('/rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
-        Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.archive');
+        Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.delete');
+        Route::post('/rooms/{room}/archive', [RoomController::class, 'archive'])->name('rooms.archive');
 
         Route::get('/rooms/{room}/members', [MemberController::class, 'index'])->name('members.index');
         Route::post('/rooms/{room}/members', [MemberController::class, 'store'])->name('members.invite');

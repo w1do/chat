@@ -120,6 +120,26 @@ describe('ChatScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Пока тихо');
   });
 
+  it('keeps the composer full width and pinned to the keyboard', () => {
+    const { rerender } = render(<Harness keyboard={0} />);
+
+    const composer = screen.getByTestId('composer');
+    expect(composer).toHaveClass('w-full');
+    // Клавиатуры нет — отступ считается по видимой области.
+    expect(composer).toHaveClass('safe-bottom');
+
+    rerender(<Harness keyboard={320} />);
+    // Клавиатура открыта — панель стоит вплотную над ней.
+    expect(screen.getByTestId('composer')).not.toHaveClass('safe-bottom');
+  });
+
+  it('forbids system text selection on message bubbles', () => {
+    render(<Harness messages={[message('m1')]} />);
+
+    // Долгое нажатие должно давать меню, а не синюю заливку выделения.
+    expect(screen.getByText('Message m1').closest('.no-select')).not.toBeNull();
+  });
+
   it('renders user text safely without injecting HTML', () => {
     render(<Harness messages={[message('m1', { body: '<img src=x onerror=alert(1)>' })]} />);
 

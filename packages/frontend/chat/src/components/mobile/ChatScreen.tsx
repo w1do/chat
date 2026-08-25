@@ -291,7 +291,10 @@ export function ChatScreen({
   const renderComposer = () => (
       <div
         ref={composerRef}
-        className={`px-2 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
+        // Панель во всю ширину; при открытой клавиатуре стоит вплотную к ней,
+        // при закрытой — отступает на нижнюю полосу видимой области.
+        data-testid="composer"
+        className={`w-full px-2 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
         style={{ background: theme.chromeAlpha }}
       >
         {sendError ? (

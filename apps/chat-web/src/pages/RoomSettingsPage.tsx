@@ -1,4 +1,4 @@
-import { useMembers, useMembershipActions, useRoom } from '@vendor/chat';
+import { RoomManagePanel, useMembers, useMembershipActions, useRoom, useRoomActions } from '@vendor/chat';
 import { Avatar, Group, RADIUS, Row, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -11,7 +11,7 @@ const ROLE_LABEL: Record<string, string> = {
   member: 'участник',
 };
 
-/** Экран участников комнаты: список, приглашение, роли, выход. */
+/** Экран комнаты: название и описание, участники, приглашение, роли, выход. */
 export function RoomSettingsPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ function Members({
   const room = useRoom(roomId);
   const members = useMembers(roomId);
   const actions = useMembershipActions(roomId);
+  const roomActions = useRoomActions(roomId);
   const [inviteId, setInviteId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +68,16 @@ function Members({
             </header>
           }
         >
+
+          {room.data ? (
+            <RoomManagePanel
+              room={room.data}
+              theme={theme}
+              onSave={(input) => roomActions.update.mutateAsync(input)}
+              onDelete={() => roomActions.remove.mutateAsync()}
+              onDeleted={onLeft}
+            />
+          ) : null}
 
           {members.isLoading ? (
             <p aria-busy="true" className="px-5 py-6 text-[15px]" style={{ color: theme.muted }}>

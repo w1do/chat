@@ -17,13 +17,16 @@ enum Category: string
         return $this === self::Security;
     }
 
-    /** Очередь под категорию: срочное не стоит за рассылками (CLAUDE.md §10). */
+    /**
+     * Очередь под категорию: срочное не стоит за рассылками (CLAUDE.md §10).
+     * Новое сообщение — живой разговор, а не рассылка: очередь `notifications-bulk`
+     * остаётся дайджестам и массовым отправкам.
+     */
     public function queue(): string
     {
         return match ($this) {
             self::Security => 'notifications-critical',
-            self::Mention, self::RoomInvite => 'notifications',
-            self::Message => 'notifications-bulk',
+            self::Message, self::Mention, self::RoomInvite => 'notifications',
         };
     }
 

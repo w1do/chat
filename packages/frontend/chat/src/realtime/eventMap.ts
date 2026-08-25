@@ -45,6 +45,10 @@ export type RoomMemberChangedV1 = Envelope<'room.member_changed.v1', {
   role: 'owner' | 'admin' | 'member' | null;
 }>;
 
+export type RoomDeletedV1 = Envelope<'room.deleted.v1', {
+  name: string;
+}>;
+
 export type TypingChangedV1 = Envelope<'typing.changed.v1', {
   user_id: string;
   is_typing: boolean;
@@ -55,7 +59,8 @@ export type RoomEvent =
   | MessageUpdatedV1
   | MessageDeletedV1
   | ReactionChangedV1
-  | RoomMemberChangedV1;
+  | RoomMemberChangedV1
+  | RoomDeletedV1;
 
 export type PresenceEvent = TypingChangedV1;
 
@@ -65,6 +70,7 @@ export const ROOM_EVENT_NAMES = [
   'message.deleted.v1',
   'reaction.changed.v1',
   'room.member_changed.v1',
+  'room.deleted.v1',
 ] as const;
 
 export const PRESENCE_EVENT_NAMES = ['typing.changed.v1'] as const;
