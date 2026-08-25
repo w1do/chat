@@ -1,0 +1,34 @@
+# Reverse proxy для развёртывания за внешним балансировщиком (Dokploy/Traefik,
+# nginx, Cloudflare Tunnel): TLS терминирует он, сюда приходит обычный HTTP.
+# Один origin для SPA, API и WebSocket — этого требует cookie-аутентификация.
+:80 {
+	encode zstd gzip
+
+	handle_path /healthz {
+		respond "ok" 200
+	}
+
+	# WebSocket (Reverb): /app — протокол Pusher, /apps — API событий
+	@websocket path /app/* /apps/*
+	handle @websocket {
+		reverse_proxy reverb:8080
+	}
+
+	# HTTP API, авторизация каналов и liveness
+	@api path /api/* /up /broadcasting/* /sanctum/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	# SPA-статика
+	handle {
+		reverse_proxy web:8080
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

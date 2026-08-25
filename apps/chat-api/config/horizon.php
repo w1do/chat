@@ -199,9 +199,37 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Queue Worker Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Очереди разнесены по группам намеренно: `balance: auto` не гарантирует
+    | порядок между очередями внутри одной группы, поэтому приоритетное
+    | (безопасность) и шумное (рассылки) не должны делить супервизор
+    | (CLAUDE.md §14). Цепочка таймаутов: job timeout < supervisor timeout
+    | (60) < queue retry_after (90).
+    |
+    */
+
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-critical' => [
             'connection' => 'redis',
+            'queue' => ['notifications-critical'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+
+        'supervisor-default' => [
+            'connection' => 'redis',
+            // Broadcast'ы: их ждёт открытая вкладка, поэтому отдельная группа.
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
@@ -213,21 +241,50 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        'supervisor-notifications' => [
+            'connection' => 'redis',
+            'queue' => ['notifications', 'search'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+
+        'supervisor-bulk' => [
+            'connection' => 'redis',
+            // Шумные рассылки не должны задерживать всё остальное.
+            'queue' => ['notifications-bulk'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 5,
+        ],
     ],
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
-                'maxProcesses' => 10,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
+            'supervisor-critical' => ['maxProcesses' => 2, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-default' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-notifications' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-bulk' => ['maxProcesses' => 2, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
-            ],
+            'supervisor-critical' => ['maxProcesses' => 1],
+            'supervisor-default' => ['maxProcesses' => 2],
+            'supervisor-notifications' => ['maxProcesses' => 2],
+            'supervisor-bulk' => ['maxProcesses' => 1],
         ],
     ],
 

@@ -1,85 +1,197 @@
-# Self-Hosted AI Chat
+# Семейный чат
 
-Коммерчески готовый self-hosted чат: комнаты, real-time сообщения, уведомления
-и AI-инструменты редактирования текста. Модульный монолит: Laravel 13 (API-only,
-Octane, Reverb, Horizon) + React SPA, PostgreSQL, Redis, Docker Compose.
+Свой мессенджер на своём сервере. Для тех, кто устал от блокировок и не хочет,
+чтобы переписка семьи жила в чужом облаке: разворачиваете одной командой на
+любом VPS — и у вас собственный веб-чат, который работает, пока работает ваш
+сервер. Открывается в браузере на телефоне и на компьютере, ставить ничего не
+нужно.
 
-Состояние проекта — в [SUMMARY.md](SUMMARY.md). Проект на раннем этапе:
-реализован каркас монорепозитория; функциональные модули — `planned`.
+Открытый исходный код. Никакой телеметрии, никакого внешнего control plane:
+приложение не звонит домой и не зависит ни от одного стороннего сервиса.
 
-## Архитектура
-
-Package-first монорепозиторий: приложения в `apps/*` — тонкие composition
-roots, вся бизнес-логика — в переиспользуемых пакетах `packages/backend/*`
-и `packages/frontend/*`.
-
-Файловая раскладка описана в [STRUCTURE.md](STRUCTURE.md) — единственном
-источнике истины по размещению кода. Правила разработки — в [CLAUDE.md](CLAUDE.md).
-
-## Быстрый старт (разработка)
-
-Требования: PHP ≥ 8.4, Composer 2, Node.js ≥ 22, pnpm 9.
+## Запуск одной командой
 
 ```bash
-# Backend API
-cd apps/chat-api
-composer install
-cp .env.example .env && php artisan key:generate
-php artisan serve
-
-# Frontend
-pnpm install          # из корня репозитория
-./tools/chat web dev  # dev-сервер Vite
+git clone git@github.com:w1do/chat.git
+cd chat
+docker compose up -d --build
 ```
 
-## Быстрый старт (production, Docker Compose)
+Всё. Стек сам сгенерирует ключ приложения, применит миграции, создаст
+поисковый индекс и поднимет девять сервисов. Чат откроется на `http://<адрес
+сервера>` — регистрируйтесь первым и создавайте комнату.
+
+Первый администратор назначается на сервере:
 
 ```bash
-cd infra/compose
-cp .env.example .env   # заполните секреты
-docker compose --env-file .env -f compose.prod.yaml up -d
+docker compose exec api php artisan chat:grant-admin ваш_логин
 ```
 
-Полная процедура — [docs/operations/installation.md](docs/operations/installation.md);
-обновление — [docs/operations/upgrade.md](docs/operations/upgrade.md).
+### Развёртывание в Dokploy
 
-## Команды
+1. **Create Service → Compose**, репозиторий `https://github.com/w1do/chat`,
+   ветка `main`, Compose Path — `docker-compose.yml`.
+2. **Environment** — заполните по [`.env.example`](.env.example). Минимум:
+   ```
+   APP_URL=https://chat.вашдомен.ru
+   APP_DOMAIN=chat.вашдомен.ru
+   SESSION_SECURE_COOKIE=true
+   REVERB_ALLOWED_ORIGINS=https://chat.вашдомен.ru
+   DB_PASSWORD=…
+   REDIS_PASSWORD=…
+   REVERB_APP_SECRET=…
+   TYPESENSE_API_KEY=…
+   ```
+3. **Domains** — домен на сервис `proxy`, порт `80`, включите HTTPS
+   (сертификат Dokploy выпустит сам).
+4. **Deploy**.
 
-Единая точка входа — `./tools/chat`:
+`APP_DOMAIN` — это то же, что `APP_URL`, но без `https://`. По нему работает
+cookie-аутентификация: если он не совпадёт с адресом в браузере, вход не
+удержится.
 
-```text
-./tools/chat api <artisan…>      artisan в apps/chat-api
-./tools/chat web <script>        pnpm-скрипт в apps/chat-web (typecheck, build)
-./tools/chat test api            тесты приложения (Pest)
-./tools/chat test packages       изолированные тесты backend-пакетов
-./tools/chat check boundaries    проверка границ пакетов
-./tools/chat contracts validate  валидация JSON Schema real-time событий
-./tools/chat smoke search        индексация и поиск в настоящем Typesense
-./tools/chat api chat:grant-admin <логин>   назначить администратора
-./tools/chat check docs          статусы документации подтверждены командами
-./tools/chat ci                  всё, что проверяет pull-request.yml, локально
-./tools/chat e2e critical        критические сценарии в Playwright
-./tools/chat smoke all           готовность развёрнутого стека
-./tools/chat lint | stan         Pint / PHPStan
+Для обычного VPS без Dokploy достаточно `docker compose up -d --build` и
+`HTTP_PORT=80` — встроенный Caddy отдаёт и приложение, и API, и WebSocket на
+одном адресе.
+
+## Что умеет
+
+- **Комнаты** — публичные и приватные, роли `владелец` / `админ` / `участник`,
+  приглашения, вступление и выход.
+- **Сообщения в реальном времени** — доставка по WebSocket, ответы как в
+  Telegram, реакции эмодзи, упоминания `@`, правка и мягкое удаление,
+  бесконечная история с курсорной пагинацией.
+- **Живое присутствие** — «печатает…», кто в комнате, конфетти при входе нового
+  участника, автоматическая синхронизация истории после обрыва связи.
+- **Уведомления о пропущенном** — приходят только тому, кого сейчас нет в
+  комнате; шумные комнаты сворачиваются в одну запись со счётчиком; каналы
+  (лента и почта) настраивает сам пользователь.
+- **Поиск по истории** — только по вашим комнатам, мгновенный, на Typesense.
+- **AI-помощник** (по желанию) — правит черновик: исправить ошибки, сказать
+  понятнее, короче, мягче. Всегда **предлагает**, а не публикует за вас, и
+  выключен по умолчанию.
+- **Панель администратора** — состояние сервисов, выключатель AI, журнал
+  значимых действий.
+- **Мобильный интерфейс** — светлая и тёмная тема, размер текста, работа с
+  клавиатуры, доступность.
+
+## Чем это лучше
+
+**Работает, пока работает ваш сервер.** Никаких блокировок, лимитов и
+«аккаунт ограничен». Свой домен, свои правила, свои данные.
+
+**Переписка остаётся у вас.** PostgreSQL на вашем диске, резервная копия —
+обычный `pg_dump`. Никаких третьих сторон: даже AI-помощник по умолчанию
+выключен, а включив его, вы сами решаете, какому провайдеру отправлять
+черновик — наружу уходит только тот текст, который пользователь попросил
+поправить, без истории комнаты.
+
+**Ставится одной командой и обновляется одной командой.** Всё в Docker
+Compose: `git pull && docker compose up -d --build`. Нет Kubernetes, нет
+микросервисов, нет обязательной внешней инфраструктуры.
+
+**Живой чат, а не форма отправки сообщений.** Сообщения приходят мгновенно,
+видно, кто печатает и кто в комнате; после обрыва связи история
+досинхронизируется по HTTP, поэтому ничего не теряется.
+
+**Тихие уведомления.** Вас не дёргают о комнате, в которой вы прямо сейчас
+сидите, и не присылают десять писем подряд из активной беседы.
+
+**Экономно к ресурсам.** Весь стек живёт на VPS c 2 vCPU и 2 ГБ памяти;
+поиск и AI отключаются, если не нужны.
+
+**Честный открытый код.** Тесты, документация и статусы функций в репозитории;
+в документации не написано «сделано» там, где это не подтверждено проходящей
+командой проверки — за этим следит отдельная CI-проверка.
+
+## Технологии
+
+**Backend**
+
+- PHP 8.4, [Laravel 13](https://laravel.com) — API-only, без Blade и Filament
+- [Laravel Octane](https://laravel.com/docs/octane) + FrankenPHP — постоянные
+  worker'ы вместо перезапуска на каждый запрос
+- [Laravel Reverb](https://reverb.laravel.com) — свой WebSocket-сервер
+- [Laravel Horizon](https://laravel.com/docs/horizon) — очереди на Redis
+- [Laravel Sanctum](https://laravel.com/docs/sanctum) — cookie-аутентификация SPA
+- [spatie/laravel-permission](https://spatie.be/docs/laravel-permission) — роли и права
+- PostgreSQL 18, Redis 8, [Typesense 29](https://typesense.org) — поиск
+- [Pest](https://pestphp.com), PHPStan (Larastan), Laravel Pint
+
+**Frontend**
+
+- React 19, TypeScript (strict), Vite 5
+- TanStack Query — серверное состояние, Zustand — только UI-состояние
+- React Hook Form + Zod, Tailwind CSS, lucide-react
+- Laravel Echo + pusher-js — real-time
+- Vitest, Testing Library, Playwright
+
+**Инфраструктура**
+
+- Docker Compose, Caddy, Supervisor (для установки без Docker)
+- OpenAPI 3.1 как источник истины: TypeScript-клиент генерируется из схемы
+- GitHub Actions: тесты, аудит зависимостей, сканирование секретов и образов,
+  подписанные релизы с SBOM
+
+**Архитектура** — package-first монорепозиторий: `apps/*` собирают приложение
+из независимых пакетов `packages/backend/*` и `packages/frontend/*`; внутри
+пакета — слои Domain / Application / Infrastructure / Presentation и лёгкий
+CQRS. Подробности: [STRUCTURE.md](STRUCTURE.md), решения — [docs/decisions](docs/decisions).
+
+## Требования к серверу
+
+| | Минимум | Комфортно |
+|---|---|---|
+| CPU | 2 vCPU | 4 vCPU |
+| RAM | 2 ГБ | 4 ГБ |
+| Диск | 10 ГБ | 20 ГБ+ |
+| ОС | любая с Docker ≥ 24 | |
+
+## Обслуживание
+
+```bash
+docker compose ps                                   # состояние сервисов
+curl http://localhost/api/v1/readiness              # готовность зависимостей
+docker compose exec api php artisan chat:search-reindex --fresh   # перестроить поиск
+docker compose exec postgres pg_dump -U chat chat > backup.sql    # резервная копия
+git pull && docker compose up -d --build            # обновление
 ```
 
-Поиск по сообщениям выключен по умолчанию: чат работает без Typesense. Как
-включить и перестроить индекс — [docs/operations/search-reindex.md](docs/operations/search-reindex.md).
+Подробнее: [установка](docs/operations/installation.md),
+[резервные копии](docs/operations/backup-restore.md),
+[обновление](docs/operations/upgrade.md),
+[диагностика](docs/operations/troubleshooting.md),
+[поиск](docs/operations/search-reindex.md).
 
-## Релиз и безопасность
+## Безопасность
 
-- [docs/operations/release-checklist.md](docs/operations/release-checklist.md) —
-  что выполняется перед тегом, на staging и в production;
-- [SECURITY.md](SECURITY.md) — как сообщить об уязвимости;
-- [SUPPORT.md](SUPPORT.md) — куда идти с вопросом;
-- [docs/security/hardening.md](docs/security/hardening.md) — обязательный
-  чек-лист того, кто разворачивает.
+Обязательный чек-лист для публичного сервера —
+[docs/security/hardening.md](docs/security/hardening.md); модель угроз и
+границы — [docs/security/threat-model.md](docs/security/threat-model.md).
+Об уязвимостях сообщайте по [SECURITY.md](SECURITY.md), не открывая публичный
+issue.
 
-## Документация
+Честная граница: сквозного шифрования нет — администратор сервера технически
+может прочитать переписку. Для семейного чата на своём сервере это обычно
+приемлемо, но знать об этом стоит.
 
-- [STRUCTURE.md](STRUCTURE.md) — раскладка монорепозитория;
-- `docs/features/` — спецификации функций со статусами;
-- `docs/api/` — правила HTTP API и real-time контрактов;
-- `docs/operations/` — установка, backup, обновление;
-- `docs/security/` — threat model и hardening;
-- `docs/decisions/` — ADR.
+## Разработка
+
+```bash
+pnpm install && composer install
+./tools/chat up          # локальный стек на http://localhost:8088
+./tools/chat ci          # всё, что проверяет CI
+./tools/chat e2e critical # критические сценарии в браузере
+```
+
+Полный список команд — `./tools/chat` без аргументов. Состояние модулей —
+[SUMMARY.md](SUMMARY.md), правила разработки — [CLAUDE.md](CLAUDE.md).
+
+## Разработчик
+
+Telegram: [@W1DO_DIGITAL](https://t.me/W1DO_DIGITAL) — вопросы по установке,
+доработкам и внедрению.
+
+## Лицензия
+
+См. [LICENSE](LICENSE). Вопросы поддержки — [SUPPORT.md](SUPPORT.md).
