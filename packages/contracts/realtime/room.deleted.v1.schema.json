@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.chat.local/realtime/room.deleted.v1.schema.json",
+  "title": "room.deleted.v1",
+  "description": "Versioned real-time event payload for room.deleted.v1. The room and its history are gone for good; subscribers close it and return to the room list.",
+  "type": "object",
+  "required": ["event", "version", "room_id", "occurred_at", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "event": { "const": "room.deleted.v1" },
+    "version": { "const": 1 },
+    "room_id": { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "data": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" }
+      }
+    }
+  }
+}

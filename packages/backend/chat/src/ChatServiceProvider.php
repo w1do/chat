@@ -18,6 +18,7 @@ use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\MessageDeleted;
 use Vendor\Chat\Domain\Events\MessageUpdated;
 use Vendor\Chat\Domain\Events\ReactionChanged;
+use Vendor\Chat\Domain\Events\RoomDeleted;
 use Vendor\Chat\Domain\Events\RoomMemberChanged;
 use Vendor\Chat\Domain\Events\TypingChanged;
 use Vendor\Chat\Domain\Models\Message;
@@ -83,12 +84,14 @@ final class ChatServiceProvider extends ServiceProvider
         Event::listen(MessageDeleted::class, [BroadcastsDomainEvents::class, 'onMessageDeleted']);
         Event::listen(ReactionChanged::class, [BroadcastsDomainEvents::class, 'onReactionChanged']);
         Event::listen(RoomMemberChanged::class, [BroadcastsDomainEvents::class, 'onRoomMemberChanged']);
+        Event::listen(RoomDeleted::class, [BroadcastsDomainEvents::class, 'onRoomDeleted']);
         Event::listen(TypingChanged::class, [BroadcastsDomainEvents::class, 'onTypingChanged']);
 
         // Индексация после commit; порядок и повторы безопасны (этап 9).
         Event::listen(MessageCreated::class, [IndexesMessages::class, 'onMessageCreated']);
         Event::listen(MessageUpdated::class, [IndexesMessages::class, 'onMessageUpdated']);
         Event::listen(MessageDeleted::class, [IndexesMessages::class, 'onMessageDeleted']);
+        Event::listen(RoomDeleted::class, [IndexesMessages::class, 'onRoomDeleted']);
 
         if ($this->app->runningInConsole()) {
             $this->commands([ReindexMessagesCommand::class]);

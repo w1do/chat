@@ -33,11 +33,15 @@
     "@testing-library/user-event": "^14.5.0",
     "@testing-library/jest-dom": "^6.6.0",
     "laravel-echo": "^2.2.0",
-    "lucide-react": "^0.468.0"
+    "lucide-react": "^0.468.0",
+    "react-hook-form": "^7.54.0",
+    "@hookform/resolvers": "^3.9.0"
   },
   "dependencies": {
     "@vendor/api-client": "workspace:*",
     "zod": "^3.24.0",
-    "@vendor/ui": "workspace:*"
+    "@vendor/ui": "workspace:*",
+    "react-hook-form": "^7.54.0",
+    "@hookform/resolvers": "^3.9.0"
   }
 }

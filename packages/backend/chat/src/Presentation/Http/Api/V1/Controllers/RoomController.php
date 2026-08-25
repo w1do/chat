@@ -11,9 +11,11 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Vendor\Chat\Application\Commands\ArchiveRoomCommand;
 use Vendor\Chat\Application\Commands\CreateRoomCommand;
+use Vendor\Chat\Application\Commands\DeleteRoomCommand;
 use Vendor\Chat\Application\Commands\UpdateRoomCommand;
 use Vendor\Chat\Application\Handlers\Commands\ArchiveRoomHandler;
 use Vendor\Chat\Application\Handlers\Commands\CreateRoomHandler;
+use Vendor\Chat\Application\Handlers\Commands\DeleteRoomHandler;
 use Vendor\Chat\Application\Handlers\Commands\UpdateRoomHandler;
 use Vendor\Chat\Application\Handlers\Queries\GetRoomHandler;
 use Vendor\Chat\Application\Handlers\Queries\ListRoomsHandler;
@@ -67,14 +69,28 @@ final class RoomController
             roomId: $room->id,
             name: $validated['name'] ?? null,
             topic: $validated['topic'] ?? null,
+            topicProvided: array_key_exists('topic', $validated),
         )));
     }
 
-    public function destroy(Room $room, ArchiveRoomHandler $handler): Response
+    public function archive(Room $room, ArchiveRoomHandler $handler): Response
     {
         Gate::authorize('archive', $room);
 
         $handler->handle(new ArchiveRoomCommand($room->id));
+
+        return response()->noContent();
+    }
+
+    /** Удаление навсегда: комната и вся её переписка. Только владелец. */
+    public function destroy(Request $request, Room $room, DeleteRoomHandler $handler): Response
+    {
+        Gate::authorize('delete', $room);
+
+        $handler->handle(new DeleteRoomCommand(
+            roomId: $room->id,
+            actorId: (string) $request->user()->getAuthIdentifier(),
+        ));
 
         return response()->noContent();
     }

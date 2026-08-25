@@ -57,6 +57,13 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
       void queryClient.invalidateQueries({ queryKey: messagesKey(event.room_id) });
       break;
 
+    case 'room.deleted.v1':
+      // Комнаты больше нет: убираем её кэш, чтобы экран не листал призрак.
+      queryClient.removeQueries({ queryKey: messagesKey(event.room_id) });
+      queryClient.removeQueries({ queryKey: ['chat', 'rooms', event.room_id] });
+      void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] });
+      break;
+
     case 'room.member_changed.v1':
       void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms', event.room_id, 'members'] });
       void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] });

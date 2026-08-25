@@ -15,10 +15,15 @@ final readonly class UpdateRoomHandler
         /** @var Room $room */
         $room = Room::query()->findOrFail($command->roomId);
 
-        $room->fill(array_filter([
-            'name' => $command->name,
-            'topic' => $command->topic,
-        ], fn (?string $value): bool => $value !== null));
+        if ($command->name !== null) {
+            $room->name = $command->name;
+        }
+
+        // Пустое описание — это «описания нет», а не «не трогать».
+        if ($command->topicProvided) {
+            $topic = $command->topic === null ? null : trim($command->topic);
+            $room->topic = ($topic === null || $topic === '') ? null : $topic;
+        }
 
         $room->save();
 

@@ -9,6 +9,7 @@ use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\MessageDeleted;
 use Vendor\Chat\Domain\Events\MessageUpdated;
 use Vendor\Chat\Domain\Events\ReactionChanged;
+use Vendor\Chat\Domain\Events\RoomDeleted;
 use Vendor\Chat\Domain\Events\RoomMemberChanged;
 use Vendor\Chat\Domain\Events\TypingChanged;
 use Vendor\Chat\Domain\Models\Message;
@@ -79,6 +80,13 @@ final readonly class BroadcastsDomainEvents
             'emoji' => $event->emoji,
             'action' => $event->action,
             'count' => $event->count,
+        ], now()->toIso8601ZuluString()));
+    }
+
+    public function onRoomDeleted(RoomDeleted $event): void
+    {
+        $this->events->dispatch(new RoomDeletedV1($event->roomId, [
+            'name' => $event->roomName,
         ], now()->toIso8601ZuluString()));
     }
 

@@ -16,8 +16,33 @@
   -webkit-backdrop-filter: saturate(180%) blur(22px);
 }
 .tnum { font-variant-numeric: tabular-nums; }
+
+/* Долгое нажатие должно открывать меню действий, а не системное выделение.
+   Мобильный Safari слушает -webkit-свойства, поэтому пишем их явно, и
+   -webkit-touch-callout убирает системное меню «Скопировать / Выделить». */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Там, где текст правят и выделяют, запрет снимается: иначе «починка»
+   отняла бы у человека собственное сообщение и строку поиска. */
+.no-select input,
+.no-select textarea,
+.no-select [contenteditable='true'],
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
 .safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
-.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+/* Низ экрана держится за реально видимую область, а не только за вырез
+   устройства: --app-bottom-inset измеряет полосу браузера, env() — вырез.
+   Берём большее из двух; без visualViewport переменная равна 0. */
+.safe-bottom {
+  padding-bottom: calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 12px);
+}
 
 /* Выключенные анимации: системная настройка «уменьшить движение» или тумблер. */
 .still *, .still *::before, .still *::after {

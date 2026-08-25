@@ -57,7 +57,7 @@ export function Sheet({ open, title, subtitle, onClose, theme, accent, children 
 
   return (
     <div
-      className="absolute inset-0 z-40 overflow-hidden"
+      className="absolute inset-0 z-40 overflow-hidden no-select"
       style={{
         pointerEvents: open ? 'auto' : 'none',
         // Закрытый лист уезжает вниз — его нужно обрезать по слою, иначе шапка

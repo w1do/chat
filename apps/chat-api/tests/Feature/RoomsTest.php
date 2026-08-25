@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
+use Vendor\Chat\Infrastructure\Broadcasting\RoomDeletedV1;
 
 uses(RefreshDatabase::class);
 
@@ -71,15 +73,73 @@ it('forbids room updates for plain members and guests', function (): void {
         ->assertOk()->assertJsonPath('data.name', 'Renamed');
 });
 
-it('archives a room only by its owner', function (): void {
+it('archives a room by owner and admin without touching its history', function (): void {
     $room = Room::factory()->create();
     $owner = memberOf($room, RoomRole::Owner);
     $admin = memberOf($room, RoomRole::Admin);
+    $member = memberOf($room, RoomRole::Member);
+    $message = Message::factory()->for($room)->create(['author_id' => $owner->getKey()]);
 
-    $this->actingAs($admin)->deleteJson("/api/v1/rooms/{$room->id}")->assertStatus(403);
-    $this->actingAs($owner)->deleteJson("/api/v1/rooms/{$room->id}")->assertNoContent();
+    $this->actingAs($member)->postJson("/api/v1/rooms/{$room->id}/archive")->assertStatus(403);
+    $this->actingAs($admin)->postJson("/api/v1/rooms/{$room->id}/archive")->assertNoContent();
 
     expect($room->fresh()->isArchived())->toBeTrue();
+    $this->assertDatabaseHas('messages', ['id' => $message->id]);
+});
+
+it('deletes a room permanently only by its owner', function (): void {
+    $room = Room::factory()->create(['name' => 'Family']);
+    $owner = memberOf($room, RoomRole::Owner);
+    $admin = memberOf($room, RoomRole::Admin);
+    $outsider = User::factory()->create();
+
+    $message = Message::factory()->for($room)->create(['author_id' => $owner->getKey()]);
+
+    $this->actingAs($admin)->deleteJson("/api/v1/rooms/{$room->id}")
+        ->assertStatus(403)->assertJsonPath('code', 'forbidden');
+    $this->actingAs($outsider)->deleteJson("/api/v1/rooms/{$room->id}")
+        ->assertStatus(404)->assertJsonPath('code', 'not_found');
+
+    $this->actingAs($owner)->deleteJson("/api/v1/rooms/{$room->id}")->assertNoContent();
+
+    $this->assertDatabaseMissing('rooms', ['id' => $room->id]);
+    $this->assertDatabaseMissing('messages', ['id' => $message->id]);
+    $this->assertDatabaseMissing('room_members', ['room_id' => $room->id]);
+
+    // Обращение к удалённой комнате — «не найдено», а не пустой список.
+    $this->actingAs($owner)->getJson("/api/v1/rooms/{$room->id}")->assertStatus(404);
+    $this->actingAs($owner)->getJson("/api/v1/rooms/{$room->id}/messages")->assertStatus(404);
+});
+
+it('records room deletion in the audit log and tells the room about it', function (): void {
+    Event::fake([RoomDeletedV1::class]);
+
+    $room = Room::factory()->create(['name' => 'Family']);
+    $owner = memberOf($room, RoomRole::Owner);
+
+    $this->actingAs($owner)->deleteJson("/api/v1/rooms/{$room->id}")->assertNoContent();
+
+    Event::assertDispatched(RoomDeletedV1::class, fn (RoomDeletedV1 $event): bool => $event->roomId === $room->id);
+
+    $this->assertDatabaseHas('audit_logs', [
+        'action' => 'chat.room.deleted',
+        'actor_id' => $owner->getKey(),
+        'subject_id' => $room->id,
+    ]);
+});
+
+it('renames a room and keeps the description optional', function (): void {
+    $room = Room::factory()->create(['name' => 'Old', 'topic' => 'Was here']);
+    $admin = memberOf($room, RoomRole::Admin);
+    memberOf($room, RoomRole::Owner);
+
+    $this->actingAs($admin)->patchJson("/api/v1/rooms/{$room->id}", ['name' => ''])
+        ->assertStatus(422)->assertJsonPath('code', 'validation_failed')
+        ->assertJsonPath('details.errors.name.0', fn (?string $m): bool => $m !== null);
+    expect($room->fresh()->name)->toBe('Old');
+
+    $this->actingAs($admin)->patchJson("/api/v1/rooms/{$room->id}", ['name' => 'Family', 'topic' => ''])
+        ->assertOk()->assertJsonPath('data.name', 'Family')->assertJsonPath('data.topic', null);
 });
 
 it('handles invite, join, leave and duplicate-join conflicts', function (): void {

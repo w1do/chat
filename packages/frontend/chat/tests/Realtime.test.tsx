@@ -56,11 +56,12 @@ const initialPage: MessagePage = {
 };
 
 function Probe({ adapter }: { adapter: RealtimeAdapter }) {
-  const { connection, typingUserIds } = useRealtimeRoom(adapter, 'r1');
+  const { connection, typingUserIds, deleted } = useRealtimeRoom(adapter, 'r1');
   return (
     <div>
       <output aria-label="connection">{connection}</output>
       <output aria-label="typing">{typingUserIds.join(',')}</output>
+      <output aria-label="deleted">{deleted ? 'yes' : 'no'}</output>
     </div>
   );
 }
@@ -85,6 +86,25 @@ const cachedIds = (queryClient: QueryClient): string[] => {
 };
 
 describe('useRealtimeRoom', () => {
+  it('closes the room and forgets it when it is deleted', async () => {
+    const { queryClient, adapter } = setup();
+    queryClient.setQueryData(['chat', 'rooms', 'r1'], { id: 'r1', name: 'Семья' });
+
+    adapter.roomHandler?.({
+      event: 'room.deleted.v1',
+      version: 1,
+      room_id: 'r1',
+      occurred_at: 'x',
+      data: { name: 'Семья' },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText('deleted')).toHaveTextContent('yes'));
+
+    // Кэш комнаты и её переписки не должен пережить саму комнату.
+    expect(queryClient.getQueryData(['chat', 'rooms', 'r1'])).toBeUndefined();
+    expect(queryClient.getQueryData(['chat', 'messages', 'r1'])).toBeUndefined();
+  });
+
   it('applies live message.created events to the query cache', async () => {
     const { queryClient, adapter } = setup();
 
