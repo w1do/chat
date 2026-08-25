@@ -32,6 +32,13 @@ if [ -z "${APP_KEY:-}" ]; then
     export APP_KEY
 fi
 
+# Бакет объектного хранилища — часть установки (ADR-011): создаётся при
+# первом запуске, повтор безвреден. Недоступное хранилище не роняет процесс:
+# о нём честно скажет readiness, а запись в журнале объяснит, что чинить.
+if [ "${APP_BOOTSTRAP:-false}" = "true" ]; then
+    php artisan storage:ensure-bucket || echo "хранилище недоступно при старте — бакет будет создан командой storage:ensure-bucket" >&2
+fi
+
 # Автоматические миграции выполняются только при явном указании (см. ADR-007 и
 # docs/operations/upgrade.md — стратегия с backup/rollback планом).
 if [ "${AUTO_MIGRATE:-false}" = "true" ]; then

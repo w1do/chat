@@ -21,7 +21,7 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
 ```
 
 Ключ приложения генерируется при первом запуске и хранится в томе
-`api-storage`; миграции и создание поискового индекса выполняются автоматически
+`api-storage`; бакет хранилища, миграции и поисковый индекс создаются автоматически
 (контейнер `api` поднят с `AUTO_MIGRATE=true`). Домен привязывается к сервису
 `web`, порт 8080: этот контейнер отдаёт приложение и проксирует API и WebSocket
 внутрь, поэтому всё отвечает с одного origin. TLS терминирует внешний
@@ -42,7 +42,8 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
 2. Заполните окружение:
    ```bash
    cp .env.example .env
-   # заполните APP_KEY, DB_PASSWORD, REDIS_PASSWORD, REVERB_*, TYPESENSE_API_KEY
+   # заполните APP_KEY, DB_PASSWORD, REDIS_PASSWORD, REVERB_*, TYPESENSE_API_KEY,
+   # S3_ACCESS_KEY_ID и S3_SECRET_ACCESS_KEY
    ```
    `APP_KEY` сгенерируйте: `docker run --rm ${CHAT_API_IMAGE} php artisan key:generate --show`.
 3. Настройте proxy: скопируйте `infra/docker/proxy/Caddyfile.example`, замените домен.
@@ -50,14 +51,23 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
    ```bash
    docker compose --env-file .env -f compose.prod.yaml up -d
    ```
-   С MinIO: добавьте `--profile s3`.
+   Объектное хранилище поднимается вместе со стеком: оно обязательно
+   (ADR-011). Своё S3-совместимое хранилище вместо встроенного —
+   через `S3_ENDPOINT` в `.env`; встроенный сервис тогда простаивает.
 5. Примените миграции (однократно, с бэкапом — см. upgrade.md):
    ```bash
    docker compose -p chat exec api php artisan migrate --force
    ```
 6. Проверьте готовность:
    - liveness: `curl https://<домен>/up`
-   - readiness: `curl https://<домен>/api/v1/readiness`
+   - readiness: `curl https://<домен>/api/v1/readiness` — среди компонентов
+     должен быть `storage: ok`;
+   - хранилище на запись: `./tools/chat smoke storage` (пишет пробный объект,
+     читает обратно и убирает за собой).
+
+Бакет создаётся при первом запуске сам. Если хранилище в этот момент было
+недоступно, создайте бакет позже той же идемпотентной командой:
+`docker compose -p chat exec api php artisan storage:ensure-bucket`.
 
 ## Linux/VM без Docker
 

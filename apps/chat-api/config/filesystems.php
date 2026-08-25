@@ -49,6 +49,30 @@ return [
             'report' => false,
         ],
 
+        // Объектное хранилище продукта: единственное место постоянного
+        // хранения файлов (ADR-011). Закрытый бакет; файлы выдаёт приложение.
+        // Таймауты короткие: readiness не должна висеть на упавшем хранилище.
+        'media' => [
+            'driver' => 's3',
+            'key' => env('S3_ACCESS_KEY_ID'),
+            'secret' => env('S3_SECRET_ACCESS_KEY'),
+            'region' => env('S3_REGION', 'us-east-1'),
+            'bucket' => env('S3_BUCKET', 'chat'),
+            'endpoint' => env('S3_ENDPOINT'),
+            // MinIO и совместимые понимают только path-style адресацию.
+            'use_path_style_endpoint' => true,
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+            'http' => [
+                'connect_timeout' => 3,
+                'timeout' => 10,
+            ],
+            // Один повтор, а не три по умолчанию: readiness и smoke должны
+            // отказывать быстро, а не пережидать backoff SDK.
+            'retries' => (int) env('S3_RETRIES', 1),
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

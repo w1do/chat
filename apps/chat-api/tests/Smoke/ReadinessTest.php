@@ -62,16 +62,22 @@ it('degrades through real checks when dependencies are absent and leaks no conne
     config()->set('services.typesense', ['host' => '127.0.0.1', 'port' => 59999, 'api_key' => 'secret-key']);
     config()->set('database.redis.default.port', 59997);
     config()->set('database.redis.default.password', 'secret-redis-password');
+    config()->set('filesystems.disks.media.endpoint', 'http://127.0.0.1:59996');
+    config()->set('filesystems.disks.media.key', 'secret-storage-key');
+    config()->set('filesystems.disks.media.http', ['connect_timeout' => 1, 'timeout' => 1]);
 
     $response = $this->getJson('/api/v1/readiness')->assertStatus(503);
 
     $response->assertJsonPath('components.database.status', 'ok');
     $response->assertJsonPath('components.websocket.status', 'fail');
     $response->assertJsonPath('components.search.status', 'fail');
+    $response->assertJsonPath('components.storage.status', 'fail');
 
     $body = $response->getContent();
     expect($body)->not->toContain('secret-key')
         ->not->toContain('secret-redis-password')
+        ->not->toContain('secret-storage-key')
         ->not->toContain('127.0.0.1')
-        ->not->toContain('59999');
+        ->not->toContain('59999')
+        ->not->toContain('59996');
 });

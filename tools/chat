@@ -278,14 +278,12 @@ case "$cmd" in
     profiles="${1:-both}"
     rc=0
     if [[ "$profiles" == "prod" || "$profiles" == "both" ]]; then
+      # Профиля s3 больше нет: хранилище — обязательный сервис (ADR-011).
       echo "== compose.prod.yaml =="
       DB_PASSWORD="${DB_PASSWORD:-check}" REDIS_PASSWORD="${REDIS_PASSWORD:-check}" \
       REVERB_APP_KEY="${REVERB_APP_KEY:-check}" TYPESENSE_API_KEY="${TYPESENSE_API_KEY:-check}" \
+      S3_ACCESS_KEY_ID="${S3_ACCESS_KEY_ID:-check}" S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY:-check-secret}" \
         docker compose --env-file "$envfile" -f compose.prod.yaml config -q && echo OK || rc=1
-      echo "== compose.prod.yaml + s3 profile =="
-      DB_PASSWORD="${DB_PASSWORD:-check}" REDIS_PASSWORD="${REDIS_PASSWORD:-check}" \
-      REVERB_APP_KEY="${REVERB_APP_KEY:-check}" TYPESENSE_API_KEY="${TYPESENSE_API_KEY:-check}" \
-        docker compose --env-file "$envfile" -f compose.prod.yaml --profile s3 config -q && echo OK || rc=1
     fi
     if [[ "$profiles" == "dev" || "$profiles" == "both" ]]; then
       echo "== compose.dev.yaml =="
@@ -389,9 +387,20 @@ PY
       wait $listener
       exit $?
     fi
+    if [[ "$sub" == "storage" ]]; then
+      # Реальный MinIO из dev-стека: бакет создаётся идемпотентно, затем
+      # пробный объект пишется, читается, сверяется и удаляется (ADR-011).
+      (cd "$API_DIR" && \
+        S3_ENDPOINT="${S3_SMOKE_ENDPOINT:-http://127.0.0.1:${S3_PORT:-9000}}" \
+        S3_ACCESS_KEY_ID="${S3_ACCESS_KEY_ID:-dev}" \
+        S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY:-dev-secret}" \
+        S3_BUCKET="${S3_BUCKET:-chat}" \
+        sh -c 'php artisan storage:ensure-bucket && php artisan storage:smoke')
+      exit $?
+    fi
     if [[ "$sub" == "all" ]]; then
       rc=0
-      for target in runtime websocket search; do
+      for target in runtime websocket storage search; do
         echo "== smoke $target =="
         "$0" smoke "$target" || rc=1
       done
@@ -453,7 +462,7 @@ PY
     body="$(curl -fsS -m 10 "$api_url/api/v1/readiness" || true)"
     echo "$body"
     [[ -n "$body" ]] || { echo "readiness: FAIL"; rc=1; }
-    for compo in database redis queue websocket; do
+    for compo in database redis queue websocket storage; do
       echo "$body" | grep -q "\"$compo\":{\"status\":\"ok\"" || { echo "$compo: not ok"; rc=1; }
     done
     [[ $rc -eq 0 ]] && echo "smoke runtime: OK"
@@ -464,12 +473,12 @@ PY
     if [[ "$sub" == "critical" ]]; then
       # Критические сценарии релиза: регистрация, переписка двоих, real-time,
       # помощник, уведомление о пропущенном, поиск, управление комнатой и
-      # состав комнаты (приглашение по нику и исключение).
+      # состав комнаты (приглашение по нику и исключение) и изображения профиля.
       "$0" e2e-stack-up
       docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true \
         -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web \
         mcr.microsoft.com/playwright:v1.58.1-noble \
-        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts --reporter=line"
+        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts e2e/profile-images.spec.ts --reporter=line"
       rc=$?
       "$0" e2e-stack-down
       exit $rc
@@ -522,21 +531,23 @@ PY
     echo "stack down"
     ;;
   e2e-stack-up)
-    docker compose -f "$ROOT/infra/compose/compose.dev.yaml" up -d postgres redis typesense >/dev/null
+    docker compose -f "$ROOT/infra/compose/compose.dev.yaml" up -d postgres redis typesense minio >/dev/null
     sleep 3
     APPKEY=$(cd "$API_DIR" && php artisan key:generate --show)
-    common="-e APP_KEY=$APPKEY -e APP_ENV=production -e APP_DEBUG=false -e OCTANE_SERVER=frankenphp       -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_DATABASE=chat -e DB_USERNAME=chat -e DB_PASSWORD=chat       -e REDIS_HOST=redis -e CACHE_STORE=redis -e SESSION_DRIVER=redis -e QUEUE_CONNECTION=redis       -e SESSION_SECURE_COOKIE=false -e SANCTUM_STATEFUL_DOMAINS=proxy,localhost:${CHAT_LOCAL_PORT:-8088},127.0.0.1:${CHAT_LOCAL_PORT:-8088} -e CORS_ALLOWED_ORIGINS=http://proxy,http://localhost:${CHAT_LOCAL_PORT:-8088}       -e BROADCAST_CONNECTION=reverb -e REVERB_APP_ID=1001 -e REVERB_APP_KEY=devkey -e REVERB_APP_SECRET=devsecret       -e REVERB_SERVER_HOST=reverb -e REVERB_SERVER_PORT=8080 -e REVERB_HOST=reverb -e REVERB_PORT=8080       -e REVERB_SCHEME=http -e REVERB_ALLOWED_ORIGINS=*       -e AUTH_REGISTER_PER_MINUTE=200 -e AUTH_LOGIN_PER_MINUTE=200       -e SEARCH_ENABLED=true -e TYPESENSE_HOST=typesense -e TYPESENSE_PORT=8108 -e TYPESENSE_API_KEY=dev-typesense-key"
+    common="-e APP_KEY=$APPKEY -e APP_ENV=production -e APP_DEBUG=false -e OCTANE_SERVER=frankenphp       -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_DATABASE=chat -e DB_USERNAME=chat -e DB_PASSWORD=chat       -e REDIS_HOST=redis -e CACHE_STORE=redis -e SESSION_DRIVER=redis -e QUEUE_CONNECTION=redis       -e SESSION_SECURE_COOKIE=false -e SANCTUM_STATEFUL_DOMAINS=proxy,localhost:${CHAT_LOCAL_PORT:-8088},127.0.0.1:${CHAT_LOCAL_PORT:-8088} -e CORS_ALLOWED_ORIGINS=http://proxy,http://localhost:${CHAT_LOCAL_PORT:-8088}       -e BROADCAST_CONNECTION=reverb -e REVERB_APP_ID=1001 -e REVERB_APP_KEY=devkey -e REVERB_APP_SECRET=devsecret       -e REVERB_SERVER_HOST=reverb -e REVERB_SERVER_PORT=8080 -e REVERB_HOST=reverb -e REVERB_PORT=8080       -e REVERB_SCHEME=http -e REVERB_ALLOWED_ORIGINS=*       -e AUTH_REGISTER_PER_MINUTE=200 -e AUTH_LOGIN_PER_MINUTE=200       -e SEARCH_ENABLED=true -e TYPESENSE_HOST=typesense -e TYPESENSE_PORT=8108 -e TYPESENSE_API_KEY=dev-typesense-key       -e S3_ENDPOINT=http://minio:9000 -e S3_ACCESS_KEY_ID=dev -e S3_SECRET_ACCESS_KEY=dev-secret -e S3_BUCKET=chat"
     docker rm -f e2e-api e2e-reverb e2e-worker e2e-web e2e-proxy >/dev/null 2>&1 || true
     docker run -d --name e2e-api --network chat-dev_default --network-alias api $common vendor/chat-api:0.1.0 >/dev/null
     docker run -d --name e2e-reverb --network chat-dev_default --network-alias reverb $common vendor/chat-api:0.1.0 php artisan reverb:start --host=0.0.0.0 --port=8080 >/dev/null
     # Broadcast'ы ставятся в очередь (QUEUE_CONNECTION=redis) — нужен worker.
-    docker run -d --name e2e-worker --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan queue:work --queue=default,search,notifications,notifications-bulk,notifications-critical --tries=1 >/dev/null
+    docker run -d --name e2e-worker --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan queue:work --queue=default,search,notifications,notifications-bulk,notifications-critical,media --tries=1 >/dev/null
     docker run -d --name e2e-web --network chat-dev_default --network-alias web       -e API_BASE_URL=/api/v1 -e REVERB_HOST="${CHAT_WS_HOST:-}" -e REVERB_PORT="${CHAT_WS_PORT:-}" -e REVERB_SCHEME="" -e REVERB_APP_KEY=devkey       -e AI_ENABLED=false -e APP_NAME="E2E Chat" vendor/chat-web:0.1.0 >/dev/null
     docker run -d --name e2e-proxy --network chat-dev_default --network-alias proxy \
       -p "${CHAT_LOCAL_PORT:-8088}:80" \
       -v "$ROOT/infra/docker/proxy/Caddyfile.smoke:/etc/caddy/Caddyfile:ro" caddy:2.10.0-alpine >/dev/null
     sleep 6
     docker run --rm --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan migrate --force >/dev/null
+    # Бакет хранилища — часть установки: создаётся идемпотентно (ADR-011).
+    docker run --rm --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan storage:ensure-bucket >/dev/null
     # Коллекция поиска создаётся сразу: индекс всегда перестраиваем из PostgreSQL.
     docker run --rm --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan chat:search-reindex >/dev/null
     echo "stack up: http://localhost:${CHAT_LOCAL_PORT:-8088} (proxy alias 'proxy' в сети chat-dev_default)"

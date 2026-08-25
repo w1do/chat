@@ -12,7 +12,7 @@ COPY packages/backend/ packages/backend/
 COPY apps/chat-api/composer.json apps/chat-api/composer.lock apps/chat-api/
 RUN cd apps/chat-api \
     && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction \
-        --ignore-platform-req=ext-pcntl --ignore-platform-req=ext-redis
+        --ignore-platform-req=ext-pcntl --ignore-platform-req=ext-redis --ignore-platform-req=ext-exif
 
 # --- Stage 2: runtime -------------------------------------------------------
 FROM dunglas/frankenphp:1.9-php8.4 AS runtime
@@ -33,6 +33,11 @@ RUN install-php-extensions redis \
 # при его отсутствии библиотека работает на bcmath.
 RUN install-php-extensions gmp \
     || echo "gmp недоступен при сборке — расчёты пойдут на bcmath"
+
+# GD обязателен: без него не собрать webp-производные изображений (ADR-011).
+# Именно gd, а не imagick: одного драйвера достаточно, второй — лишний вес.
+# EXIF читает ориентацию фотографии — без него снимки с телефона лежали бы боком.
+RUN install-php-extensions gd exif
 
 COPY infra/docker/api/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY infra/docker/api/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
