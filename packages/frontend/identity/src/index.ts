@@ -1,5 +1,5 @@
 // Публичный entrypoint пакета @vendor/identity.
-export { identityApi, type AuthUser } from './api';
+export { identityApi, type AuthUser, type ProfileImage } from './api';
 export { Field } from './components/Field';
 export { EmailForm } from './components/EmailForm';
 export { PasswordForm } from './components/PasswordForm';
@@ -9,6 +9,9 @@ export { ProfileForm } from './components/ProfileForm';
 export { RecoveryForm } from './components/RecoveryForm';
 export { RegisterForm } from './components/RegisterForm';
 export { IdentityProvider, useApiClient, useAuth } from './hooks/useAuth';
+export { useAvatars, useProfileImageActions } from './hooks/useProfileImages';
+export { AvatarPicker } from './components/AvatarPicker';
+export { WallpaperPicker } from './components/WallpaperPicker';
 export {
   emailSchema,
   passwordChangeSchema,

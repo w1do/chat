@@ -10,7 +10,8 @@
         "vendor/shared-kernel": "^0.1",
         "laravel/sanctum": "^4.0",
         "illuminate/auth": "^13.0",
-        "illuminate/database": "^13.0"
+        "illuminate/database": "^13.0",
+        "spatie/laravel-medialibrary": "^11.23"
     },
     "require-dev": {
         "orchestra/testbench": "^11.0",

@@ -16,6 +16,8 @@ const room = (id: string, name: string, extra: Partial<Room> = {}): Room => ({
   my_role: 'member',
   member_count: 2,
   unread_count: 0,
+  photo_url: null,
+  photo_large_url: null,
   ...extra,
 });
 

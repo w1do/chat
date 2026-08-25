@@ -100,7 +100,8 @@ Frontend:
 - Laravel Horizon для очередей;
 - Supervisor как обязательный process monitor для long-running Laravel-процессов при Linux/VM-развёртывании;
 - Laravel Notifications для database/email каналов;
-- S3-совместимое файловое хранилище; локальный диск допустим в development;
+- S3-совместимое объектное хранилище — обязательный компонент установки
+  (ADR-011); локальный диск используется только для временных файлов;
 - Pest для backend-тестов;
 - OpenAPI 3.1 — единственный публичный контракт HTTP API.
 
@@ -462,7 +463,7 @@ Production Compose включает:
 - `reverb`;
 - PostgreSQL;
 - Redis;
-- опциональное S3-совместимое хранилище.
+- S3-совместимое объектное хранилище (обязательно, ADR-011).
 
 В production все long-running процессы обязаны находиться под контролем process monitor:
 

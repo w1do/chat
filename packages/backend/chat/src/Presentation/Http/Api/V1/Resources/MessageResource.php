@@ -21,6 +21,7 @@ final class MessageResource extends JsonResource
             'kind' => $this->resource->kind,
             'author_id' => $this->resource->authorId,
             'author_name' => $this->resource->authorName,
+            'author_avatar_url' => $this->resource->authorAvatarUrl,
             'reply_to_id' => $this->resource->replyToId,
             'body' => $this->resource->body,
             'mentions' => $this->resource->mentions,

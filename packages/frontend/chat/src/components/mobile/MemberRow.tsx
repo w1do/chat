@@ -99,7 +99,7 @@ export function MemberRow({
               ) : null}
             </span>
           ) : (
-            <Avatar userId={member.user_id} name={name} size={30} theme={theme} />
+            <Avatar userId={member.user_id} name={name} src={member.avatar_url} size={30} theme={theme} />
           )
         }
       />

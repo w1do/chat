@@ -173,6 +173,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/avatars/{image}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Файл аватарки (webp)
+         * @description Файл отдаёт приложение: бакет закрыт. Адрес меняется вместе с изображением, поэтому ответ кэшируется надолго.
+         */
+        get: operations["showAvatarImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/avatars/{image}/thumb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        /** Файл аватарки в мелком размере (webp) */
+        get: operations["showAvatarThumb"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invites/{invite}": {
         parameters: {
             query?: never;
@@ -256,6 +297,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Снять текущую аватарку, сохранив набор */
+        delete: operations["clearAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Набор загруженных аватарок
+         * @description Набор видит только его владелец: остальным доступна лишь текущая аватарка в представлении человека.
+         */
+        get: operations["listMyAvatars"];
+        put?: never;
+        /** Загрузка аватарки (сразу становится текущей) */
+        post: operations["uploadAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/avatars/{avatar}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                avatar: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Удалить аватарку из набора
+         * @description Если удалена текущая, показываться начинает другая из набора; когда набор опустел — возвращается буква имени.
+         */
+        delete: operations["deleteAvatar"];
+        options?: never;
+        head?: never;
+        /** Сделать текущей аватарку из набора */
+        patch: operations["selectAvatar"];
+        trace?: never;
+    };
     "/me/email": {
         parameters: {
             query?: never;
@@ -305,6 +407,27 @@ export interface paths {
         head?: never;
         /** Обновление профиля */
         patch: operations["updateProfile"];
+        trace?: never;
+    };
+    "/me/wallpaper": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Установить личные обои переписки
+         * @description Обои видит только их владелец; новые вытесняют прежние.
+         */
+        post: operations["setWallpaper"];
+        /** Вернуть обычный фон */
+        delete: operations["clearWallpaper"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/messages/{message}": {
@@ -418,6 +541,47 @@ export interface paths {
          * @description Удаляет подписку текущего пользователя. Чужая подписка не затрагивается; ответ одинаков и когда подписки уже не было.
          */
         delete: operations["unsubscribeDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/room-photos/{image}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Файл фотографии комнаты (webp)
+         * @description Доступен тем же, кому доступна сама комната.
+         */
+        get: operations["showRoomPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/room-photos/{image}/thumb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        /** Файл фотографии комнаты в мелком размере (webp) */
+        get: operations["showRoomPhotoThumb"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -612,6 +776,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{room}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Фотография комнаты (owner/admin); новая вытесняет прежнюю */
+        post: operations["setRoomPhoto"];
+        /** Снять фотографию комнаты (owner/admin) */
+        delete: operations["clearRoomPhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{room}/read": {
         parameters: {
             query?: never;
@@ -670,6 +854,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/wallpapers/{image}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        /** Файл обоев (webp); доступен только владельцу */
+        get: operations["showWallpaperImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -696,6 +899,8 @@ export interface components {
             joined_at: string;
             /** @description Имя пользователя. */
             name: string | null;
+            /** @description Текущая аватарка участника в мелком размере. null — аватарки нет, интерфейс рисует букву имени. Прежние аватарки здесь не перечисляются: набор видит только его владелец. */
+            avatar_url: string | null;
         };
         MemberCandidate: {
             /** @description ULID пользователя. */
@@ -717,6 +922,8 @@ export interface components {
              */
             kind: "text" | "system";
             author_id: string;
+            /** @description Аватарка автора в мелком размере; null — рисуется буква имени. */
+            author_avatar_url: string | null;
             author_name: string | null;
             reply_to_id: string | null;
             /** @description null для удалённых сообщений — тело не раскрывается. */
@@ -763,6 +970,16 @@ export interface components {
             /** @description Обязательные уведомления в ленте отключить нельзя. */
             locked: boolean;
         };
+        ProfileImage: {
+            /** @description Идентификатор изображения. */
+            id: string;
+            /** @description Крупный размер. Файл отдаёт приложение — бакет закрыт. */
+            url: string;
+            /** @description Мелкий размер; null, пока производная ещё готовится. */
+            thumb_url: string | null;
+            /** @description Показывается ли эта аватарка сейчас. */
+            current: boolean;
+        };
         Reaction: {
             emoji: string;
             count: number;
@@ -800,6 +1017,18 @@ export interface components {
             member_count: number | null;
             /** @description Непрочитанные сообщения; null для комнат, где пользователь не состоит. */
             unread_count: number | null;
+            /** @description Фотография комнаты в мелком размере — для списка переписок. null, когда фотографии нет: интерфейс рисует эмодзи из названия. */
+            photo_url: string | null;
+            /** @description Та же фотография в крупном размере — для шапки комнаты. */
+            photo_large_url: string | null;
+        };
+        RoomImage: {
+            /** @description Идентификатор изображения. */
+            id: string;
+            /** @description Крупный размер. Файл отдаёт приложение — бакет закрыт. */
+            url: string;
+            /** @description Мелкий размер; null, пока производная ещё готовится. */
+            thumb_url: string | null;
         };
         User: {
             /** @description ULID пользователя. */
@@ -820,6 +1049,12 @@ export interface components {
             email_verified_at: string | null;
             /** Format: date-time */
             created_at: string;
+            /** @description Текущая аватарка в мелком размере — для списков и лент. null, когда аватарки нет: интерфейс рисует букву имени. */
+            avatar_url: string | null;
+            /** @description Та же аватарка в крупном размере — для экрана профиля. */
+            avatar_large_url: string | null;
+            /** @description Личные обои переписки; видны только своему владельцу. */
+            wallpaper_url: string | null;
         };
         UserEnvelope: {
             data: components["schemas"]["User"];
@@ -1256,6 +1491,54 @@ export interface operations {
             };
         };
     };
+    showAvatarImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Изображение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    showAvatarThumb: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Изображение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     revokeRoomInvite: {
         parameters: {
             query?: never;
@@ -1367,6 +1650,137 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    clearAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Показывается буква имени. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listMyAvatars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Аватарки этого человека, новые первыми. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileImage"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    uploadAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    image: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Аватарка загружена и показывается. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileImage"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Набор заполнен — удалите ненужную. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    deleteAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                avatar: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Аватарка удалена. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    selectAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                avatar: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Выбранная аватарка. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileImage"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     updateEmail: {
         parameters: {
             query?: never;
@@ -1474,6 +1888,57 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    setWallpaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    image: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Обои установлены. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileImage"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    clearWallpaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Обои сняты. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
         };
     };
     getMessage: {
@@ -1781,6 +2246,54 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    showRoomPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Изображение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    showRoomPhotoThumb: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Изображение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
         };
     };
     listRooms: {
@@ -2304,6 +2817,81 @@ export interface operations {
             422: components["responses"]["ValidationError"];
         };
     };
+    setRoomPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    image: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Фотография установлена. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RoomImage"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Приватная комната не показана постороннему. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    clearRoomPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Комната снова показана эмодзи. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Приватная комната не показана постороннему. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     markRoomRead: {
         parameters: {
             query?: never;
@@ -2390,6 +2978,30 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             422: components["responses"]["ValidationError"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    showWallpaperImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                image: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Изображение. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

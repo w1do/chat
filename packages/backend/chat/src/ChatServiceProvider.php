@@ -70,6 +70,11 @@ final class ChatServiceProvider extends ServiceProvider
             (int) config('chat.invites.create_per_minute', 10),
         )->by((string) $request->user()?->getAuthIdentifier()));
 
+        // Загрузка картинок дороже обычного запроса: и по трафику, и по обработке.
+        RateLimiter::for('chat-images', fn (Request $request) => Limit::perMinute(
+            (int) config('chat.images.per_minute', 20),
+        )->by((string) $request->user()?->getAuthIdentifier()));
+
         RateLimiter::for('chat-invite-lookup', fn (Request $request) => Limit::perMinute(
             (int) config('chat.invites.lookup_per_minute', 20),
         )->by($request->ip()));

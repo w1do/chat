@@ -43,6 +43,7 @@ const initialPage: MessagePage = {
       room_id: 'r1',
       author_id: 'u1',
       author_name: 'Alice',
+      author_avatar_url: null,
       reply_to_id: null,
       body: 'Existing',
       mentions: [],

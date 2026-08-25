@@ -1,4 +1,13 @@
-import { EmailForm, PasswordForm, ProfileForm, useAuth } from '@vendor/identity';
+import {
+  AvatarPicker,
+  EmailForm,
+  PasswordForm,
+  ProfileForm,
+  useAuth,
+  useAvatars,
+  useProfileImageActions,
+  WallpaperPicker,
+} from '@vendor/identity';
 import {
   PreferencesForm,
   useNotificationPreferences,
@@ -34,7 +43,7 @@ const PUSH_HINT: Record<PushState, string> = {
 /** В остальных состояниях переключать нечего — показываем только объяснение. */
 const PUSH_TOGGLEABLE: PushState[] = ['on', 'off'];
 
-type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | 'channels' | null;
+type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | 'channels' | 'wallpaper' | null;
 
 /** Экран «Настройки»: короткий список, каждый пункт открывает отдельный лист. */
 export function SettingsScreen({
@@ -47,6 +56,8 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
   const [sheet, setSheet] = useState<SheetId>(null);
+  const avatars = useAvatars();
+  const images = useProfileImageActions();
   const { user, logout, updateProfile, updateEmail, changePassword } = useAuth();
   const navigate = useNavigate();
   // Признак администратора — успешный ответ админского эндпоинта: у обычного
@@ -94,7 +105,11 @@ export function SettingsScreen({
             title={user?.name ?? 'Профиль'}
             hint={user ? `@${user.login}` : undefined}
             onClick={() => setSheet('profile')}
-            right={user ? <Avatar userId={user.id} name={user.name} size={34} theme={theme} /> : undefined}
+            right={
+              user ? (
+                <Avatar userId={user.id} name={user.name} src={user.avatar_url} size={34} theme={theme} />
+              ) : undefined
+            }
           />
           <Row
             theme={theme}
@@ -109,6 +124,12 @@ export function SettingsScreen({
         <Group theme={theme} label="Оформление">
           <Row theme={theme} title="Тема" value={themeLabel} onClick={() => setSheet('appearance')} />
           <Row theme={theme} title="Размер текста" value={sizeLabel} onClick={() => setSheet('appearance')} />
+          <Row
+            theme={theme}
+            title="Обои переписки"
+            value={user?.wallpaper_url ? 'Свои' : 'Обычный фон'}
+            onClick={() => setSheet('wallpaper')}
+          />
           <Row
             theme={theme}
             title="Анимации"
@@ -274,7 +295,21 @@ export function SettingsScreen({
         theme={theme}
         onClose={() => setSheet(null)}
       >
-        <div className="px-4 pb-6">
+        <div className="pb-6">
+          {user ? (
+            <AvatarPicker
+              userId={user.id}
+              name={user.name}
+              avatars={avatars.data ?? []}
+              currentUrl={user.avatar_large_url}
+              theme={theme}
+              onUpload={(file) => images.upload.mutateAsync(file)}
+              onSelect={(avatarId) => images.select.mutateAsync(avatarId)}
+              onDelete={(avatarId) => images.remove.mutateAsync(avatarId)}
+              onClear={() => images.clear.mutateAsync()}
+            />
+          ) : null}
+          <div className="px-4">
           {user ? (
             <ProfileForm
               theme={theme}
@@ -285,6 +320,24 @@ export function SettingsScreen({
           <p className="text-[12.5px] mt-3" style={{ color: theme.faint }}>
             Логин менять нельзя — по нему вы входите.
           </p>
+          </div>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={sheet === 'wallpaper'}
+        title="Обои переписки"
+        subtitle="Личная настройка: их видите только вы"
+        theme={theme}
+        onClose={() => setSheet(null)}
+      >
+        <div className="pb-6">
+          <WallpaperPicker
+            currentUrl={user?.wallpaper_url ?? null}
+            theme={theme}
+            onUpload={(file) => images.setWallpaper.mutateAsync(file)}
+            onClear={() => images.clearWallpaper.mutateAsync()}
+          />
         </div>
       </Sheet>
 

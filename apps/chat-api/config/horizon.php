@@ -258,8 +258,9 @@ return [
 
         'supervisor-bulk' => [
             'connection' => 'redis',
-            // Шумные рассылки не должны задерживать всё остальное.
-            'queue' => ['notifications-bulk'],
+            // Шумные рассылки и конверсии изображений не должны задерживать
+            // всё остальное: пачка фотографий обрабатывается здесь.
+            'queue' => ['notifications-bulk', 'media'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,

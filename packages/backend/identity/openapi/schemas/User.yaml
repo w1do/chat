@@ -1,5 +1,5 @@
 type: object
-required: [id, login, name, email, locale, timezone, email_verified_at, created_at]
+required: [id, login, name, email, locale, timezone, email_verified_at, created_at, avatar_url, avatar_large_url, wallpaper_url]
 properties:
   id:
     type: string
@@ -25,3 +25,14 @@ properties:
   created_at:
     type: string
     format: date-time
+  avatar_url:
+    type: [string, "null"]
+    description: >-
+      Текущая аватарка в мелком размере — для списков и лент. null, когда
+      аватарки нет: интерфейс рисует букву имени.
+  avatar_large_url:
+    type: [string, "null"]
+    description: Та же аватарка в крупном размере — для экрана профиля.
+  wallpaper_url:
+    type: [string, "null"]
+    description: Личные обои переписки; видны только своему владельцу.

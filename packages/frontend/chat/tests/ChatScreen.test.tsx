@@ -18,6 +18,8 @@ const room = (extra: Partial<Room> = {}): Room => ({
   my_role: 'member',
   member_count: 3,
   unread_count: 0,
+  photo_url: null,
+  photo_large_url: null,
   ...extra,
 });
 
@@ -27,6 +29,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   kind: 'text',
   author_id: 'u1',
   author_name: 'Alice',
+  author_avatar_url: null,
   reply_to_id: null,
   body: `Message ${id}`,
   mentions: [],
@@ -47,8 +50,8 @@ const systemMessage = (id: string, event: 'member.joined' | 'member.left', actor
   });
 
 const members: Member[] = [
-  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice' },
-  { id: 'm2', room_id: 'r1', user_id: 'u-bob', role: 'member', joined_at: '', name: 'Bob' },
+  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice', avatar_url: null },
+  { id: 'm2', room_id: 'r1', user_id: 'u-bob', role: 'member', joined_at: '', name: 'Bob', avatar_url: null },
 ];
 
 const handlers = {

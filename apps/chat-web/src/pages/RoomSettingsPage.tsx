@@ -81,6 +81,8 @@ function Members({
               onSave={(input) => roomActions.update.mutateAsync(input)}
               onDelete={() => roomActions.remove.mutateAsync()}
               onDeleted={onLeft}
+              onSetPhoto={(file) => roomActions.setPhoto.mutateAsync(file)}
+              onClearPhoto={() => roomActions.clearPhoto.mutateAsync()}
             />
           ) : null}
 

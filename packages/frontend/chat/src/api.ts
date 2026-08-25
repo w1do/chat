@@ -2,10 +2,12 @@ import type { ApiClient } from '@vendor/api-client';
 import {
   memberCandidateSchema,
   memberSchema,
+  profileImageSchema,
   roomSchema,
   type CreateRoomInput,
   type Member,
   type MemberCandidate,
+  type ProfileImage,
   type Room,
   type UpdateRoomInput,
 } from './schemas/room';
@@ -30,6 +32,18 @@ export const roomsApi = {
   /** Удаление навсегда: комната и вся её переписка. Только владелец. */
   async remove(client: ApiClient, roomId: string): Promise<void> {
     await client.delete(`/rooms/${roomId}`);
+  },
+  /** Фотография комнаты: ставят владелец и админ. */
+  async setPhoto(client: ApiClient, roomId: string, file: File): Promise<ProfileImage> {
+    const body = new FormData();
+    body.append('image', file);
+
+    return profileImageSchema.parse(
+      ((await client.post(`/rooms/${roomId}/photo`, { body })) as { data: unknown }).data,
+    );
+  },
+  async clearPhoto(client: ApiClient, roomId: string): Promise<void> {
+    await client.delete(`/rooms/${roomId}/photo`);
   },
   async members(client: ApiClient, roomId: string): Promise<Member[]> {
     const response = (await client.get(`/rooms/${roomId}/members`)) as { data: unknown[] };

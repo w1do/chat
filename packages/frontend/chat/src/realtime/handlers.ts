@@ -16,6 +16,9 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
         kind: event.data.kind,
         author_id: event.data.author.id,
         author_name: event.data.author.name,
+        // Событие аватарку не несёт (схема не менялась): лента берёт её из
+        // состава комнаты, который и так загружен.
+        author_avatar_url: null,
         reply_to_id: event.data.reply_to_id,
         body: event.data.body,
         mentions: [],

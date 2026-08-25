@@ -7,6 +7,7 @@ namespace Vendor\Identity\Tests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
+use Spatie\MediaLibrary\MediaLibraryServiceProvider;
 use Vendor\Identity\IdentityServiceProvider;
 
 abstract class TestCase extends TestbenchTestCase
@@ -17,6 +18,7 @@ abstract class TestCase extends TestbenchTestCase
     {
         return [
             SanctumServiceProvider::class,
+            MediaLibraryServiceProvider::class,
             IdentityServiceProvider::class,
         ];
     }
@@ -30,5 +32,23 @@ abstract class TestCase extends TestbenchTestCase
         // В testbench-приложении нет полного 'api' стека: используем 'web',
         // чтобы session-based SPA auth работал как в приложении.
         $app['config']->set('identity.routes.middleware', ['web']);
+
+        // Медиа в тестах пакета: диск подменяется Storage::fake, конверсии
+        // выполняются синхронно. Раскладка бакета — забота приложения.
+        $app['config']->set('media-library.disk_name', 'media');
+        $app['config']->set('media-library.queue_connection_name', 'sync');
+        $app['config']->set('filesystems.disks.media', [
+            'driver' => 'local',
+            'root' => storage_path('framework/testing/disks/media'),
+            'visibility' => 'private',
+            'throw' => true,
+        ]);
+    }
+
+    protected function defineDatabaseMigrations(): void
+    {
+        // Таблица медиа принадлежит приложению; для тестов пакета её
+        // повторяет фикстура (владельцы медиа здесь на ULID-ключах).
+        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
     }
 }

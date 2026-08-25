@@ -49,5 +49,11 @@ final class IdentityServiceProvider extends ServiceProvider
         RateLimiter::for('identity-password-reset', fn (Request $request) => Limit::perMinute(
             (int) config('identity.limits.password_reset', 5),
         )->by($request->ip()));
+
+        // Загрузка картинок дороже обычного запроса: и по трафику, и по
+        // обработке. Ограничение на человека, а не на адрес.
+        RateLimiter::for('identity-images', fn (Request $request) => Limit::perMinute(
+            (int) config('identity.limits.images', 20),
+        )->by((string) $request->user()?->getAuthIdentifier()));
     }
 }

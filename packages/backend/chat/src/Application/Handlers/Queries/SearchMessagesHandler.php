@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Application\Handlers\Queries;
 
-use Illuminate\Support\Collection;
 use Vendor\Chat\Application\DTOs\MessageData;
 use Vendor\Chat\Application\Queries\SearchMessagesQuery;
+use Vendor\Chat\Application\Support\AuthorDirectory;
 use Vendor\Chat\Domain\Contracts\MessageIndex;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\RoomMember;
@@ -50,7 +50,7 @@ final readonly class SearchMessagesHandler
             ->get()
             ->keyBy('id');
 
-        $authorNames = $this->authorNames($messages);
+        $authors = AuthorDirectory::forIds($messages->pluck('author_id'));
 
         $ordered = [];
 
@@ -61,7 +61,11 @@ final readonly class SearchMessagesHandler
                 continue;
             }
 
-            $ordered[] = MessageData::fromModel($message, authorName: $authorNames[$message->author_id] ?? null);
+            $ordered[] = MessageData::fromModel(
+                $message,
+                authorName: AuthorDirectory::name($authors, $message->author_id),
+                authorAvatarUrl: AuthorDirectory::avatar($authors, $message->author_id),
+            );
         }
 
         return $ordered;
@@ -75,20 +79,6 @@ final readonly class SearchMessagesHandler
             ->when($roomId !== null, fn ($q) => $q->where('room_id', $roomId))
             ->pluck('room_id')
             ->values()
-            ->all();
-    }
-
-    /**
-     * @param  Collection<string, Message>  $messages
-     * @return array<string, string>
-     */
-    private function authorNames(Collection $messages): array
-    {
-        $userModel = config('auth.providers.users.model');
-
-        return $userModel::query()
-            ->whereIn('id', $messages->pluck('author_id')->unique())
-            ->pluck('name', 'id')
             ->all();
     }
 }

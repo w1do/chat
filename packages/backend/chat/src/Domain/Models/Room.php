@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Vendor\Chat\Database\Factories\RoomFactory;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Enums\RoomVisibility;
@@ -24,12 +27,16 @@ use Vendor\Chat\Domain\Enums\RoomVisibility;
  * @property ?Carbon $archived_at
  * @property ?Carbon $created_at
  */
-class Room extends Model
+class Room extends Model implements HasMedia
 {
     /** @use HasFactory<RoomFactory> */
     use HasFactory;
 
     use HasUlids;
+    use InteractsWithMedia;
+
+    /** Фотография комнаты: одна, новая вытесняет прежнюю. */
+    public const PHOTO = 'room-photo';
 
     protected $table = 'rooms';
 
@@ -47,6 +54,28 @@ class Room extends Model
     public function members(): HasMany
     {
         return $this->hasMany(RoomMember::class);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::PHOTO)->singleFile();
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        // «Оригинал» коллекции — уже подготовленный webp; здесь только мелкий
+        // размер для списка переписок.
+        $this->addMediaConversion('thumb')
+            ->performOnCollections(self::PHOTO)
+            ->queued()
+            ->format('webp')
+            ->width((int) config('chat.images.photo.thumb', 128))
+            ->height((int) config('chat.images.photo.thumb', 128));
+    }
+
+    public function photo(): ?Media
+    {
+        return $this->getFirstMedia(self::PHOTO);
     }
 
     public function isPublic(): bool

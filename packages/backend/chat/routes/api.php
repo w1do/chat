@@ -8,6 +8,7 @@ use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\ReactionController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\RoomController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\RoomPhotoController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\SearchController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\TypingController;
 
@@ -22,6 +23,13 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::patch('/rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
         Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.delete');
         Route::post('/rooms/{room}/archive', [RoomController::class, 'archive'])->name('rooms.archive');
+
+        // Фотография комнаты: ставят владелец и админ, файл отдаёт приложение.
+        Route::post('/rooms/{room}/photo', [RoomPhotoController::class, 'store'])
+            ->middleware('throttle:chat-images')->name('rooms.photo.set');
+        Route::delete('/rooms/{room}/photo', [RoomPhotoController::class, 'destroy'])->name('rooms.photo.clear');
+        Route::get('/room-photos/{image}', [RoomPhotoController::class, 'show'])->name('room-photos.show');
+        Route::get('/room-photos/{image}/thumb', [RoomPhotoController::class, 'thumb'])->name('room-photos.thumb');
 
         Route::get('/rooms/{room}/members', [MemberController::class, 'index'])->name('members.index');
         // Поиск людей — это приглашение: та же частота, что и у самих приглашений.

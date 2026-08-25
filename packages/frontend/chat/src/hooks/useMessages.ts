@@ -35,6 +35,9 @@ export function useSendMessage(roomId: string, authorId: string) {
         kind: 'text',
         author_id: authorId,
         author_name: null,
+        // Лента берёт аватарку из состава комнаты, а не из сообщения:
+        // здесь она не нужна и не создаёт мигания.
+        author_avatar_url: null,
         reply_to_id: input.reply_to_id ?? null,
         body: input.body,
         mentions: input.mentions ?? [],

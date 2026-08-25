@@ -11,6 +11,7 @@ const message: Message = {
   kind: 'text',
   author_id: 'u1',
   author_name: 'Алиса',
+  author_avatar_url: null,
   reply_to_id: null,
   body: 'рецепт борща',
   mentions: [],

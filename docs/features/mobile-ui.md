@@ -11,7 +11,9 @@
   светлой/тёмной темы (`styles/tokens.ts`), анимации и safe-area
   (`styles/global.css`), примитивы `Avatar`/`Dots`/`Toggle`/`Segmented`/
   `Sheet`/`Row`/`Group`/`Toast`, хуки `useKeyboardInsets`, `useElementHeight`,
-  `useTheme`.
+  `useTheme`. `Avatar` показывает загруженную картинку, а буква имени с
+  оттенком остаётся запасным видом — при её отсутствии, во время подготовки
+  и при неудачной загрузке (`docs/features/profile-images.md`).
 - `packages/frontend/chat` — экраны: `RoomsScreen` (список комнат, счётчики
   непрочитанного, создание комнаты), `ChatScreen` (лента с группировкой по
   автору, дни, ответы, реакции, упоминания, набор текста, состояние

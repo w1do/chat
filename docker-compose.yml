@@ -76,6 +76,13 @@ x-api-env: &api-env
     MAIL_PASSWORD: ${MAIL_PASSWORD:-}
     MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-chat@example.com}
     MAIL_FROM_NAME: ${APP_NAME:-Семейный чат}
+    # Объектное хранилище: здесь живут файлы (аватарки, вложения). Для
+    # внешнего S3 задайте свой S3_ENDPOINT — встроенный minio простаивает.
+    S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+    S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-chat}
+    S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-chat-secret}
+    S3_BUCKET: ${S3_BUCKET:-chat}
+    S3_REGION: ${S3_REGION:-us-east-1}
 
 x-api: &api
   build:
@@ -90,6 +97,8 @@ x-api: &api
     postgres:
       condition: service_healthy
     redis:
+      condition: service_healthy
+    minio:
       condition: service_healthy
   networks: [chat]
 
@@ -244,6 +253,23 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    # Объектное хранилище файлов. MINIO_ROOT_* и есть ключи доступа S3.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-chat}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-chat-secret}
+    volumes:
+      - minio-data:/data
+    networks: [chat]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   typesense:
     image: typesense/typesense:29.0
     restart: unless-stopped
@@ -270,3 +296,4 @@ volumes:
   postgres-data:
   redis-data:
   typesense-data:
+  minio-data:

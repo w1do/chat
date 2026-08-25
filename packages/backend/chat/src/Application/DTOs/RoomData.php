@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Application\DTOs;
 
+use Vendor\Chat\Application\Support\RoomPhotoUrl;
 use Vendor\Chat\Domain\Models\Room;
 
 final readonly class RoomData
@@ -19,6 +20,10 @@ final readonly class RoomData
         public ?string $myRole = null,
         public ?int $memberCount = null,
         public ?int $unreadCount = null,
+        /** Мелкий размер для списка; null — фотографии нет, рисуется эмодзи. */
+        public ?string $photoUrl = null,
+        /** Крупный размер для шапки комнаты. */
+        public ?string $photoLargeUrl = null,
     ) {}
 
     public static function fromModel(
@@ -38,6 +43,8 @@ final readonly class RoomData
             myRole: $myRole,
             memberCount: $memberCount,
             unreadCount: $unreadCount,
+            photoUrl: RoomPhotoUrl::thumb($room),
+            photoLargeUrl: RoomPhotoUrl::large($room),
         );
     }
 }

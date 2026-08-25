@@ -1,5 +1,5 @@
 type: object
-required: [id, name, topic, visibility, created_by, archived_at, created_at, my_role, member_count, unread_count]
+required: [id, name, topic, visibility, created_by, archived_at, created_at, my_role, member_count, unread_count, photo_url, photo_large_url]
 properties:
   id: { type: string, description: ULID комнаты. }
   name: { type: string }
@@ -16,3 +16,11 @@ properties:
   unread_count:
     type: [integer, "null"]
     description: Непрочитанные сообщения; null для комнат, где пользователь не состоит.
+  photo_url:
+    type: [string, "null"]
+    description: >-
+      Фотография комнаты в мелком размере — для списка переписок. null, когда
+      фотографии нет: интерфейс рисует эмодзи из названия.
+  photo_large_url:
+    type: [string, "null"]
+    description: Та же фотография в крупном размере — для шапки комнаты.

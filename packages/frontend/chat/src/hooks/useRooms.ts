@@ -68,6 +68,21 @@ export function useRoomActions(roomId: string) {
         void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
       },
     }),
+    setPhoto: useMutation({
+      mutationFn: (file: File) => roomsApi.setPhoto(client, roomId, file),
+      onSuccess: () => {
+        // Фотография видна и в шапке, и в списке переписок.
+        void queryClient.invalidateQueries({ queryKey: roomKey(roomId) });
+        void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+      },
+    }),
+    clearPhoto: useMutation({
+      mutationFn: () => roomsApi.clearPhoto(client, roomId),
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: roomKey(roomId) });
+        void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+      },
+    }),
     remove: useMutation({
       mutationFn: () => roomsApi.remove(client, roomId),
       onSuccess: () => {

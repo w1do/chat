@@ -1,0 +1,195 @@
+/me/avatars:
+  get:
+    operationId: listMyAvatars
+    tags: [profile]
+    summary: Набор загруженных аватарок
+    description: >-
+      Набор видит только его владелец: остальным доступна лишь текущая
+      аватарка в представлении человека.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Аватарки этого человека, новые первыми.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/ProfileImage' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+  post:
+    operationId: uploadAvatar
+    tags: [profile]
+    summary: Загрузка аватарки (сразу становится текущей)
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [image]
+            properties:
+              image: { type: string, format: binary }
+    responses:
+      '201':
+        description: Аватарка загружена и показывается.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/ProfileImage' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '409':
+        description: Набор заполнен — удалите ненужную.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429': { $ref: '#/components/responses/RateLimited' }
+/me/avatars/{avatar}:
+  parameters:
+    - name: avatar
+      in: path
+      required: true
+      schema: { type: string }
+  patch:
+    operationId: selectAvatar
+    tags: [profile]
+    summary: Сделать текущей аватарку из набора
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Выбранная аватарка.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/ProfileImage' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+  delete:
+    operationId: deleteAvatar
+    tags: [profile]
+    summary: Удалить аватарку из набора
+    description: >-
+      Если удалена текущая, показываться начинает другая из набора; когда
+      набор опустел — возвращается буква имени.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Аватарка удалена. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+/me/avatar:
+  delete:
+    operationId: clearAvatar
+    tags: [profile]
+    summary: Снять текущую аватарку, сохранив набор
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Показывается буква имени. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+/me/wallpaper:
+  post:
+    operationId: setWallpaper
+    tags: [profile]
+    summary: Установить личные обои переписки
+    description: Обои видит только их владелец; новые вытесняют прежние.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [image]
+            properties:
+              image: { type: string, format: binary }
+    responses:
+      '200':
+        description: Обои установлены.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/ProfileImage' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429': { $ref: '#/components/responses/RateLimited' }
+  delete:
+    operationId: clearWallpaper
+    tags: [profile]
+    summary: Вернуть обычный фон
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Обои сняты. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+/avatars/{image}:
+  parameters:
+    - name: image
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showAvatarImage
+    tags: [profile]
+    summary: Файл аватарки (webp)
+    description: >-
+      Файл отдаёт приложение: бакет закрыт. Адрес меняется вместе с
+      изображением, поэтому ответ кэшируется надолго.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Изображение.
+        content:
+          image/webp:
+            schema: { type: string, format: binary }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+/avatars/{image}/thumb:
+  parameters:
+    - name: image
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showAvatarThumb
+    tags: [profile]
+    summary: Файл аватарки в мелком размере (webp)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Изображение.
+        content:
+          image/webp:
+            schema: { type: string, format: binary }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+/wallpapers/{image}:
+  parameters:
+    - name: image
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showWallpaperImage
+    tags: [profile]
+    summary: Файл обоев (webp); доступен только владельцу
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Изображение.
+        content:
+          image/webp:
+            schema: { type: string, format: binary }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }

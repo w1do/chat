@@ -1,5 +1,5 @@
 type: object
-required: [id, room_id, kind, author_id, author_name, reply_to_id, body, mentions, edited_at, deleted, created_at, reactions, payload]
+required: [id, room_id, kind, author_id, author_name, author_avatar_url, reply_to_id, body, mentions, edited_at, deleted, created_at, reactions, payload]
 properties:
   id: { type: string, description: ULID сообщения. }
   room_id: { type: string }
@@ -8,6 +8,9 @@ properties:
     enum: [text, system]
     description: Системные записи описывают событие комнаты; их текст формулирует клиент.
   author_id: { type: string }
+  author_avatar_url:
+    type: [string, "null"]
+    description: Аватарка автора в мелком размере; null — рисуется буква имени.
   author_name: { type: [string, "null"] }
   reply_to_id: { type: [string, "null"] }
   body:
