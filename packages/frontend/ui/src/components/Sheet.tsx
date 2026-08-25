@@ -50,7 +50,17 @@ export function Sheet({ open, title, subtitle, onClose, theme, accent, children 
   }, [open, onClose]);
 
   return (
-    <div className="absolute inset-0 z-40" style={{ pointerEvents: open ? 'auto' : 'none' }} aria-hidden={!open}>
+    <div
+      className="absolute inset-0 z-40 overflow-hidden"
+      style={{
+        pointerEvents: open ? 'auto' : 'none',
+        // Закрытый лист уезжает вниз — его нужно обрезать по слою, иначе шапка
+        // торчит из-под края экрана; полностью убранный лист ещё и скрываем,
+        // чтобы он не попадал в поиск по странице и в порядок табуляции.
+        visibility: open || mounted ? 'visible' : 'hidden',
+      }}
+      aria-hidden={!open}
+    >
       <div
         onClick={onClose}
         aria-hidden="true"

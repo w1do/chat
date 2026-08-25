@@ -36,4 +36,15 @@ describe('Sheet', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(document.querySelector('input[type="password"]')).toBeNull();
   });
+
+  it('hides the chrome of a closed sheet instead of letting it peek out', async () => {
+    render(<Harness />);
+
+    // Шапка закрытого листа не должна выглядывать из-под края экрана
+    // (в дерево доступности она и так не попадает: aria-hidden).
+    expect(screen.getByLabelText('Закрыть', { hidden: true })).not.toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть' }));
+    expect(screen.getByRole('button', { name: 'Закрыть' })).toBeVisible();
+  });
 });
