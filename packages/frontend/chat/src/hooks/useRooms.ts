@@ -28,6 +28,22 @@ export function useMembers(roomId: string) {
   return useQuery({ queryKey: membersKey(roomId), queryFn: () => roomsApi.members(client, roomId) });
 }
 
+/**
+ * Люди, которых можно позвать. Запрос короче двух символов не ходит на сервер:
+ * там он всё равно ничего не найдёт, а частота поиска ограничена как у
+ * приглашений.
+ */
+export function useMemberCandidates(roomId: string, query: string) {
+  const client = useChatClient();
+  const term = query.trim().replace(/^@+/, '');
+
+  return useQuery({
+    queryKey: ['chat', 'rooms', roomId, 'candidates', term],
+    queryFn: () => roomsApi.memberCandidates(client, roomId, term),
+    enabled: term.length >= 2,
+  });
+}
+
 export function useCreateRoom() {
   const client = useChatClient();
   const queryClient = useQueryClient();
@@ -70,6 +86,8 @@ export function useMembershipActions(roomId: string) {
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: membersKey(roomId) });
     void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+    // Состав изменился — отметка «уже в комнате» в поиске тоже.
+    void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms', roomId, 'candidates'] });
   };
 
   return {
@@ -79,6 +97,10 @@ export function useMembershipActions(roomId: string) {
     }),
     join: useMutation({ mutationFn: () => roomsApi.join(client, roomId), onSuccess: invalidate }),
     leave: useMutation({ mutationFn: () => roomsApi.leave(client, roomId), onSuccess: invalidate }),
+    remove: useMutation({
+      mutationFn: (memberId: string) => roomsApi.removeMember(client, roomId, memberId),
+      onSuccess: invalidate,
+    }),
     changeRole: useMutation({
       mutationFn: ({ memberId, role }: { memberId: string; role: 'admin' | 'member' }) =>
         roomsApi.changeRole(client, roomId, memberId, role),

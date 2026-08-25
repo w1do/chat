@@ -7,7 +7,7 @@ export const reactionSchema = z.object({
 });
 
 export const systemPayloadSchema = z.object({
-  event: z.enum(['member.joined', 'member.invited', 'member.left']),
+  event: z.enum(['member.joined', 'member.invited', 'member.left', 'member.removed']),
   actor_id: z.string(),
 });
 

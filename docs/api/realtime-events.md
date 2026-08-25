@@ -12,14 +12,15 @@
 | `message.updated.v1` | private room | id, body, edited_at |
 | `message.deleted.v1` | private room | id, deleted_at |
 | `reaction.changed.v1` | private room | message_id, user_id, emoji, action, count |
-| `room.member_changed.v1` | private room | user_id, action, role |
+| `room.member_changed.v1` | private room | user_id, action (`invited`/`joined`/`left`/`removed`/`role_changed`), role |
 | `typing.changed.v1` | presence room | user_id, is_typing |
 
 Общий конверт: `event`, `version`, `room_id` (ULID), `occurred_at` (RFC 3339), `data`.
 
 Системные записи о членстве приходят тем же `message.created.v1` с
 `kind: system` и `payload: {event, actor_id}` — отдельной схемы события нет
-(design 1c); текст формулирует клиент.
+(design 1c); текст формулирует клиент. Значения `event`: `member.joined`,
+`member.invited`, `member.left`, `member.removed`.
 `additionalProperties: false` — утечка недекларированных полей ломает контрактный тест
 `apps/chat-api/tests/Contract/RealtimeSchemaTest.php` (фикстуры —
 `tests/fixtures/realtime/`).

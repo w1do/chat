@@ -95,7 +95,8 @@
               "enum": [
                 "member.joined",
                 "member.invited",
-                "member.left"
+                "member.left",
+                "member.removed"
               ]
             },
             "actor_id": {

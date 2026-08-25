@@ -20,14 +20,14 @@ function makeRoomWith(RoomRole $role): array
 }
 
 dataset('room matrix', [
-    // [роль или null (гость), update, archive, invite, changeRole]
-    'owner' => [RoomRole::Owner, true, true, true, true],
-    'admin' => [RoomRole::Admin, true, true, true, false],
-    'member' => [RoomRole::Member, false, false, false, false],
-    'guest' => [null, false, false, false, false],
+    // [роль или null (гость), update, archive, invite, changeRole, remove]
+    'owner' => [RoomRole::Owner, true, true, true, true, true],
+    'admin' => [RoomRole::Admin, true, true, true, false, true],
+    'member' => [RoomRole::Member, false, false, false, false, false],
+    'guest' => [null, false, false, false, false, false],
 ]);
 
-it('enforces the room authorization matrix', function (?RoomRole $role, bool $update, bool $archive, bool $invite, bool $changeRole): void {
+it('enforces the room authorization matrix', function (?RoomRole $role, bool $update, bool $archive, bool $invite, bool $changeRole, bool $remove): void {
     if ($role === null) {
         $room = Room::factory()->privateRoom()->create();
         $user = User::factory()->create();
@@ -43,7 +43,11 @@ it('enforces the room authorization matrix', function (?RoomRole $role, bool $up
     expect($roomPolicy->update($user, $room))->toBe($update)
         ->and($roomPolicy->archive($user, $room))->toBe($archive)
         ->and($membershipPolicy->invite($user, $room))->toBe($invite)
-        ->and($membershipPolicy->changeRole($user, $room, $target))->toBe($changeRole);
+        ->and($membershipPolicy->changeRole($user, $room, $target))->toBe($changeRole)
+        ->and($membershipPolicy->remove($user, $room, $target)->allowed())->toBe($remove);
+
+    // Постороннему комната не показана даже отказом.
+    expect($membershipPolicy->remove($user, $room, $target)->status())->toBe($role === null ? 404 : null);
 })->with('room matrix');
 
 it('lets only the owner delete a room and hides it from outsiders', function (): void {
@@ -111,4 +115,27 @@ it('changes roles except owner via the handler policy pair', function (): void {
 
     expect($policy->changeRole($owner, $room, $target))->toBeTrue()
         ->and($policy->changeRole($owner, $room, $ownerMember))->toBeFalse();
+});
+
+it('lets the owner remove anyone but themselves and limits the admin to plain members', function (): void {
+    [$room, $owner] = makeRoomWith(RoomRole::Owner);
+    $admin = User::factory()->create();
+    RoomMember::factory()->for($room)->role(RoomRole::Admin)->create(['user_id' => $admin->getKey()]);
+    $secondAdmin = RoomMember::factory()->for($room)->role(RoomRole::Admin)->create();
+    $plain = RoomMember::factory()->for($room)->role(RoomRole::Member)->create();
+
+    $room = $room->fresh();
+    $policy = new MembershipPolicy;
+    $ownerMember = $room->memberFor($owner);
+    $adminMember = $room->memberFor($admin);
+
+    expect($policy->remove($owner, $room, $plain)->allowed())->toBeTrue()
+        ->and($policy->remove($owner, $room, $adminMember)->allowed())->toBeTrue()
+        // Комната не остаётся без владельца.
+        ->and($policy->remove($owner, $room, $ownerMember)->allowed())->toBeFalse()
+        ->and($policy->remove($admin, $room, $plain)->allowed())->toBeTrue()
+        // Ни владельца, ни равного себе админ не трогает.
+        ->and($policy->remove($admin, $room, $ownerMember)->allowed())->toBeFalse()
+        ->and($policy->remove($admin, $room, $secondAdmin)->allowed())->toBeFalse()
+        ->and($policy->remove($admin, $room, $adminMember)->allowed())->toBeFalse();
 });

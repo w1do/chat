@@ -41,10 +41,13 @@ export { ChatScreen } from './components/mobile/ChatScreen';
 export { MagicSheet, MAGIC_ACTIONS, type MagicAction, type MagicPhase } from './components/mobile/MagicSheet';
 export { RoomsScreen } from './components/mobile/RoomsScreen';
 export { RoomManagePanel } from './components/mobile/RoomManagePanel';
+export { InvitePanel, cleanNickname, MIN_NICKNAME_LENGTH } from './components/mobile/InvitePanel';
+export { MemberRow, canChangeRole, canRemoveMember } from './components/mobile/MemberRow';
 export { buildGroups, dayLabel, formatTime, typingSummary, ROLE_LABEL } from './format';
 export { useDeleteMessage, useEditMessage, useMessages, useReactions, useSendMessage } from './hooks/useMessages';
 export {
   useCreateRoom,
+  useMemberCandidates,
   useMembers,
   useMembershipActions,
   useRoom,
@@ -64,11 +67,13 @@ export {
 } from './schemas/message';
 export {
   createRoomSchema,
+  memberCandidateSchema,
   memberSchema,
   roomSchema,
   updateRoomSchema,
   type CreateRoomInput,
   type Member,
+  type MemberCandidate,
   type Room,
   type UpdateRoomInput,
 } from './schemas/room';

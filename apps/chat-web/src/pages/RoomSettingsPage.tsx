@@ -1,15 +1,19 @@
-import { RoomManagePanel, useMembers, useMembershipActions, useRoom, useRoomActions } from '@vendor/chat';
-import { Avatar, Group, RADIUS, Row, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
+import {
+  InvitePanel,
+  MemberRow,
+  RoomManagePanel,
+  useMembers,
+  useMembershipActions,
+  useRoom,
+  useRoomActions,
+} from '@vendor/chat';
+import { useAuth } from '@vendor/identity';
+import { Group, Row, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { createInvite } from '../app/invite';
 import { useSettings } from '../app/settings';
-
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'владелец',
-  admin: 'администратор',
-  member: 'участник',
-};
 
 /** Экран комнаты: название и описание, участники, приглашение, роли, выход. */
 export function RoomSettingsPage() {
@@ -38,8 +42,9 @@ function Members({
   const members = useMembers(roomId);
   const actions = useMembershipActions(roomId);
   const roomActions = useRoomActions(roomId);
-  const [inviteId, setInviteId] = useState('');
+  const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const myRole = room.data?.my_role ?? null;
   const canManage = myRole === 'owner' || myRole === 'admin';
@@ -90,30 +95,16 @@ function Members({
           ) : (
             <Group theme={theme} label={`Участники · ${members.data?.length ?? 0}`}>
               {(members.data ?? []).map((member, index) => (
-                <Row
+                <MemberRow
                   key={member.id}
+                  member={member}
+                  myRole={myRole}
+                  myUserId={user?.id ?? ''}
                   theme={theme}
-                  title={member.name ?? member.user_id}
-                  hint={ROLE_LABEL[member.role]}
                   last={index === (members.data?.length ?? 0) - 1}
-                  right={
-                    myRole === 'owner' && member.role !== 'owner' ? (
-                      <button
-                        type="button"
-                        className="text-[13px] tap"
-                        style={{ color: theme.amberText }}
-                        onClick={() =>
-                          actions.changeRole
-                            .mutateAsync({ memberId: member.id, role: member.role === 'admin' ? 'member' : 'admin' })
-                            .catch(() => setError('Не удалось изменить роль.'))
-                        }
-                      >
-                        {member.role === 'admin' ? 'Снять админа' : 'Сделать админом'}
-                      </button>
-                    ) : (
-                      <Avatar userId={member.user_id} name={member.name ?? member.user_id} size={30} theme={theme} />
-                    )
-                  }
+                  onChangeRole={(role) => actions.changeRole.mutateAsync({ memberId: member.id, role })}
+                  onRemove={() => actions.remove.mutateAsync(member.id)}
+                  onError={setError}
                 />
               ))}
             </Group>
@@ -125,42 +116,26 @@ function Members({
             </p>
           ) : null}
 
-          {canManage ? (
-            <form
-              aria-label="invite"
-              className="px-3 mb-5"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                if (!inviteId.trim()) return;
+          {notice ? (
+            <p role="status" className="px-5 pb-3 text-[13px] break-all" style={{ color: theme.muted }}>
+              {notice}
+            </p>
+          ) : null}
+
+          {canManage && room.data ? (
+            <InvitePanel
+              roomId={roomId}
+              theme={theme}
+              onInvite={(userId) => actions.invite.mutateAsync(userId)}
+              onInviteByLink={() => {
                 setError(null);
-                try {
-                  await actions.invite.mutateAsync(inviteId.trim());
-                  setInviteId('');
-                } catch {
-                  setError('Не удалось пригласить пользователя.');
-                }
+                createInvite(roomId, room.data?.name ?? '')
+                  .then((result) =>
+                    setNotice(result.copied ? 'Приглашение скопировано.' : `Ссылка: ${result.link}`),
+                  )
+                  .catch(() => setError('Не удалось создать ссылку-приглашение.'));
               }}
-            >
-              <div className="p-3" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
-                <label htmlFor="invite-user-id" className="block text-[13px] mb-1" style={{ color: theme.muted }}>
-                  ID пользователя
-                </label>
-                <input
-                  id="invite-user-id"
-                  value={inviteId}
-                  onChange={(event) => setInviteId(event.target.value)}
-                  className="w-full px-3 py-2 mb-3 outline-none"
-                  style={{ background: theme.surfaceAlt, borderRadius: RADIUS.sm, color: theme.text, fontSize: 16 }}
-                />
-                <button
-                  type="submit"
-                  className="w-full py-2.5 tap text-[15px] font-medium"
-                  style={{ background: theme.text, color: theme.bg, borderRadius: RADIUS.sm }}
-                >
-                  Пригласить
-                </button>
-              </div>
-            </form>
+            />
           ) : null}
 
           {myRole !== null && myRole !== 'owner' ? (

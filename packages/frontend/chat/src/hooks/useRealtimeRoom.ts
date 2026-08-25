@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { ConnectionState, PresenceMember, RealtimeAdapter } from '../adapters/RealtimeAdapter';
-import { applyRoomEvent, resyncRoom } from '../realtime/handlers';
+import { applyRoomEvent, forgetRoom, resyncRoom } from '../realtime/handlers';
 
 /**
  * Подписка на события комнаты + presence. После reconnect выполняется
@@ -16,9 +16,10 @@ export interface JoinGreeting {
 export function useRealtimeRoom(
   adapter: RealtimeAdapter | null,
   roomId: string,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; currentUserId?: string } = {},
 ) {
   const enabled = options.enabled ?? true;
+  const currentUserId = options.currentUserId ?? '';
   const queryClient = useQueryClient();
   const [connection, setConnection] = useState<ConnectionState>('connected');
   const [typingUserIds, setTypingUserIds] = useState<string[]>([]);
@@ -27,6 +28,8 @@ export function useRealtimeRoom(
   const [joinGreeting, setJoinGreeting] = useState<JoinGreeting | null>(null);
   /** Комнату удалили, пока она была открыта: читать больше нечего. */
   const [deleted, setDeleted] = useState(false);
+  /** Человека исключили из комнаты, пока она была открыта. */
+  const [removed, setRemoved] = useState(false);
   const wasDisconnected = useRef(false);
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -36,8 +39,21 @@ export function useRealtimeRoom(
     if (!adapter || !enabled) return;
 
     setDeleted(false);
+    setRemoved(false);
 
     const room = adapter.subscribeRoom(roomId, (event) => {
+      // Исключили меня: комната закрывается так же, как удалённая, — и её
+      // кэш убирается до инвалидации, чтобы не спрашивать чужую комнату.
+      if (
+        event.event === 'room.member_changed.v1' &&
+        event.data.action === 'removed' &&
+        event.data.user_id === currentUserId
+      ) {
+        forgetRoom(queryClient, roomId);
+        setRemoved(true);
+        return;
+      }
+
       applyRoomEvent(queryClient, event);
 
       if (event.event === 'room.deleted.v1') {
@@ -102,7 +118,7 @@ export function useRealtimeRoom(
       typingTimers.current.forEach((timer) => clearTimeout(timer));
       typingTimers.current.clear();
     };
-  }, [adapter, roomId, enabled, queryClient]);
+  }, [adapter, roomId, enabled, currentUserId, queryClient]);
 
   return {
     connection,
@@ -110,6 +126,7 @@ export function useRealtimeRoom(
     presentMembers,
     joinGreeting,
     deleted,
+    removed,
     dismissGreeting: () => setJoinGreeting(null),
   };
 }

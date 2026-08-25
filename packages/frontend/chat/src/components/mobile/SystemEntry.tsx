@@ -10,6 +10,8 @@ export function systemText(message: Message, actorName: string): string {
       return `${actorName} добавлен в комнату`;
     case 'member.left':
       return `${actorName} покинул комнату`;
+    case 'member.removed':
+      return `${actorName} исключён из комнаты`;
     default:
       return 'Событие комнаты';
   }

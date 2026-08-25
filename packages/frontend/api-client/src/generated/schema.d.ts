@@ -509,6 +509,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{room}/member-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Поиск людей для приглашения по нику (owner/admin)
+         * @description Совпадение с начала ника без учёта регистра; ведущий `@` необязателен. Запрос короче двух символов не ищет ничего, ответ ограничен десятью людьми и той же частотой, что и приглашения.
+         */
+        get: operations["searchMemberCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{room}/members": {
         parameters: {
             query?: never;
@@ -562,7 +584,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Исключение участника: владелец — любого, кроме себя; админ — только участника с обычной ролью */
+        delete: operations["removeMember"];
         options?: never;
         head?: never;
         /** Смена роли участника (только owner; роль owner не назначается) */
@@ -674,6 +697,16 @@ export interface components {
             /** @description Имя пользователя. */
             name: string | null;
         };
+        MemberCandidate: {
+            /** @description ULID пользователя. */
+            id: string;
+            /** @description Ник — по нему человека и ищут. */
+            username: string;
+            /** @description Отображаемое имя. */
+            name: string;
+            /** @description Уже состоит в комнате — пригласить повторно нельзя. */
+            already_member: boolean;
+        };
         Message: {
             /** @description ULID сообщения. */
             id: string;
@@ -698,7 +731,7 @@ export interface components {
             /** @description Данные системного события (event, actor_id); null для обычных сообщений. */
             payload: {
                 /** @enum {string} */
-                event?: "member.joined" | "member.invited" | "member.left";
+                event?: "member.joined" | "member.invited" | "member.left" | "member.removed";
                 actor_id?: string;
             } | null;
         };
@@ -1967,6 +2000,36 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    searchMemberCandidates: {
+        parameters: {
+            query?: {
+                query?: string;
+            };
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Найденные люди. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberCandidate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     listMembers: {
         parameters: {
             query?: never;
@@ -2082,6 +2145,38 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+                member: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Участник исключён. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Участник не найден в этой комнате либо комната не видна. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     changeMemberRole: {

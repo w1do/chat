@@ -331,19 +331,20 @@ function ActiveRoom({
   const membership = useMembershipActions(roomId);
 
   const isMember = room.data?.my_role != null;
-  const { typingUserIds, connection, joinGreeting, dismissGreeting, deleted } = useRealtimeRoom(
+  const { typingUserIds, connection, joinGreeting, dismissGreeting, deleted, removed } = useRealtimeRoom(
     realtimeAdapter(),
     roomId,
-    { enabled: isMember },
+    { enabled: isMember, currentUserId },
   );
 
-  // Комнату удалили, пока она была открыта: возвращаем человека к списку
-  // комнат с объяснением, а не оставляем на экране с ошибками.
+  // Комнату удалили или человека из неё исключили, пока она была открыта:
+  // возвращаем его к списку комнат с объяснением, а не оставляем на экране
+  // с ошибками.
   useEffect(() => {
-    if (!deleted) return;
-    onToast('Комната удалена.');
+    if (!deleted && !removed) return;
+    onToast(deleted ? 'Комната удалена.' : 'Вы больше не состоите в этой комнате.');
     onBack();
-  }, [deleted, onBack, onToast]);
+  }, [deleted, removed, onBack, onToast]);
 
   const prefersReducedMotion =
     typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);

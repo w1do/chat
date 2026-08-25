@@ -58,10 +58,7 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
       break;
 
     case 'room.deleted.v1':
-      // Комнаты больше нет: убираем её кэш, чтобы экран не листал призрак.
-      queryClient.removeQueries({ queryKey: messagesKey(event.room_id) });
-      queryClient.removeQueries({ queryKey: ['chat', 'rooms', event.room_id] });
-      void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] });
+      forgetRoom(queryClient, event.room_id);
       break;
 
     case 'room.member_changed.v1':
@@ -69,6 +66,16 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
       void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] });
       break;
   }
+}
+
+/**
+ * Комнаты для человека больше нет — её удалили или его из неё исключили.
+ * Кэш не должен пережить доступ, иначе экран листает призрак.
+ */
+export function forgetRoom(queryClient: QueryClient, roomId: string): void {
+  queryClient.removeQueries({ queryKey: messagesKey(roomId) });
+  queryClient.removeQueries({ queryKey: ['chat', 'rooms', roomId] });
+  void queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] });
 }
 
 function patchMessage(

@@ -22,6 +22,14 @@ export const memberSchema = z.object({
   name: z.string().nullable(),
 });
 
+/** Кого можно позвать: ник и имя, плюс отметка «уже в комнате». */
+export const memberCandidateSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  name: z.string(),
+  already_member: z.boolean(),
+});
+
 export const createRoomSchema = z.object({
   name: z.string().min(1, 'Название не может быть пустым').max(255),
   topic: z.string().max(500).optional(),
@@ -37,4 +45,5 @@ export const updateRoomSchema = z.object({
 export type Room = z.infer<typeof roomSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
 export type Member = z.infer<typeof memberSchema>;
+export type MemberCandidate = z.infer<typeof memberCandidateSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

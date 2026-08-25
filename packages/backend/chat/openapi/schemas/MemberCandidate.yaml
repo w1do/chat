@@ -1,0 +1,7 @@
+type: object
+required: [id, username, name, already_member]
+properties:
+  id: { type: string, description: ULID пользователя. }
+  username: { type: string, description: Ник — по нему человека и ищут. }
+  name: { type: string, description: Отображаемое имя. }
+  already_member: { type: boolean, description: Уже состоит в комнате — пригласить повторно нельзя. }

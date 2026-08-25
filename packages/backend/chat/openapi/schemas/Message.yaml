@@ -28,5 +28,5 @@ properties:
     properties:
       event:
         type: string
-        enum: [member.joined, member.invited, member.left]
+        enum: [member.joined, member.invited, member.left, member.removed]
       actor_id: { type: string }

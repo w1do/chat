@@ -10,4 +10,5 @@ enum SystemEvent: string
     case MemberJoined = 'member.joined';
     case MemberInvited = 'member.invited';
     case MemberLeft = 'member.left';
+    case MemberRemoved = 'member.removed';
 }

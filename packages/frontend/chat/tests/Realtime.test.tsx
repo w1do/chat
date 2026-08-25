@@ -55,18 +55,19 @@ const initialPage: MessagePage = {
   meta: { next_cursor: null },
 };
 
-function Probe({ adapter }: { adapter: RealtimeAdapter }) {
-  const { connection, typingUserIds, deleted } = useRealtimeRoom(adapter, 'r1');
+function Probe({ adapter, currentUserId }: { adapter: RealtimeAdapter; currentUserId?: string }) {
+  const { connection, typingUserIds, deleted, removed } = useRealtimeRoom(adapter, 'r1', { currentUserId });
   return (
     <div>
       <output aria-label="connection">{connection}</output>
       <output aria-label="typing">{typingUserIds.join(',')}</output>
       <output aria-label="deleted">{deleted ? 'yes' : 'no'}</output>
+      <output aria-label="removed">{removed ? 'yes' : 'no'}</output>
     </div>
   );
 }
 
-function setup() {
+function setup(currentUserId?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   queryClient.setQueryData(['chat', 'messages', 'r1'], {
     pages: [initialPage],
@@ -76,7 +77,7 @@ function setup() {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
-  render(<Probe adapter={adapter} />, { wrapper });
+  render(<Probe adapter={adapter} currentUserId={currentUserId} />, { wrapper });
   return { queryClient, adapter };
 }
 
@@ -103,6 +104,40 @@ describe('useRealtimeRoom', () => {
     // Кэш комнаты и её переписки не должен пережить саму комнату.
     expect(queryClient.getQueryData(['chat', 'rooms', 'r1'])).toBeUndefined();
     expect(queryClient.getQueryData(['chat', 'messages', 'r1'])).toBeUndefined();
+  });
+
+  it('closes the room for the person who was removed from it', async () => {
+    const { queryClient, adapter } = setup('u-me');
+    queryClient.setQueryData(['chat', 'rooms', 'r1'], { id: 'r1', name: 'Семья' });
+    queryClient.setQueryData(['chat', 'rooms', 'r1', 'members'], []);
+
+    // Чужое исключение комнату не закрывает.
+    adapter.roomHandler?.({
+      event: 'room.member_changed.v1',
+      version: 1,
+      room_id: 'r1',
+      occurred_at: 'x',
+      data: { user_id: 'u-someone', action: 'removed', role: null },
+    });
+    expect(screen.getByLabelText('removed')).toHaveTextContent('no');
+    expect(queryClient.getQueryData(['chat', 'rooms', 'r1'])).toBeDefined();
+
+    adapter.roomHandler?.({
+      event: 'room.member_changed.v1',
+      version: 1,
+      room_id: 'r1',
+      occurred_at: 'x',
+      data: { user_id: 'u-me', action: 'removed', role: null },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText('removed')).toHaveTextContent('yes'));
+
+    // Комната больше не читается — её кэш не должен пережить исключение.
+    expect(queryClient.getQueryData(['chat', 'rooms', 'r1'])).toBeUndefined();
+    expect(queryClient.getQueryData(['chat', 'rooms', 'r1', 'members'])).toBeUndefined();
+    expect(queryClient.getQueryData(['chat', 'messages', 'r1'])).toBeUndefined();
+    // Список комнат перечитывается: этой комнаты в нём уже не будет.
+    expect(queryClient.getQueryState(['chat', 'rooms'])?.isInvalidated ?? true).toBe(true);
   });
 
   it('applies live message.created events to the query cache', async () => {

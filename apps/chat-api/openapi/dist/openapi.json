@@ -206,6 +206,33 @@
                     }
                 }
             },
+            "MemberCandidate": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "username",
+                    "name",
+                    "already_member"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ULID пользователя."
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "Ник — по нему человека и ищут."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Отображаемое имя."
+                    },
+                    "already_member": {
+                        "type": "boolean",
+                        "description": "Уже состоит в комнате — пригласить повторно нельзя."
+                    }
+                }
+            },
             "Message": {
                 "type": "object",
                 "required": [
@@ -299,7 +326,8 @@
                                 "enum": [
                                     "member.joined",
                                     "member.invited",
-                                    "member.left"
+                                    "member.left",
+                                    "member.removed"
                                 ]
                             },
                             "actor_id": {
@@ -2741,6 +2769,77 @@
                 }
             }
         },
+        "/rooms/{room}/member-candidates": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "operationId": "searchMemberCandidates",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Поиск людей для приглашения по нику (owner/admin)",
+                "description": "Совпадение с начала ника без учёта регистра; ведущий `@` необязателен. Запрос короче двух символов не ищет ничего, ответ ограничен десятью людьми и той же частотой, что и приглашения.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 64
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Найденные люди.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MemberCandidate"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                }
+            }
+        },
         "/rooms/{room}/members": {
             "parameters": [
                 {
@@ -3026,6 +3125,39 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "removeMember",
+                "tags": [
+                    "members"
+                ],
+                "summary": "Исключение участника: владелец — любого, кроме себя; админ — только участника с обычной ролью",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Участник исключён."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "description": "Участник не найден в этой комнате либо комната не видна.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
                     }
                 }
             }

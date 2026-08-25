@@ -1,9 +1,11 @@
 import type { ApiClient } from '@vendor/api-client';
 import {
+  memberCandidateSchema,
   memberSchema,
   roomSchema,
   type CreateRoomInput,
   type Member,
+  type MemberCandidate,
   type Room,
   type UpdateRoomInput,
 } from './schemas/room';
@@ -37,6 +39,18 @@ export const roomsApi = {
     return memberSchema.parse(
       ((await client.post(`/rooms/${roomId}/members`, { body: { user_id: userId } })) as { data: unknown }).data,
     );
+  },
+  /** Кого можно позвать в комнату: поиск по началу ника. */
+  async memberCandidates(client: ApiClient, roomId: string, query: string): Promise<MemberCandidate[]> {
+    const response = (await client.get(`/rooms/${roomId}/member-candidates`, { query: { query } })) as {
+      data: unknown[];
+    };
+
+    return response.data.map((candidate) => memberCandidateSchema.parse(candidate));
+  },
+  /** Исключение участника: владелец — любого, админ — обычного участника. */
+  async removeMember(client: ApiClient, roomId: string, memberId: string): Promise<void> {
+    await client.delete(`/rooms/${roomId}/members/${memberId}`);
   },
   async join(client: ApiClient, roomId: string): Promise<Member> {
     return memberSchema.parse(((await client.post(`/rooms/${roomId}/members/me`)) as { data: unknown }).data);

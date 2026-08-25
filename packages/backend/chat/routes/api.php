@@ -24,10 +24,15 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::post('/rooms/{room}/archive', [RoomController::class, 'archive'])->name('rooms.archive');
 
         Route::get('/rooms/{room}/members', [MemberController::class, 'index'])->name('members.index');
+        // Поиск людей — это приглашение: та же частота, что и у самих приглашений.
+        Route::get('/rooms/{room}/member-candidates', [MemberController::class, 'candidates'])
+            ->middleware('throttle:chat-invites')
+            ->name('members.candidates');
         Route::post('/rooms/{room}/members', [MemberController::class, 'store'])->name('members.invite');
         Route::post('/rooms/{room}/members/me', [MemberController::class, 'join'])->name('members.join');
         Route::delete('/rooms/{room}/members/me', [MemberController::class, 'leave'])->name('members.leave');
         Route::patch('/rooms/{room}/members/{member}', [MemberController::class, 'update'])->name('members.role');
+        Route::delete('/rooms/{room}/members/{member}', [MemberController::class, 'destroy'])->name('members.remove');
 
         Route::get('/rooms/{room}/messages', [MessageController::class, 'index'])->name('messages.index');
         Route::post('/rooms/{room}/messages', [MessageController::class, 'store'])->name('messages.send');

@@ -15,7 +15,7 @@ export type MessageCreatedV1 = Envelope<'message.created.v1', {
   author: { id: string; name: string };
   body: string;
   /** Системное событие комнаты; текст формулирует клиент (design 1c). */
-  payload: { event: 'member.joined' | 'member.invited' | 'member.left'; actor_id: string } | null;
+  payload: { event: 'member.joined' | 'member.invited' | 'member.left' | 'member.removed'; actor_id: string } | null;
   reply_to_id: string | null;
   created_at: string;
 }>;

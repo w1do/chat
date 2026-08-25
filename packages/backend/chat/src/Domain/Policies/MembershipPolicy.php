@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Domain\Policies;
 
+use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Room;
@@ -32,6 +33,32 @@ final class MembershipPolicy
 
         // Owner не может покинуть комнату, не передав владение.
         return $role !== null && $role !== RoomRole::Owner;
+    }
+
+    /**
+     * Убрать из комнаты чужую запись участия. Владелец распоряжается составом
+     * целиком, админ помогает с обычными участниками. Постороннему комната не
+     * показана даже отказом — для него её просто нет.
+     */
+    public function remove(Authenticatable $user, Room $room, RoomMember $target): Response
+    {
+        $role = $room->roleOf($user);
+
+        if ($role === null) {
+            return Response::denyAsNotFound();
+        }
+
+        // Себя не исключают: для этого есть выход, а владелец без передачи
+        // владения не уходит вовсе — иначе комната останется без владельца.
+        if ($target->user_id === (string) $user->getAuthIdentifier()) {
+            return Response::deny();
+        }
+
+        return match ($role) {
+            RoomRole::Owner => Response::allow(),
+            RoomRole::Admin => $target->role === RoomRole::Member ? Response::allow() : Response::deny(),
+            RoomRole::Member => Response::deny(),
+        };
     }
 
     public function changeRole(Authenticatable $user, Room $room, RoomMember $target): bool
