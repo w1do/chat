@@ -17,8 +17,15 @@ RUN cd apps/chat-api \
 # --- Stage 2: runtime -------------------------------------------------------
 FROM dunglas/frankenphp:1.9-php8.4 AS runtime
 
-RUN install-php-extensions pcntl pdo_pgsql redis opcache intl zip \
+# Расширения, которые собираются из исходников самого образа: сеть не нужна.
+RUN install-php-extensions pcntl pdo_pgsql opcache intl zip \
     && useradd --create-home --uid 10001 app
+
+# phpredis тянется с pecl.php.net и потому доступен не в каждой сети.
+# Если его нет, приложение работает на predis (чистый PHP) — выбор клиента
+# делает config/database.php по факту наличия расширения.
+RUN install-php-extensions redis \
+    || echo "phpredis недоступен при сборке — будет использован predis"
 
 COPY infra/docker/api/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY infra/docker/api/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini

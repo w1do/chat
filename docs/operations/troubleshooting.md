@@ -23,3 +23,36 @@ curl -s https://<домен>/api/v1/readiness   # какой компонент 
   `/app/*` в конфиге proxy.
 - **После deploy исполняется старый код** — выполните `./tools/chat deploy reload`
   (octane:reload + horizon:terminate + reverb:restart).
+
+## Сборка падает на `No releases available for package "pecl.php.net/redis"`
+
+Сервер не смог скачать расширение phpredis с pecl.php.net — обычно это
+блокировка или недоступность реестра, а не ошибка сборки.
+
+Сборка это переживает: расширение необязательно, и образ соберётся без него.
+Приложение само выберет клиента — `phpredis`, если расширение собралось,
+иначе `predis` (чистый PHP, немного медленнее, функционально эквивалентен).
+Проверить, что выбрано:
+
+```bash
+docker compose exec api php artisan tinker --execute='echo config("database.redis.client");'
+```
+
+Клиента можно задать явно переменной `REDIS_CLIENT=predis` или
+`REDIS_CLIENT=phpredis`.
+
+Если сборка всё же падает на этом шаге, значит используется старый образ —
+обновите репозиторий (`git pull`) и пересоберите с `--build`.
+
+## Dokploy: `lstat /etc/dokploy/compose/<app>/code/infra: no such file or directory`
+
+Собирать не из чего: в рабочем каталоге Dokploy лежит только compose-файл, а
+исходников репозитория нет. Так бывает, когда сервис создан в режиме **Raw**
+(содержимое compose вставлено руками) или Git-источник не привязан.
+
+Проверьте в настройках сервиса:
+
+- **Provider** — Git/GitHub, репозиторий `w1do/chat`, ветка `main`;
+- **Compose Path** — `./docker-compose.yml`;
+- после изменения нажмите **Reload**, затем **Deploy**: Dokploy кэширует клон
+  и без перечитывания источника продолжит собирать из пустого каталога.

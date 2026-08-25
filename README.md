@@ -54,6 +54,18 @@ cookie-аутентификация: если он не совпадёт с ад
 `HTTP_PORT=80` — встроенный Caddy отдаёт и приложение, и API, и WebSocket на
 одном адресе.
 
+### Если сборка не проходит
+
+- `No releases available for package "pecl.php.net/redis"` — сервер не достучался
+  до PECL. Ничего делать не нужно: расширение необязательно, приложение
+  переключится на `predis`. Убедитесь только, что собираете актуальную версию
+  (`git pull`).
+- `lstat .../code/infra: no such file or directory` в Dokploy — сервис создан
+  без Git-источника (режим Raw), и собирать не из чего. Укажите Provider →
+  Git, репозиторий и ветку `main`, затем Reload и Deploy.
+
+Остальные случаи — [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md).
+
 ## Что умеет
 
 - **Комнаты** — публичные и приватные, роли `владелец` / `админ` / `участник`,

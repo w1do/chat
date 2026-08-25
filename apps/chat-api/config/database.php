@@ -147,7 +147,9 @@ return [
 
     'redis' => [
 
-        'client' => env('REDIS_CLIENT', 'phpredis'),
+        // phpredis быстрее, но качается с pecl.php.net, который доступен не
+        // везде: без расширения приложение работает на predis (чистый PHP).
+        'client' => env('REDIS_CLIENT') ?: (extension_loaded('redis') ? 'phpredis' : 'predis'),
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
