@@ -9,25 +9,9 @@
 Открытый исходный код. Никакой телеметрии, никакого внешнего control plane:
 приложение не звонит домой и не зависит ни от одного стороннего сервиса.
 
-## Запуск одной командой
+## Запуск
 
-```bash
-git clone git@github.com:w1do/chat.git
-cd chat
-docker compose up -d --build
-```
-
-Всё. Стек сам сгенерирует ключ приложения, применит миграции, создаст
-поисковый индекс и поднимет девять сервисов. Чат откроется на `http://<адрес
-сервера>` — регистрируйтесь первым и создавайте комнату.
-
-Первый администратор назначается на сервере:
-
-```bash
-docker compose exec api php artisan chat:grant-admin ваш_логин
-```
-
-### Развёртывание в Dokploy
+### В Dokploy (или за любым Traefik / nginx)
 
 1. **Create Service → Compose**, репозиторий `https://github.com/w1do/chat`,
    ветка `main`, Compose Path — `docker-compose.yml`.
@@ -42,17 +26,38 @@ docker compose exec api php artisan chat:grant-admin ваш_логин
    REVERB_APP_SECRET=…
    TYPESENSE_API_KEY=…
    ```
-3. **Domains** — домен на сервис `proxy`, порт `80`, включите HTTPS
-   (сертификат Dokploy выпустит сам).
+3. **Domains** — домен на сервис **`web`**, порт **`8080`**, включите HTTPS.
 4. **Deploy**.
 
-`APP_DOMAIN` — это то же, что `APP_URL`, но без `https://`. По нему работает
-cookie-аутентификация: если он не совпадёт с адресом в браузере, вход не
-удержится.
+Стек не публикует порты наружу: 80 и 443 остаются у вашей панели, а домен на
+контейнер направляет её Traefik. Наружу смотрит единственный сервис `web` — он
+отдаёт приложение и проксирует API и WebSocket внутрь, поэтому всё живёт на
+одном адресе (этого требует аутентификация по cookie).
 
-Для обычного VPS без Dokploy достаточно `docker compose up -d --build` и
-`HTTP_PORT=80` — встроенный Caddy отдаёт и приложение, и API, и WebSocket на
-одном адресе.
+`APP_DOMAIN` — то же, что `APP_URL`, но без `https://`. Если он не совпадёт с
+адресом в браузере, вход не удержится.
+
+### На своём VPS без панели
+
+```bash
+git clone https://github.com/w1do/chat.git && cd chat
+docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --build
+```
+
+Второй файл добавляет публикацию порта (`HTTP_PORT`, по умолчанию 80) — больше
+он ни для чего не нужен.
+
+### Первый запуск
+
+Стек сам сгенерирует ключ приложения, применит миграции, создаст поисковый
+индекс и поднимет восемь сервисов. Открывайте чат, регистрируйтесь первым и
+создавайте комнату.
+
+Первый администратор назначается на сервере:
+
+```bash
+docker compose exec api php artisan chat:grant-admin ваш_логин
+```
 
 ### Если сборка не проходит
 
@@ -63,6 +68,9 @@ cookie-аутентификация: если он не совпадёт с ад
 - `lstat .../code/infra: no such file or directory` в Dokploy — сервис создан
   без Git-источника (режим Raw), и собирать не из чего. Укажите Provider →
   Git, репозиторий и ветку `main`, затем Reload и Deploy.
+- `Bind for 0.0.0.0:80 failed: port is already allocated` — порт занят панелью.
+  Разворачивайте без `docker-compose.standalone.yml`: за Traefik публиковать
+  порт не нужно, домен направляется на сервис `web`, порт 8080.
 
 Остальные случаи — [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md).
 
@@ -140,7 +148,7 @@ Compose: `git pull && docker compose up -d --build`. Нет Kubernetes, нет
 
 **Инфраструктура**
 
-- Docker Compose, Caddy, Supervisor (для установки без Docker)
+- Docker Compose (восемь сервисов), Supervisor — для установки без Docker
 - OpenAPI 3.1 как источник истины: TypeScript-клиент генерируется из схемы
 - GitHub Actions: тесты, аудит зависимостей, сканирование секретов и образов,
   подписанные релизы с SBOM

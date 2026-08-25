@@ -1,0 +1,10 @@
+# Оверлей для сервера без панели-балансировщика: публикует порт наружу.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --build
+#
+# Под Dokploy, Coolify и любым другим Traefik/nginx этот файл НЕ нужен: там
+# домен направляется на сервис `web`, порт 8080, а 80/443 занимает панель.
+services:
+  web:
+    ports:
+      - "${HTTP_PORT:-80}:8080"
