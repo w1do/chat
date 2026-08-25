@@ -36,7 +36,8 @@
         "body",
         "payload",
         "reply_to_id",
-        "created_at"
+        "created_at",
+        "attachments"
       ],
       "additionalProperties": false,
       "properties": {
@@ -105,6 +106,64 @@
             }
           },
           "additionalProperties": false
+        },
+        "attachments": {
+          "type": "array",
+          "description": "Attachments in the same shape as the HTTP API: tiles render straight from the event without refetching history.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "mime_type",
+              "size",
+              "url",
+              "thumb_url",
+              "width",
+              "height"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "mime_type": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "url": {
+                "type": "string"
+              },
+              "thumb_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "null while the preview is still being generated or for files that never get one."
+              },
+              "width": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
         }
       }
     }

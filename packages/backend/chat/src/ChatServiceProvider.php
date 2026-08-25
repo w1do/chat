@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vendor\Chat;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -34,6 +35,7 @@ use Vendor\Chat\Infrastructure\Sanitizing\PlainTextSanitizer;
 use Vendor\Chat\Infrastructure\Search\IndexesMessages;
 use Vendor\Chat\Infrastructure\Search\NullMessageIndex;
 use Vendor\Chat\Infrastructure\Search\TypesenseMessageIndex;
+use Vendor\Chat\Presentation\Console\PruneAttachmentsCommand;
 use Vendor\Chat\Presentation\Console\ReindexMessagesCommand;
 
 final class ChatServiceProvider extends ServiceProvider
@@ -79,6 +81,12 @@ final class ChatServiceProvider extends ServiceProvider
             (int) config('chat.invites.lookup_per_minute', 20),
         )->by($request->ip()));
 
+        // Приём файлов занимает worker и трафик: частота ограничена на
+        // пользователя (spec chat/attachments).
+        RateLimiter::for('chat-attachments', fn (Request $request) => Limit::perMinute(
+            (int) config('chat.attachments.per_minute', 30),
+        )->by((string) $request->user()?->getAuthIdentifier()));
+
         Gate::policy(Room::class, RoomPolicy::class);
         Gate::policy(RoomMember::class, MembershipPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
@@ -99,7 +107,14 @@ final class ChatServiceProvider extends ServiceProvider
         Event::listen(RoomDeleted::class, [IndexesMessages::class, 'onRoomDeleted']);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ReindexMessagesCommand::class]);
+            $this->commands([ReindexMessagesCommand::class, PruneAttachmentsCommand::class]);
+
+            // Брошенные загрузки убираются раз в час; сам срок жизни — в
+            // конфигурации (design 3). Расписание живёт при пакете: команда
+            // и её периодичность — одно целое.
+            $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+                $schedule->command('chat:attachments-prune')->hourly();
+            });
         }
 
         if (config('chat.routes.enabled', true)) {

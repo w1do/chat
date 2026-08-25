@@ -39,13 +39,15 @@ export function useSendMessage(roomId: string, authorId: string) {
         // здесь она не нужна и не создаёт мигания.
         author_avatar_url: null,
         reply_to_id: input.reply_to_id ?? null,
-        body: input.body,
+        body: input.body ?? '',
         mentions: input.mentions ?? [],
         edited_at: null,
         deleted: false,
         created_at: new Date().toISOString(),
         reactions: [],
         payload: null,
+        // Плитки появятся с ответом сервера: локальная запись живёт мгновение.
+        attachments: [],
       };
 
       queryClient.setQueryData<MessagesData>(messagesKey(roomId), (data) => {

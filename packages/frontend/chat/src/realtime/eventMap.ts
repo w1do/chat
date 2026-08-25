@@ -1,6 +1,8 @@
 // Типы версионированных real-time событий. Источник истины —
 // packages/contracts/realtime/*.schema.json; типы повторяют схемы 1:1.
 
+import type { Attachment } from '../schemas/message';
+
 interface Envelope<TEvent extends string, TData> {
   event: TEvent;
   version: 1;
@@ -18,6 +20,8 @@ export type MessageCreatedV1 = Envelope<'message.created.v1', {
   payload: { event: 'member.joined' | 'member.invited' | 'member.left' | 'member.removed'; actor_id: string } | null;
   reply_to_id: string | null;
   created_at: string;
+  /** Та же форма, что в HTTP API: плитки рисуются сразу из события. */
+  attachments: Attachment[];
 }>;
 
 export type MessageUpdatedV1 = Envelope<'message.updated.v1', {

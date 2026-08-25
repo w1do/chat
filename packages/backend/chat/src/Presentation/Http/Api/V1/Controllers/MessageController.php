@@ -54,10 +54,11 @@ final class MessageController
         $result = $handler->handle(new SendMessageCommand(
             roomId: $room->id,
             authorId: (string) $request->user()->getAuthIdentifier(),
-            body: $validated['body'],
+            body: $validated['body'] ?? '',
             replyToId: $validated['reply_to_id'] ?? null,
             mentions: $validated['mentions'] ?? [],
             idempotencyKey: $request->header('Idempotency-Key'),
+            attachments: $validated['attachments'] ?? [],
         ));
 
         return MessageResource::make($result['message'])

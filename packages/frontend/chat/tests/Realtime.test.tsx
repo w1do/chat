@@ -51,6 +51,7 @@ const initialPage: MessagePage = {
       deleted: false,
       created_at: '2026-08-24T11:00:00Z',
       reactions: [],
+      attachments: [],
     },
   ],
   meta: { next_cursor: null },

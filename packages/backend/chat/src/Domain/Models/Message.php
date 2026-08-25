@@ -12,8 +12,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Vendor\Chat\Database\Factories\MessageFactory;
 use Vendor\Chat\Domain\Enums\MessageKind;
+use Vendor\Chat\Domain\Models\Concerns\PreparesAttachmentPreviews;
 
 /**
  * @property string $id
@@ -28,13 +33,21 @@ use Vendor\Chat\Domain\Enums\MessageKind;
  * @property ?Carbon $deleted_at
  * @property ?Carbon $created_at
  */
-class Message extends Model
+class Message extends Model implements HasMedia
 {
     /** @use HasFactory<MessageFactory> */
     use HasFactory;
 
     use HasUlids;
+    use InteractsWithMedia;
+    use PreparesAttachmentPreviews;
     use SoftDeletes;
+
+    /** Вложения сообщения: файлы в объектном хранилище под uploads/. */
+    public const ATTACHMENTS = 'attachments';
+
+    /** Имя конверсии-миниатюры для изображений-вложений. */
+    public const ATTACHMENT_PREVIEW = 'preview';
 
     protected $table = 'messages';
 
@@ -66,6 +79,22 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::ATTACHMENTS);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->registerAttachmentPreviewConversion();
+    }
+
+    /** @return MediaCollection<int, Media> */
+    public function attachments(): MediaCollection
+    {
+        return $this->getMedia(self::ATTACHMENTS);
     }
 
     public function isSystem(): bool

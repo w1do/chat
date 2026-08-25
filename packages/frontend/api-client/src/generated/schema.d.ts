@@ -88,6 +88,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attachments/{attachment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Файл вложения (отдаётся на скачивание)
+         * @description Доступен тем, кто вправе читать сообщение. Ответ уходит с заголовком «Content-Disposition: attachment» — браузер не исполняет содержимое. Вложения удалённого сообщения не отдаются.
+         */
+        get: operations["downloadAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attachments/{attachment}/thumb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Миниатюра изображения-вложения (webp)
+         * @description Есть только у изображений и только когда конверсия готова.
+         */
+        get: operations["showAttachmentThumb"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/forgot-password": {
         parameters: {
             query?: never;
@@ -651,6 +695,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{room}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Загрузка вложения до отправки сообщения
+         * @description Файл загружается отдельным запросом; сообщение затем отправляется со списком идентификаторов. Право — то же, что на отправку сообщения. Принимаются только типы из белого списка установки; исполняемые файлы отклоняются. Не отправленное вложение убирается по расписанию.
+         */
+        post: operations["uploadAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{room}/invites": {
         parameters: {
             query?: never;
@@ -885,6 +951,24 @@ export interface components {
             };
             trace_id: string | null;
         };
+        Attachment: {
+            /** @description UUID вложения. */
+            id: string;
+            /** @description Имя файла, как его показывают человеку. */
+            name: string;
+            /** @description Тип содержимого, определённый сервером. */
+            mime_type: string;
+            /** @description Размер файла в байтах. */
+            size: number;
+            /** @description Адрес скачивания через приложение по праву чтения сообщения. */
+            url: string;
+            /** @description Адрес миниатюры изображения. null — миниатюра ещё готовится или файлу не положена (не-изображения); это описанное состояние контракта, а не ошибка. */
+            thumb_url: string | null;
+            /** @description Ширина исходного изображения; null у не-изображений. */
+            width: number | null;
+            /** @description Высота исходного изображения; null у не-изображений. */
+            height: number | null;
+        };
         AuditEntry: unknown;
         Invite: unknown;
         InviteAccepted: unknown;
@@ -935,6 +1019,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             reactions: components["schemas"]["Reaction"][];
+            /** @description Вложения сообщения; пустой список у сообщения без вложений. У мягко удалённого сообщения поле отсутствует — его вложения не перечисляются. */
+            attachments?: components["schemas"]["Attachment"][];
             /** @description Данные системного события (event, actor_id); null для обычных сообщений. */
             payload: {
                 /** @enum {string} */
@@ -1315,6 +1401,54 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    downloadAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Содержимое файла. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    showAttachmentThumb: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Миниатюра. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
         };
     };
     forgotPassword: {
@@ -2486,6 +2620,50 @@ export interface operations {
             };
         };
     };
+    uploadAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Файл принят и лежит в объектном хранилище. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Attachment"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Приватная комната не показана постороннему. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     createRoomInvite: {
         parameters: {
             query?: never;
@@ -2783,9 +2961,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    body: string;
+                    body?: string | null;
                     reply_to_id?: string | null;
                     mentions?: string[];
+                    /** @description UUID загруженных вложений этого же автора и этой же комнаты; предел количества задаётся установкой (по умолчанию 10). */
+                    attachments?: string[];
                 };
             };
         };

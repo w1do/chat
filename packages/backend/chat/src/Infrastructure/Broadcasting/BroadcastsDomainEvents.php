@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vendor\Chat\Infrastructure\Broadcasting;
 
 use Illuminate\Contracts\Events\Dispatcher;
+use Vendor\Chat\Application\DTOs\AttachmentData;
 use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\MessageDeleted;
 use Vendor\Chat\Domain\Events\MessageUpdated;
@@ -42,6 +43,12 @@ final readonly class BroadcastsDomainEvents
             'payload' => $message->payload,
             'reply_to_id' => $message->reply_to_id,
             'created_at' => (string) $message->created_at?->toIso8601ZuluString(),
+            // Та же форма, что в HTTP API: плитки у собеседника появляются
+            // сразу из события, без перезапроса истории (design 8).
+            'attachments' => array_map(
+                fn (AttachmentData $attachment): array => $attachment->toArray(),
+                AttachmentData::forMessage($message),
+            ),
         ], now()->toIso8601ZuluString()));
     }
 

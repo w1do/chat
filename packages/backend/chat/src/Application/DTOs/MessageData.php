@@ -11,6 +11,7 @@ final readonly class MessageData
     /**
      * @param  list<string>  $mentions
      * @param  list<ReactionData>  $reactions
+     * @param  list<AttachmentData>  $attachments  пусто и у удалённого: его файлы не раскрываются
      */
     public function __construct(
         public string $id,
@@ -29,6 +30,7 @@ final readonly class MessageData
         public array $reactions = [],
         /** @var ?array<string, mixed> */
         public ?array $payload = null,
+        public array $attachments = [],
     ) {}
 
     /** @param list<ReactionData> $reactions */
@@ -52,6 +54,7 @@ final readonly class MessageData
             createdAt: (string) $message->created_at?->toIso8601String(),
             reactions: $reactions,
             payload: $message->payload,
+            attachments: $deleted ? [] : AttachmentData::forMessage($message),
         );
     }
 }

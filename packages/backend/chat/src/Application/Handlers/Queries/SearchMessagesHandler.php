@@ -44,6 +44,7 @@ final readonly class SearchMessagesHandler
 
         // Удалённые и системные записи не выдаём, даже если индекс отстал.
         $messages = Message::query()
+            ->with('media')
             ->whereIn('id', $ids)
             ->whereIn('room_id', $roomIds)
             ->where('kind', 'text')

@@ -17,6 +17,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Vendor\Chat\Database\Factories\RoomFactory;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Enums\RoomVisibility;
+use Vendor\Chat\Domain\Models\Concerns\PreparesAttachmentPreviews;
 
 /**
  * @property string $id
@@ -34,6 +35,7 @@ class Room extends Model implements HasMedia
 
     use HasUlids;
     use InteractsWithMedia;
+    use PreparesAttachmentPreviews;
 
     /** Фотография комнаты: одна, новая вытесняет прежнюю. */
     public const PHOTO = 'room-photo';
@@ -71,6 +73,10 @@ class Room extends Model implements HasMedia
             ->format('webp')
             ->width((int) config('chat.images.photo.thumb', 128))
             ->height((int) config('chat.images.photo.thumb', 128));
+
+        // Ещё не отправленные вложения висят на комнате (design 3): их
+        // миниатюры готовятся той же конверсией, что и у сообщения.
+        $this->registerAttachmentPreviewConversion();
     }
 
     public function photo(): ?Media

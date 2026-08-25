@@ -25,6 +25,8 @@ final readonly class ListMessagesHandler
         // строки включаются: история сохраняет позиции и связи ответов.
         $messages = Message::query()
             ->withTrashed()
+            // Вложения — без N+1: медиа всех сообщений одним запросом.
+            ->with('media')
             ->where('room_id', $query->roomId)
             ->when(! $cursor->isStart(), fn ($q) => $q->where('id', '<', $cursor->beforeId))
             ->orderByDesc('id')

@@ -3,6 +3,7 @@ import { Check, CheckCheck, CornerUpLeft } from 'lucide-react';
 import { useState } from 'react';
 import { formatTime } from '../../format';
 import { useMessageGestures, SWIPE_THRESHOLD_PX } from '../../hooks/useMessageGestures';
+import { MessageAttachments } from './AttachmentTiles';
 import type { Message } from '../../schemas/message';
 
 interface MessageBubbleProps {
@@ -21,6 +22,8 @@ interface MessageBubbleProps {
   onOpenActions: (message: Message) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onJump: (messageId: string) => void;
+  /** Открытие галереи по нажатию на плитку изображения. */
+  onOpenAttachment?: (message: Message, attachmentId: string) => void;
 }
 
 /** Быстрая реакция двойным касанием — одна и та же во всём приложении. */
@@ -46,6 +49,7 @@ export function MessageBubble({
   onOpenActions,
   onToggleReaction,
   onJump,
+  onOpenAttachment,
 }: MessageBubbleProps) {
   const reactionCount = message.reactions.reduce((sum, reaction) => sum + reaction.count, 0);
   const deleted = message.deleted;
@@ -138,23 +142,38 @@ export function MessageBubble({
                   ? 'Сообщение не загружено'
                   : reply.deleted
                     ? 'Сообщение удалено'
-                    : reply.body}
+                    : reply.body || (reply.attachments.length > 0 ? 'Вложение' : '')}
               </span>
             </span>
           </button>
         ) : null}
 
-        <p
-          style={{
-            fontSize,
-            lineHeight: 1.42,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            fontStyle: deleted ? 'italic' : 'normal',
-          }}
-        >
-          {deleted ? 'Сообщение удалено' : message.body}
-        </p>
+        {!deleted && message.attachments.length > 0 ? (
+          <div className={message.body ? 'mb-1' : ''}>
+            <MessageAttachments
+              attachments={message.attachments}
+              own={own}
+              theme={theme}
+              fontSize={fontSize}
+              onOpenImage={(attachmentId) => onOpenAttachment?.(message, attachmentId)}
+            />
+          </div>
+        ) : null}
+
+        {/* Сообщение из одних вложений обходится без пустого абзаца. */}
+        {deleted || message.body ? (
+          <p
+            style={{
+              fontSize,
+              lineHeight: 1.42,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontStyle: deleted ? 'italic' : 'normal',
+            }}
+          >
+            {deleted ? 'Сообщение удалено' : message.body}
+          </p>
+        ) : null}
 
         {last && !deleted ? (
           <span

@@ -45,6 +45,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   deleted: false,
   created_at: new Date().toISOString(),
   reactions: [],
+  attachments: [],
   payload: null,
   ...extra,
 });

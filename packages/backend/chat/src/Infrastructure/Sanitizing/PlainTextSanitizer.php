@@ -15,4 +15,9 @@ final readonly class PlainTextSanitizer implements MessageSanitizer
     {
         return MessageBody::fromUserInput($raw, $this->maxLength);
     }
+
+    public function sanitizeOptional(string $raw): ?MessageBody
+    {
+        return MessageBody::tryFromUserInput($raw, $this->maxLength);
+    }
 }

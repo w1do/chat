@@ -6,6 +6,7 @@ namespace Vendor\Chat\Presentation\Http\Api\V1\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Vendor\Chat\Application\DTOs\AttachmentData;
 use Vendor\Chat\Application\DTOs\MessageData;
 use Vendor\Chat\Application\DTOs\ReactionData;
 
@@ -34,6 +35,12 @@ final class MessageResource extends JsonResource
                 'reacted_by_me' => $reaction->reactedByMe,
             ], $this->resource->reactions),
             'payload' => $this->resource->payload,
+            // У удалённого сообщения списка нет вовсе: его вложения не
+            // перечисляются (spec contracts/api-and-realtime).
+            'attachments' => $this->when(! $this->resource->deleted, fn (): array => array_map(
+                fn (AttachmentData $attachment): array => $attachment->toArray(),
+                $this->resource->attachments,
+            )),
         ];
     }
 }
