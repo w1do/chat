@@ -30,6 +30,9 @@ final readonly class RegisterUserHandler
             'password' => $command->password,
         ]);
 
+        // Не через массовое присваивание: поле служебное и не приходит извне.
+        $user->forceFill(['password_set_at' => now()])->save();
+
         // Значения по умолчанию (locale, timezone) задаёт БД — перечитываем,
         // чтобы ответ не содержал пустых строк.
         $user->refresh();

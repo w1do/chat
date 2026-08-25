@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { RedirectIfAuthenticated, RequireAuth } from './guards';
 import { AdminPage } from '../pages/AdminPage';
 import { ChatPage } from '../pages/ChatPage';
+import { InvitePage } from '../pages/InvitePage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
@@ -12,6 +13,8 @@ export function createAppRouter() {
   return createBrowserRouter([
     { path: '/', element: <RequireAuth><ChatPage /></RequireAuth> },
     { path: '/rooms/:roomId', element: <RequireAuth><ChatPage /></RequireAuth> },
+    // Приглашение открывают до входа: аккаунта у человека ещё нет.
+    { path: '/invite/:token', element: <InvitePage /> },
     { path: '/login', element: <RedirectIfAuthenticated><LoginPage /></RedirectIfAuthenticated> },
     { path: '/rooms/:roomId/settings', element: <RequireAuth><RoomSettingsPage /></RequireAuth> },
     { path: '/notifications', element: <RequireAuth><NotificationsPage /></RequireAuth> },

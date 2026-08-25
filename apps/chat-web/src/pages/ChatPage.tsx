@@ -38,6 +38,7 @@ import { runtimeConfig } from '../app/runtime-config';
 import { applyTabCounter, raiseSystemNotification } from '../app/notifications';
 import { useNotificationFeed } from '@vendor/notifications';
 import { useInstallPrompt } from '../app/install';
+import { createInvite } from '../app/invite';
 import { useSettings, type AppSettings } from '../app/settings';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -406,6 +407,17 @@ function ActiveRoom({
         }}
         onBack={onBack}
         onOpenMembers={onOpenMembers}
+        onInvite={async () => {
+          try {
+            const invite = await createInvite(room.data!.id, room.data!.name);
+
+            // Если буфер недоступен, показываем саму ссылку — приглашение не
+            // должно молча пропасть.
+            onToast(invite.copied ? 'Приглашение скопировано' : invite.link);
+          } catch {
+            onToast('Не удалось создать приглашение');
+          }
+        }}
         onLoadMore={() => void messages.fetchNextPage()}
         onSend={async (input) => {
           typing.stopTyping();

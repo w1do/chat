@@ -17,6 +17,8 @@ final readonly class UserData
         public string $timezone,
         public ?string $emailVerifiedAt,
         public string $createdAt,
+        /** Пароль выбрал сам человек, а не система (аккаунт по приглашению). */
+        public bool $passwordSet = true,
     ) {}
 
     public static function fromModel(User $user): self
@@ -30,6 +32,7 @@ final readonly class UserData
             timezone: (string) $user->timezone,
             emailVerifiedAt: $user->email_verified_at?->toIso8601String(),
             createdAt: (string) $user->created_at?->toIso8601String(),
+            passwordSet: $user->password_set_at !== null,
         );
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\InviteAcceptController;
 use App\Http\Controllers\ReadinessController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,3 +14,9 @@ use Illuminate\Support\Facades\Route;
 // (liveness — стандартный /up). Отчёт: octane, database, redis, queue,
 // websocket, search.
 Route::get('/api/v1/readiness', ReadinessController::class)->name('readiness');
+
+// Приём приглашения соединяет два пакета (аккаунт и комната), поэтому живёт в
+// composition root. Доступен без входа: человек ещё не в системе.
+Route::post('/api/v1/invites/{token}/accept', InviteAcceptController::class)
+    ->middleware(['api', 'throttle:chat-invite-accept'])
+    ->name('invites.accept');

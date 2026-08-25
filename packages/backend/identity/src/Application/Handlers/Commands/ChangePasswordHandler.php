@@ -31,6 +31,8 @@ final readonly class ChangePasswordHandler
         // Новый remember_token разлогинивает украденные «запомнить меня» сессии.
         $user->forceFill([
             'password' => $command->newPassword,
+            // С этого момента пароль принадлежит человеку, а не системе.
+            'password_set_at' => now(),
             'remember_token' => Str::random(60),
         ])->save();
     }

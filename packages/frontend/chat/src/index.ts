@@ -1,5 +1,5 @@
 // Публичный entrypoint пакета @vendor/chat.
-export { aiApi, messagesApi, roomsApi, searchApi } from './api';
+export { aiApi, invitesApi, messagesApi, roomsApi, searchApi, type Invite } from './api';
 export { ChatProvider, useChatClient } from './adapters/ChatProvider';
 export { EchoAdapter } from './adapters/EchoAdapter';
 export type {

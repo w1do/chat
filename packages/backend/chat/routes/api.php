@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\InviteController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\ReactionController;
@@ -34,6 +35,19 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->name('messages.delete');
         Route::post('/messages/{message}/reactions', [ReactionController::class, 'toggle'])->name('reactions.toggle');
         Route::post('/rooms/{room}/typing', [TypingController::class, 'store'])->name('typing.set');
+        Route::post('/rooms/{room}/invites', [InviteController::class, 'store'])
+            ->middleware('throttle:chat-invites')
+            ->name('invites.create');
+        Route::delete('/invites/{invite}', [InviteController::class, 'destroy'])->name('invites.revoke');
+
         Route::get('/search/messages', [SearchController::class, 'index'])->name('search.messages');
         Route::post('/rooms/{room}/read', [MessageController::class, 'markRead'])->name('messages.read');
+    });
+
+// Сведения о приглашении нужны до входа: по ним человек решает, идти ли.
+Route::prefix(config('chat.routes.prefix', 'api/v1'))
+    ->middleware([...config('chat.routes.middleware', ['api']), 'throttle:chat-invite-lookup'])
+    ->name('chat.')
+    ->group(function (): void {
+        Route::get('/invites/{token}', [InviteController::class, 'show'])->name('invites.show');
     });

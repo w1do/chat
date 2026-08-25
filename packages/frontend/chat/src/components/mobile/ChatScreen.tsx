@@ -12,7 +12,7 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Search, Send, Smile, Sparkles } from 'lucide-react';
+import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   dayLabel,
@@ -64,6 +64,8 @@ interface ChatScreenProps {
   onUndoMagic: () => void;
   onJoin?: () => Promise<unknown>;
   onOpenMembers?: () => void;
+  /** Приглашение: экран отдаёт наружу готовый текст со ссылкой. */
+  onInvite?: () => void;
   /** Черновик под управлением приложения: помощник его заменяет. */
   draft: string;
   onDraftChange: (text: string) => void;
@@ -100,6 +102,7 @@ export function ChatScreen({
   onUndoMagic,
   onJoin,
   onOpenMembers,
+  onInvite,
   draft,
   onDraftChange,
   onToast,
@@ -233,6 +236,16 @@ export function ChatScreen({
         >
           <Search size={19} />
         </button>
+        {onInvite ? (
+          <button
+            type="button"
+            onClick={onInvite}
+            className="flex items-center gap-1 tap order-last shrink-0 px-2"
+            style={{ height: 30, borderRadius: 15, background: theme.surfaceAlt, color: theme.text, fontSize: 13 }}
+          >
+            <UserPlus size={15} /> Пригласить
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenMembers}

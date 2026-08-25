@@ -47,6 +47,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Ресурс не найден или недоступен.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: Действие противоречит текущему состоянию.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    RateLimited:
+      description: Слишком много запросов; повторите позже.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
     ServiceUnavailable:
       description: Зависимость временно недоступна; основной сценарий продолжает работать.
       content:

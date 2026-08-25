@@ -3,11 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Hash;
+use Vendor\Identity\Application\Commands\CreateInvitedUserCommand;
+use Vendor\Identity\Application\Handlers\Commands\CreateInvitedUserHandler;
 use Vendor\Identity\Domain\Models\User;
 
 it('registers the identity package config', function (): void {
     expect(config('identity.routes.enabled'))->toBeTrue()
-        ->and(config('identity.password.min_length'))->toBe(10);
+        // Простые пароли разрешены: минимум задаёт установка (design, решение 5).
+        ->and(config('identity.password.min_length'))->toBe(1);
 });
 
 it('creates users with ulid keys, a login and hidden credentials', function (): void {
@@ -25,4 +28,47 @@ it('hashes passwords via the cast', function (): void {
 
     expect($user->password)->not->toBe('super-secret-password')
         ->and(Hash::check('super-secret-password', $user->password))->toBeTrue();
+});
+
+it('accepts a short password and remembers who chose it', function (): void {
+    $this->postJson('/api/v1/auth/register', [
+        'login' => 'korotkiy',
+        'name' => 'Короткий',
+        'password' => '1',
+    ])->assertCreated();
+
+    $user = User::query()->where('username', 'korotkiy')->sole();
+
+    // Пароль выбрал человек — подсказка «задайте свой пароль» ему не нужна.
+    expect($user->password_set_at)->not->toBeNull();
+});
+
+it('still requires a password to be present', function (): void {
+    $this->postJson('/api/v1/auth/register', [
+        'login' => 'bezparolya',
+        'name' => 'Без пароля',
+        'password' => '',
+    ])->assertStatus(422);
+});
+
+it('creates an account for an invited person with a readable login', function (): void {
+    $user = app(CreateInvitedUserHandler::class)
+        ->handle(new CreateInvitedUserCommand('Надя'));
+
+    expect($user->name)->toBe('Надя')
+        ->and($user->username)->toContain('-')
+        ->and($user->email)->toBeNull();
+
+    // Пароль выдан системой: подсказка «задайте свой» человеку понадобится.
+    expect(User::query()->whereKey($user->id)->value('password_set_at'))->toBeNull();
+});
+
+it('keeps generated logins unique', function (): void {
+    $handler = app(CreateInvitedUserHandler::class);
+    $command = new CreateInvitedUserCommand('Надя');
+
+    $first = $handler->handle($command);
+    $second = $handler->handle($command);
+
+    expect($first->username)->not->toBe($second->username);
 });

@@ -74,6 +74,19 @@ export function SettingsScreen({
   return (
     <div className="relative h-full" style={{ background: theme.bg }}>
       <Screen theme={theme} header={renderHeader()} contentStyle={{ paddingTop: 8, paddingBottom: 96 }}>
+        {user && user.password_set === false ? (
+          <Group theme={theme}>
+            <Row
+              theme={theme}
+              title="Задайте свой пароль"
+              hint="Вы вошли по приглашению: пока пароль не задан, вход держится только на этом устройстве"
+              value="Задать"
+              onClick={() => setSheet('password')}
+              last
+            />
+          </Group>
+        ) : null}
+
         <Group theme={theme} label="Профиль">
           <Row
             theme={theme}

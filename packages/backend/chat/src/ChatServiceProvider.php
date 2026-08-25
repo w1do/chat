@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Vendor\Chat;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Vendor\Chat\Domain\Contracts\MessageIndex;
 use Vendor\Chat\Domain\Contracts\MessageSanitizer;
@@ -60,6 +63,15 @@ final class ChatServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Ссылка — это доступ: и раздачу, и вход по ней ограничиваем.
+        RateLimiter::for('chat-invites', fn (Request $request) => Limit::perMinute(
+            (int) config('chat.invites.create_per_minute', 10),
+        )->by((string) $request->user()?->getAuthIdentifier()));
+
+        RateLimiter::for('chat-invite-lookup', fn (Request $request) => Limit::perMinute(
+            (int) config('chat.invites.lookup_per_minute', 20),
+        )->by($request->ip()));
 
         Gate::policy(Room::class, RoomPolicy::class);
         Gate::policy(RoomMember::class, MembershipPolicy::class);

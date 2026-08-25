@@ -35,6 +35,14 @@ return [
         ],
     ],
 
+    // Ссылки-приглашения в комнату.
+    'invites' => [
+        'lifetime_days' => (int) env('INVITE_LIFETIME_DAYS', 7),
+        'create_per_minute' => (int) env('INVITE_CREATE_PER_MINUTE', 10),
+        'lookup_per_minute' => (int) env('INVITE_LOOKUP_PER_MINUTE', 20),
+        'accept_per_minute' => (int) env('INVITE_ACCEPT_PER_MINUTE', 10),
+    ],
+
     'routes' => [
         'enabled' => true,
         'prefix' => 'api/v1',

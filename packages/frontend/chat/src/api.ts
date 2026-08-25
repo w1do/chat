@@ -71,6 +71,38 @@ export const messagesApi = {
   },
 };
 
+// --- Приглашения ---------------------------------------------------------
+
+export interface Invite {
+  id: string;
+  room_id: string;
+  room_name: string;
+  invited_by_name: string | null;
+  expires_at: string;
+  /** Токен приходит только сразу после создания ссылки. */
+  token: string | null;
+}
+
+export const invitesApi = {
+  async create(client: ApiClient, roomId: string): Promise<Invite> {
+    return ((await client.post(`/rooms/${roomId}/invites`)) as { data: Invite }).data;
+  },
+  async show(client: ApiClient, token: string): Promise<Invite> {
+    return ((await client.get(`/invites/${token}`)) as { data: Invite }).data;
+  },
+  async accept(
+    client: ApiClient,
+    token: string,
+    name?: string,
+  ): Promise<{ room_id: string; created_account: boolean }> {
+    const response = (await client.post(`/invites/${token}/accept`, {
+      body: name === undefined ? {} : { name },
+    })) as { data: { room_id: string; created_account: boolean } };
+
+    return response.data;
+  },
+};
+
 // --- Поиск -------------------------------------------------------------------
 
 export const searchApi = {

@@ -10,9 +10,13 @@ export function apiClient(): ApiClient {
     client = new ApiClient({
       baseUrl: runtimeConfig().apiBaseUrl,
       onUnauthenticated: () => {
-        if (!window.location.pathname.startsWith('/login')) {
-          window.location.assign('/login');
-        }
+        const path = window.location.pathname;
+
+        // Экран приглашения открывают до входа: 401 там ожидаем и не повод
+        // выкидывать человека на форму входа.
+        if (path.startsWith('/login') || path.startsWith('/invite/')) return;
+
+        window.location.assign('/login');
       },
     });
   }

@@ -23,6 +23,7 @@ use Vendor\SharedKernel\Contracts\Actor;
  * @property string $locale
  * @property string $timezone
  * @property ?Carbon $email_verified_at
+ * @property ?Carbon $password_set_at
  * @property ?Carbon $created_at
  * @property string $password
  *                            Приложение наследует её в App\Models\User
@@ -58,6 +59,7 @@ class User extends Authenticatable implements Actor
     protected function casts(): array
     {
         return [
+            'password_set_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];

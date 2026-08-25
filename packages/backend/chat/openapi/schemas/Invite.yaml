@@ -1,0 +1,12 @@
+Invite:
+  type: object
+  required: [id, room_id, room_name, expires_at]
+  properties:
+    id: { type: string }
+    room_id: { type: string }
+    room_name: { type: string }
+    invited_by_name: { type: [string, "null"] }
+    expires_at: { type: string, format: date-time }
+    token:
+      type: [string, "null"]
+      description: Возвращается только сразу после создания приглашения.

@@ -173,6 +173,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invites/{invite}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Отозвать приглашение
+         * @description Ссылка перестаёт работать немедленно.
+         */
+        delete: operations["revokeRoomInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Сведения о приглашении
+         * @description Доступно без входа: по этим данным человек решает, принимать ли приглашение. Отозванная, просроченная и несуществующая ссылка отвечают одинаково — 404.
+         */
+        get: operations["showRoomInvite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Принять приглашение
+         * @description Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются, меняются в настройках) и открывается сессия. Вошедший пользователь просто вступает в комнату, второй аккаунт не создаётся.
+         */
+        post: operations["acceptRoomInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -396,6 +462,28 @@ export interface paths {
         patch: operations["updateRoom"];
         trace?: never;
     };
+    "/rooms/{room}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Создать ссылку-приглашение в комнату
+         * @description Создаёт любой участник комнаты. Токен возвращается один раз — в этом ответе: в базе хранится только его хэш.
+         */
+        post: operations["createRoomInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{room}/members": {
         parameters: {
             query?: never;
@@ -547,6 +635,8 @@ export interface components {
             trace_id: string | null;
         };
         AuditEntry: unknown;
+        Invite: unknown;
+        InviteAccepted: unknown;
         Member: {
             /** @description ULID записи членства. */
             id: string;
@@ -698,6 +788,33 @@ export interface components {
         };
         /** @description Действие запрещено политикой доступа. */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Ресурс не найден или недоступен. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Действие противоречит текущему состоянию. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Слишком много запросов; повторите позже. */
+        RateLimited: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1079,6 +1196,96 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    revokeRoomInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Приглашение отозвано. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    showRoomInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Куда и кто приглашает. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Invite"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    acceptRoomInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Имя гостя; для вошедшего пользователя не нужно. */
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Вошедший пользователь вступил в комнату. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteAccepted"];
+                };
+            };
+            /** @description Гостю создан аккаунт, он в комнате. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteAccepted"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getMe: {
@@ -1666,6 +1873,33 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    createRoomInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Приглашение создано. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Invite"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     listMembers: {

@@ -9,10 +9,12 @@ use App\Administration\RecordsAiAudit;
 use App\Models\User;
 use App\Notifications\NotifiesRoomActivity;
 use App\Notifications\PresenceActivityInspector;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Access\Gate as GateContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Horizon\Horizon;
 use Spatie\Permission\PermissionRegistrar;
@@ -39,6 +41,11 @@ final class PackageWiringProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Вступление по ссылке создаёт аккаунты, поэтому ограничено по адресу.
+        RateLimiter::for('chat-invite-accept', fn (Request $request) => Limit::perMinute(
+            (int) config('chat.invites.accept_per_minute', 10),
+        )->by($request->ip()));
+
         Event::listen(MessageCreated::class, [NotifiesRoomActivity::class, 'onMessageCreated']);
         Event::listen(RoomMemberChanged::class, [NotifiesRoomActivity::class, 'onRoomMemberChanged']);
 

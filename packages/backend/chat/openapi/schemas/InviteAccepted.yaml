@@ -1,0 +1,12 @@
+InviteAccepted:
+  type: object
+  required: [data]
+  properties:
+    data:
+      type: object
+      required: [room_id, created_account]
+      properties:
+        room_id: { type: string }
+        created_account:
+          type: boolean
+          description: true — для гостя был создан новый аккаунт.

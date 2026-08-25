@@ -18,6 +18,8 @@ export interface AuthUser {
   timezone: string;
   email_verified_at: string | null;
   created_at: string;
+  /** false — пароль выдан системой при входе по приглашению. */
+  password_set?: boolean;
 }
 
 interface UserEnvelope {

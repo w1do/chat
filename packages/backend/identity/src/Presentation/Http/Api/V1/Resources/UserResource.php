@@ -23,6 +23,7 @@ final class UserResource extends JsonResource
             'timezone' => $this->resource->timezone,
             'email_verified_at' => $this->resource->emailVerifiedAt,
             'created_at' => $this->resource->createdAt,
+            'password_set' => $this->resource->passwordSet,
         ];
     }
 }

@@ -1,0 +1,109 @@
+/rooms/{room}/invites:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    operationId: createRoomInvite
+    tags: [membership]
+    summary: Создать ссылку-приглашение в комнату
+    description: >
+      Создаёт любой участник комнаты. Токен возвращается один раз — в этом
+      ответе: в базе хранится только его хэш.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '201':
+        description: Приглашение создано.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Invite' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '409': { $ref: '#/components/responses/Conflict' }
+/invites/{invite}:
+  parameters:
+    - name: invite
+      in: path
+      required: true
+      schema: { type: string }
+  delete:
+    operationId: revokeRoomInvite
+    tags: [membership]
+    summary: Отозвать приглашение
+    description: Ссылка перестаёт работать немедленно.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Приглашение отозвано. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404': { $ref: '#/components/responses/NotFound' }
+/invites/{token}:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showRoomInvite
+    tags: [membership]
+    summary: Сведения о приглашении
+    description: >
+      Доступно без входа: по этим данным человек решает, принимать ли
+      приглашение. Отозванная, просроченная и несуществующая ссылка отвечают
+      одинаково — 404.
+    responses:
+      '200':
+        description: Куда и кто приглашает.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/Invite' }
+      '404': { $ref: '#/components/responses/NotFound' }
+      '429': { $ref: '#/components/responses/RateLimited' }
+/invites/{token}/accept:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    operationId: acceptRoomInvite
+    tags: [membership]
+    summary: Принять приглашение
+    description: >
+      Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются,
+      меняются в настройках) и открывается сессия. Вошедший пользователь просто
+      вступает в комнату, второй аккаунт не создаётся.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                maxLength: 60
+                description: Имя гостя; для вошедшего пользователя не нужно.
+    responses:
+      '200':
+        description: Вошедший пользователь вступил в комнату.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteAccepted' }
+      '201':
+        description: Гостю создан аккаунт, он в комнате.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteAccepted' }
+      '404': { $ref: '#/components/responses/NotFound' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429': { $ref: '#/components/responses/RateLimited' }
