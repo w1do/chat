@@ -101,7 +101,9 @@ services:
       REVERB_APP_KEY: ${REVERB_APP_KEY:-chatkey}
       AI_ENABLED: ${AI_ENABLED:-false}
     depends_on: [api, reverb]
-    networks: [chat]
+    # Вторая сеть — та, в которой живёт балансировщик панели: без неё Traefik
+    # не видит контейнер и отвечает «404 not found» на ваш домен.
+    networks: [chat, proxy]
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]
       interval: 30s
@@ -220,6 +222,12 @@ services:
 
 networks:
   chat:
+  # Сеть балансировщика. В Dokploy она создана заранее и называется
+  # dokploy-network; для другой панели задайте PROXY_NETWORK. На сервере без
+  # панели используйте docker-compose.standalone.yml — он создаст её сам.
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-dokploy-network}
 
 volumes:
   api-storage:

@@ -70,3 +70,28 @@ docker compose exec api php artisan tinker --execute='echo config("database.redi
 
 На собственном сервере, где 80-й занят чем-то другим, задайте иной порт:
 `HTTP_PORT=8080` в `.env`.
+
+## Домен отвечает `404 not found`
+
+Так отвечает балансировщик панели, когда не находит контейнер за доменом.
+Приложение при этом обычно работает — проверьте изнутри:
+
+```bash
+docker compose exec web wget -qO- http://localhost:8080/config.json
+```
+
+Если ответ есть, дело в маршрутизации:
+
+- домен должен указывать на сервис **`web`**, порт **`8080`** (не на `api`
+  и не на 80);
+- контейнер `web` должен быть в сети балансировщика. В Dokploy это
+  `dokploy-network`; проверить:
+  ```bash
+  docker inspect chat-web-1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+  ```
+  В списке должны быть две сети: своя (`chat`) и сеть панели. Если у панели
+  сеть называется иначе, задайте `PROXY_NETWORK` в переменных окружения.
+
+Если сеть отсутствует, `docker compose up -d` завершится ошибкой
+`network dokploy-network declared as external, but could not be found` — это
+тот же случай: имя сети не совпадает.

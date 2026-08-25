@@ -29,6 +29,10 @@
 3. **Domains** — домен на сервис **`web`**, порт **`8080`**, включите HTTPS.
 4. **Deploy**.
 
+Сервис `web` подключается к сети `dokploy-network` — именно через неё Traefik
+панели видит контейнер. Если у вашей панели сеть называется иначе, задайте
+`PROXY_NETWORK` в Environment.
+
 Стек не публикует порты наружу: 80 и 443 остаются у вашей панели, а домен на
 контейнер направляет её Traefik. Наружу смотрит единственный сервис `web` — он
 отдаёт приложение и проксирует API и WebSocket внутрь, поэтому всё живёт на
@@ -71,6 +75,10 @@ docker compose exec api php artisan chat:grant-admin ваш_логин
 - `Bind for 0.0.0.0:80 failed: port is already allocated` — порт занят панелью.
   Разворачивайте без `docker-compose.standalone.yml`: за Traefik публиковать
   порт не нужно, домен направляется на сервис `web`, порт 8080.
+- Домен открывается, но отвечает `404 not found` — это ответ самого Traefik:
+  он не видит контейнер. Проверьте, что домен указывает на сервис `web`, порт
+  `8080`, и что сеть панели называется `dokploy-network` (иначе задайте
+  `PROXY_NETWORK`).
 
 Остальные случаи — [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md).
 
