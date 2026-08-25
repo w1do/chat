@@ -1,0 +1,12 @@
+type: object
+required: [id, url, thumb_url]
+properties:
+  id:
+    type: string
+    description: Идентификатор изображения.
+  url:
+    type: string
+    description: Крупный размер. Файл отдаёт приложение — бакет закрыт.
+  thumb_url:
+    type: [string, "null"]
+    description: Мелкий размер; null, пока производная ещё готовится.

@@ -25,6 +25,8 @@ final class RoomResource extends JsonResource
             'my_role' => $this->resource->myRole,
             'member_count' => $this->resource->memberCount,
             'unread_count' => $this->resource->unreadCount,
+            'photo_url' => $this->resource->photoUrl,
+            'photo_large_url' => $this->resource->photoLargeUrl,
         ];
     }
 }

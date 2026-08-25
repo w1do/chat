@@ -43,6 +43,13 @@ return [
         'accept_per_minute' => (int) env('INVITE_ACCEPT_PER_MINUTE', 10),
     ],
 
+    // Фотография комнаты (ADR-011): хранится только подготовленной в webp.
+    'images' => [
+        'max_size_kb' => (int) env('ROOM_IMAGE_MAX_KB', 8192),
+        'photo' => ['large' => 512, 'thumb' => 128],
+        'per_minute' => (int) env('ROOM_IMAGE_PER_MINUTE', 20),
+    ],
+
     'routes' => [
         'enabled' => true,
         'prefix' => 'api/v1',

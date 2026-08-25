@@ -6,6 +6,7 @@ namespace Vendor\Chat\Application\Handlers\Queries;
 
 use Vendor\Chat\Application\DTOs\MemberData;
 use Vendor\Chat\Application\Queries\ListMembersQuery;
+use Vendor\Chat\Application\Support\AuthorDirectory;
 use Vendor\Chat\Domain\Models\RoomMember;
 
 final readonly class ListMembersHandler
@@ -19,16 +20,14 @@ final readonly class ListMembersHandler
             ->orderBy('joined_at')
             ->get();
 
-        // Имена пользователей — через настроенный auth-провайдер приложения,
-        // без знания конкретной модели чужого пакета (§4.1).
-        $userModel = config('auth.providers.users.model');
-        $names = $userModel::query()
-            ->whereIn('id', $members->pluck('user_id'))
-            ->pluck('name', 'id');
+        // Имя и аватарка — через настроенный auth-провайдер приложения,
+        // одним запросом и без знания конкретной модели чужого пакета (§4.1).
+        $authors = AuthorDirectory::forIds($members->pluck('user_id'));
 
         return $members->map(fn (RoomMember $member): MemberData => MemberData::fromModel(
             $member,
-            name: $names[$member->user_id] ?? null,
+            name: AuthorDirectory::name($authors, $member->user_id),
+            avatarUrl: AuthorDirectory::avatar($authors, $member->user_id),
         ))->all();
     }
 }

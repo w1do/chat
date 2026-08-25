@@ -29,6 +29,22 @@ final class RoomPolicy
     }
 
     /**
+     * Фотография — то же оформление комнаты, что название и описание:
+     * право совпадает, отдельного заводить незачем (design 4). Постороннему
+     * приватная комната не показывается даже отказом.
+     */
+    public function changePhoto(Authenticatable $user, Room $room): Response
+    {
+        $role = $room->roleOf($user);
+
+        if ($role?->canManageRoom()) {
+            return Response::allow();
+        }
+
+        return $role === null && ! $room->isPublic() ? Response::denyAsNotFound() : Response::deny();
+    }
+
+    /**
      * Удаление необратимо: только владелец. Постороннему комната не показана
      * даже отказом — для него её просто нет.
      */

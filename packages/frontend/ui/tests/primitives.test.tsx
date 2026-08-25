@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Avatar } from '../src/components/Avatar';
@@ -107,5 +107,47 @@ describe('Confetti', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('К нам подключился Bob');
     expect(document.querySelectorAll('.confetti-piece')).toHaveLength(0);
+  });
+});
+
+describe('Avatar', () => {
+  it('рисует букву имени, пока картинки нет', () => {
+    render(<Avatar userId="u1" name="Алиса" theme={LIGHT} />);
+
+    expect(screen.getByText('А')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { hidden: true })).not.toBeInTheDocument();
+  });
+
+  it('показывает загруженную картинку вместо буквы', () => {
+    const { container } = render(
+      <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/abc/thumb" theme={LIGHT} />,
+    );
+
+    const image = container.querySelector('img');
+    expect(image).toHaveAttribute('src', '/api/v1/avatars/abc/thumb');
+    expect(screen.queryByText('А')).not.toBeInTheDocument();
+  });
+
+  it('возвращается к букве, если картинка не загрузилась', () => {
+    const { container } = render(
+      <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/broken" theme={LIGHT} />,
+    );
+
+    fireEvent.error(container.querySelector('img')!);
+
+    expect(screen.getByText('А')).toBeInTheDocument();
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+  });
+
+  it('пробует снова, когда адрес сменился', () => {
+    const { container, rerender } = render(
+      <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/broken" theme={LIGHT} />,
+    );
+    fireEvent.error(container.querySelector('img')!);
+    expect(screen.getByText('А')).toBeInTheDocument();
+
+    rerender(<Avatar userId="u1" name="Алиса" src="/api/v1/avatars/fresh" theme={LIGHT} />);
+
+    expect(container.querySelector('img')).toHaveAttribute('src', '/api/v1/avatars/fresh');
   });
 });

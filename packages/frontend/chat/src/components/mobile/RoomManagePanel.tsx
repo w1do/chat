@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RADIUS, type ThemeTokens } from '@vendor/ui';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { updateRoomSchema, type Room, type UpdateRoomInput } from '../../schemas/room';
+import { RoomGlyph } from '../RoomGlyph';
 
 interface RoomManagePanelProps {
   room: Room;
@@ -11,13 +12,23 @@ interface RoomManagePanelProps {
   onDelete: () => Promise<unknown>;
   /** Куда уходит человек, когда комнаты больше нет. */
   onDeleted: () => void;
+  onSetPhoto: (file: File) => Promise<unknown>;
+  onClearPhoto: () => Promise<unknown>;
 }
 
 /**
  * Управление комнатой: название с описанием правят владелец и админ, удаляет
  * только владелец. Удаление необратимо, поэтому просит набрать название.
  */
-export function RoomManagePanel({ room, theme, onSave, onDelete, onDeleted }: RoomManagePanelProps) {
+export function RoomManagePanel({
+  room,
+  theme,
+  onSave,
+  onDelete,
+  onDeleted,
+  onSetPhoto,
+  onClearPhoto,
+}: RoomManagePanelProps) {
   const canEdit = room.my_role === 'owner' || room.my_role === 'admin';
   const canDelete = room.my_role === 'owner';
 
@@ -25,9 +36,98 @@ export function RoomManagePanel({ room, theme, onSave, onDelete, onDeleted }: Ro
 
   return (
     <>
+      {/* Фотография — то же оформление комнаты, что название: право совпадает. */}
+      {canEdit ? (
+        <PhotoBlock room={room} theme={theme} onSetPhoto={onSetPhoto} onClearPhoto={onClearPhoto} />
+      ) : null}
       {canEdit ? <EditForm room={room} theme={theme} onSave={onSave} /> : null}
       {canDelete ? <DeleteBlock room={room} theme={theme} onDelete={onDelete} onDeleted={onDeleted} /> : null}
     </>
+  );
+}
+
+function PhotoBlock({
+  room,
+  theme,
+  onSetPhoto,
+  onClearPhoto,
+}: {
+  room: Room;
+  theme: ThemeTokens;
+  onSetPhoto: (file: File) => Promise<unknown>;
+  onClearPhoto: () => Promise<unknown>;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async (action: () => Promise<unknown>, failure: string) => {
+    setError(null);
+    setBusy(true);
+    try {
+      await action();
+    } catch {
+      setError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section aria-label="Фотография комнаты" className="px-3 mb-5">
+      <div className="p-3 flex flex-col gap-3" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
+        <div className="flex items-center gap-3">
+          <RoomGlyph name={room.name} photoUrl={room.photo_url} size={56} radius={18} theme={theme} />
+          <p className="flex-1 min-w-0 text-[13px]" style={{ color: theme.muted }}>
+            {room.photo_url
+              ? 'Фотографию видят все участники комнаты.'
+              : 'Пока комната показана эмодзи из названия.'}
+          </p>
+        </div>
+
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          aria-label="Файл фотографии комнаты"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) void run(() => onSetPhoto(file), 'Не удалось поставить фотографию.');
+          }}
+        />
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+            className="flex-1 py-2.5 tap text-[15px] font-medium"
+            style={{ background: theme.text, color: theme.bg, borderRadius: RADIUS.sm, opacity: busy ? 0.6 : 1 }}
+          >
+            {room.photo_url ? 'Заменить фотографию' : 'Поставить фотографию'}
+          </button>
+          {room.photo_url ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(onClearPhoto, 'Не удалось убрать фотографию.')}
+              className="flex-1 py-2.5 tap text-[15px]"
+              style={{ background: theme.surfaceAlt, color: theme.text, borderRadius: RADIUS.sm }}
+            >
+              Убрать
+            </button>
+          ) : null}
+        </div>
+
+        {error ? (
+          <p role="alert" className="text-[13px]" style={{ color: theme.danger }}>
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

@@ -18,6 +18,8 @@ final readonly class MessageData
         public string $kind,
         public string $authorId,
         public ?string $authorName,
+        /** Мелкий размер; null — аватарки нет, рисуется буква имени. */
+        public ?string $authorAvatarUrl,
         public ?string $replyToId,
         public ?string $body,
         public array $mentions,
@@ -30,7 +32,7 @@ final readonly class MessageData
     ) {}
 
     /** @param list<ReactionData> $reactions */
-    public static function fromModel(Message $message, ?string $authorName = null, array $reactions = []): self
+    public static function fromModel(Message $message, ?string $authorName = null, array $reactions = [], ?string $authorAvatarUrl = null): self
     {
         $deleted = $message->trashed();
 
@@ -40,6 +42,7 @@ final readonly class MessageData
             kind: $message->kind->value,
             authorId: $message->author_id,
             authorName: $authorName,
+            authorAvatarUrl: $authorAvatarUrl,
             replyToId: $message->reply_to_id,
             // Тело удалённого сообщения не раскрывается.
             body: $deleted ? null : $message->body,

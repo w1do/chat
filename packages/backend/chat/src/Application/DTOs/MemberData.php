@@ -15,9 +15,11 @@ final readonly class MemberData
         public string $role,
         public string $joinedAt,
         public ?string $name = null,
+        /** Мелкий размер; null — аватарки нет, рисуется буква имени. */
+        public ?string $avatarUrl = null,
     ) {}
 
-    public static function fromModel(RoomMember $member, ?string $name = null): self
+    public static function fromModel(RoomMember $member, ?string $name = null, ?string $avatarUrl = null): self
     {
         return new self(
             id: $member->id,
@@ -26,6 +28,7 @@ final readonly class MemberData
             role: $member->role->value,
             joinedAt: $member->joined_at->toIso8601String(),
             name: $name,
+            avatarUrl: $avatarUrl,
         );
     }
 }

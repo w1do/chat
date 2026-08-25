@@ -91,7 +91,10 @@ export class ApiClient {
     };
     const xsrfToken = readCookie('XSRF-TOKEN');
     if (isMutation && xsrfToken) headers['X-XSRF-TOKEN'] = xsrfToken;
-    if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+    // FormData несёт свою границу multipart: заголовок ставит сам браузер,
+    // а заданный вручную сломал бы разбор файла на сервере.
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    if (options.body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
     if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
 
     const fetchFn = this.options.fetchFn ?? fetch;
@@ -101,7 +104,11 @@ export class ApiClient {
         method,
         headers,
         credentials: 'include',
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        body: options.body === undefined
+          ? undefined
+          : isFormData
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
         signal: options.signal,
       });
     } catch (cause) {

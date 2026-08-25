@@ -9,6 +9,7 @@ use Vendor\Chat\Application\DTOs\CursorPage;
 use Vendor\Chat\Application\DTOs\MessageData;
 use Vendor\Chat\Application\DTOs\ReactionData;
 use Vendor\Chat\Application\Queries\ListMessagesQuery;
+use Vendor\Chat\Application\Support\AuthorDirectory;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\MessageReaction;
 use Vendor\Chat\Domain\ValueObjects\MessageCursor;
@@ -33,33 +34,20 @@ final readonly class ListMessagesHandler
         $hasMore = $messages->count() > $limit;
         $messages = $messages->take($limit);
 
-        $authorNames = $this->authorNames($messages);
+        $authors = AuthorDirectory::forIds($messages->pluck('author_id'));
         $reactions = $this->reactionsFor($messages->pluck('id')->all(), $viewerId);
 
         $items = $messages->map(fn (Message $message): MessageData => MessageData::fromModel(
             $message,
-            authorName: $authorNames[$message->author_id] ?? null,
+            authorName: AuthorDirectory::name($authors, $message->author_id),
             reactions: $reactions[$message->id] ?? [],
+            authorAvatarUrl: AuthorDirectory::avatar($authors, $message->author_id),
         ))->values()->all();
 
         return new CursorPage(
             items: $items,
             nextCursor: $hasMore ? $messages->last()?->id : null,
         );
-    }
-
-    /**
-     * @param  Collection<int, Message>  $messages
-     * @return array<string, string>
-     */
-    private function authorNames(Collection $messages): array
-    {
-        $userModel = config('auth.providers.users.model');
-
-        return $userModel::query()
-            ->whereIn('id', $messages->pluck('author_id')->unique())
-            ->pluck('name', 'id')
-            ->all();
     }
 
     /**

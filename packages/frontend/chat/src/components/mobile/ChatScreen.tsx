@@ -7,7 +7,6 @@ import {
   SPRING,
   TEXT_SIZE_PX,
   overlayOnOwn,
-  roomEmoji,
   voiceHue,
   type TextSize,
   type ThemeTokens,
@@ -26,6 +25,7 @@ import {
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Message, SendMessageInput } from '../../schemas/message';
 import { MentionPicker } from '../MentionPicker';
+import { RoomGlyph } from '../RoomGlyph';
 import { useMessageGestures } from '../../hooks/useMessageGestures';
 import { EmojiPicker } from './EmojiPicker';
 import { MessageActionsSheet } from './MessageActionsSheet';
@@ -40,6 +40,8 @@ interface ChatScreenProps {
   members: Member[];
   currentUserId: string;
   theme: ThemeTokens;
+  /** Личные обои читающего; их видит только он сам. */
+  wallpaperUrl?: string | null;
   textSize: TextSize;
   sendOnEnter: boolean;
   showTyping: boolean;
@@ -106,6 +108,7 @@ export function ChatScreen({
   draft,
   onDraftChange,
   onToast,
+  wallpaperUrl,
 }: ChatScreenProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -143,6 +146,12 @@ export function ChatScreen({
   const fontSize = TEXT_SIZE_PX[textSize];
   const namesById = useMemo(
     () => new Map(members.map((member) => [member.user_id, member.name ?? member.user_id])),
+    [members],
+  );
+  // Аватарки берутся из состава комнаты: событие о новом сообщении их не
+  // несёт, и незачем — участники и так загружены.
+  const avatars = useMemo(
+    () => new Map(members.map((member) => [member.user_id, member.avatar_url])),
     [members],
   );
 
@@ -220,13 +229,7 @@ export function ChatScreen({
         >
           <ChevronLeft size={26} />
         </button>
-        <span
-          aria-hidden="true"
-          className="grid place-items-center shrink-0"
-          style={{ width: 36, height: 36, borderRadius: 13, background: theme.surfaceAlt, fontSize: 18 }}
-        >
-          {roomEmoji(room.name)}
-        </span>
+        <RoomGlyph name={room.name} photoUrl={room.photo_url} size={36} radius={13} theme={theme} />
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
@@ -495,6 +498,23 @@ export function ChatScreen({
 
   return (
     <div className="relative h-full" style={{ background: theme.bg }}>
+      {wallpaperUrl ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: `center / cover no-repeat url(${wallpaperUrl})` }}
+          />
+          {/* Подложка, а не надежда на удачную картинку: человек принесёт
+              любое изображение, а текст обязан остаться читаемым. */}
+          <div
+            aria-hidden="true"
+            data-testid="wallpaper-scrim"
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: theme.bg, opacity: 0.78 }}
+          />
+        </>
+      ) : null}
       <Screen
         theme={theme}
         contentRef={scroller}
@@ -574,7 +594,7 @@ export function ChatScreen({
               {showDay ? <DayDivider iso={group.items[0]!.created_at} theme={theme} /> : null}
 
               <div className={`flex items-end gap-2 mb-3 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
-                <Avatar userId={group.authorId} name={author} size={30} theme={theme} />
+                <Avatar userId={group.authorId} name={author} src={avatars.get(group.authorId)} size={30} theme={theme} />
 
                 <div className="flex flex-col gap-0.5 min-w-0" style={{ maxWidth: 'calc(100% - 46px)' }}>
                   {/* Имя автора над первым пузырём — у обеих сторон, как на макете. */}

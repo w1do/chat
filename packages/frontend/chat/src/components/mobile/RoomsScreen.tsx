@@ -1,4 +1,5 @@
-import { Avatar, Dots, RADIUS, roomEmoji, Screen, voiceHue, type ThemeTokens } from '@vendor/ui';
+import { Avatar, Dots, RADIUS, Screen, voiceHue, type ThemeTokens } from '@vendor/ui';
+import { RoomGlyph } from '../RoomGlyph';
 import { Bell, Lock, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Room } from '../../schemas/room';
@@ -9,7 +10,7 @@ interface RoomsScreenProps {
   isLoading: boolean;
   error?: unknown;
   theme: ThemeTokens;
-  currentUser: { id: string; name: string } | null;
+  currentUser: { id: string; name: string; avatarUrl?: string | null } | null;
   /** Кто сейчас печатает в комнате: roomId → имя. */
   typingByRoom?: Record<string, string>;
   onOpen: (roomId: string) => void;
@@ -80,7 +81,7 @@ export function RoomsScreen({
             ) : null}
             <button type="button" onClick={onProfile} className="tap" aria-label="Профиль">
             {currentUser ? (
-              <Avatar userId={currentUser.id} name={currentUser.name} size={40} theme={theme} online />
+              <Avatar userId={currentUser.id} name={currentUser.name} src={currentUser.avatarUrl} size={40} theme={theme} online />
             ) : null}
             </button>
           </div>
@@ -131,13 +132,13 @@ export function RoomsScreen({
                           animationDelay: `${index * 0.035}s`,
                         }}
                       >
-                        <span
-                          aria-hidden="true"
-                          className="grid place-items-center shrink-0"
-                          style={{ width: 46, height: 46, borderRadius: 16, background: theme.surfaceAlt, fontSize: 21 }}
-                        >
-                          {roomEmoji(room.name)}
-                        </span>
+                        <RoomGlyph
+                          name={room.name}
+                          photoUrl={room.photo_url}
+                          size={46}
+                          radius={16}
+                          theme={theme}
+                        />
 
                         <span className="flex-1 min-w-0">
                           <span className="flex items-center gap-1.5">

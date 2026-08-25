@@ -20,14 +20,14 @@ function makeRoomWith(RoomRole $role): array
 }
 
 dataset('room matrix', [
-    // [роль или null (гость), update, archive, invite, changeRole, remove]
-    'owner' => [RoomRole::Owner, true, true, true, true, true],
-    'admin' => [RoomRole::Admin, true, true, true, false, true],
-    'member' => [RoomRole::Member, false, false, false, false, false],
-    'guest' => [null, false, false, false, false, false],
+    // [роль или null (гость), update, archive, invite, changeRole, remove, changePhoto]
+    'owner' => [RoomRole::Owner, true, true, true, true, true, true],
+    'admin' => [RoomRole::Admin, true, true, true, false, true, true],
+    'member' => [RoomRole::Member, false, false, false, false, false, false],
+    'guest' => [null, false, false, false, false, false, false],
 ]);
 
-it('enforces the room authorization matrix', function (?RoomRole $role, bool $update, bool $archive, bool $invite, bool $changeRole, bool $remove): void {
+it('enforces the room authorization matrix', function (?RoomRole $role, bool $update, bool $archive, bool $invite, bool $changeRole, bool $remove, bool $changePhoto): void {
     if ($role === null) {
         $room = Room::factory()->privateRoom()->create();
         $user = User::factory()->create();
@@ -44,10 +44,13 @@ it('enforces the room authorization matrix', function (?RoomRole $role, bool $up
         ->and($roomPolicy->archive($user, $room))->toBe($archive)
         ->and($membershipPolicy->invite($user, $room))->toBe($invite)
         ->and($membershipPolicy->changeRole($user, $room, $target))->toBe($changeRole)
-        ->and($membershipPolicy->remove($user, $room, $target)->allowed())->toBe($remove);
+        ->and($membershipPolicy->remove($user, $room, $target)->allowed())->toBe($remove)
+        // Фотография — то же оформление, что название: право совпадает.
+        ->and($roomPolicy->changePhoto($user, $room)->allowed())->toBe($changePhoto);
 
     // Постороннему комната не показана даже отказом.
-    expect($membershipPolicy->remove($user, $room, $target)->status())->toBe($role === null ? 404 : null);
+    expect($membershipPolicy->remove($user, $room, $target)->status())->toBe($role === null ? 404 : null)
+        ->and($roomPolicy->changePhoto($user, $room)->status())->toBe($role === null ? 404 : null);
 })->with('room matrix');
 
 it('lets only the owner delete a room and hides it from outsiders', function (): void {

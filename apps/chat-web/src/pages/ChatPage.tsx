@@ -178,7 +178,7 @@ export function ChatPage() {
               isLoading={rooms.isLoading}
               error={rooms.error ?? undefined}
               theme={theme}
-              currentUser={user ? { id: user.id, name: user.name } : null}
+              currentUser={user ? { id: user.id, name: user.name, avatarUrl: user.avatar_url } : null}
               onOpen={(id) => navigate(`/rooms/${id}`)}
               onRetry={() => void rooms.refetch()}
               onProfile={() => setTab('settings')}
@@ -321,6 +321,8 @@ function ActiveRoom({
   onOpenMembers: () => void;
   onToast: (text: string) => void;
 }) {
+  // Обои — личная настройка читающего: у собеседника свой фон.
+  const wallpaperUrl = useAuth().user?.wallpaper_url ?? null;
   const room = useRoom(roomId);
   const members = useMembers(roomId);
   const messages = useMessages(roomId);
@@ -399,6 +401,7 @@ function ActiveRoom({
         members={members.data ?? []}
         currentUserId={currentUserId}
         theme={theme}
+        wallpaperUrl={wallpaperUrl}
         textSize={settings.textSize}
         sendOnEnter={settings.sendOnEnter}
         showTyping={settings.showTyping}

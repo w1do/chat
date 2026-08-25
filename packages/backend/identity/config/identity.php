@@ -25,6 +25,20 @@ return [
         'login' => (int) env('AUTH_LOGIN_PER_MINUTE', 5),
         'register' => (int) env('AUTH_REGISTER_PER_MINUTE', 10),
         'password_reset' => (int) env('AUTH_PASSWORD_RESET_PER_MINUTE', 5),
+        'images' => (int) env('PROFILE_IMAGE_PER_MINUTE', 20),
+    ],
+
+    // Изображения профиля: аватарки и обои (ADR-011). Хранятся только
+    // подготовленными в webp — исходник в бакет не попадает.
+    'images' => [
+        // Предел размера принимаемого файла, килобайты.
+        'max_size_kb' => (int) env('PROFILE_IMAGE_MAX_KB', 8192),
+        // Сколько аватарок человек держит в своём наборе.
+        'max_avatars' => (int) env('PROFILE_MAX_AVATARS', 12),
+        // Крупный размер — экран профиля и шапка; мелкий — списки и ленты.
+        'avatar' => ['large' => 512, 'thumb' => 128],
+        // Обои разворачиваются на весь экран телефона с запасом под плотность.
+        'wallpaper' => ['width' => 1440, 'height' => 2560],
     ],
 
     'routes' => [

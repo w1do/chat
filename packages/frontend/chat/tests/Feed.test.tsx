@@ -19,14 +19,16 @@ const room: Room = {
   my_role: 'member',
   member_count: 4,
   unread_count: 0,
+  photo_url: null,
+  photo_large_url: null,
 };
 
 const members: Member[] = [
-  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Алексей' },
-  { id: 'm2', room_id: 'r1', user_id: 'u2', role: 'member', joined_at: '', name: 'Андрей' },
-  { id: 'm3', room_id: 'r1', user_id: 'u3', role: 'member', joined_at: '', name: 'Надя' },
-  { id: 'm4', room_id: 'r1', user_id: 'u4', role: 'member', joined_at: '', name: 'Оля' },
-  { id: 'm5', room_id: 'r1', user_id: 'me', role: 'member', joined_at: '', name: 'Я' },
+  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Алексей', avatar_url: null },
+  { id: 'm2', room_id: 'r1', user_id: 'u2', role: 'member', joined_at: '', name: 'Андрей', avatar_url: null },
+  { id: 'm3', room_id: 'r1', user_id: 'u3', role: 'member', joined_at: '', name: 'Надя', avatar_url: null },
+  { id: 'm4', room_id: 'r1', user_id: 'u4', role: 'member', joined_at: '', name: 'Оля', avatar_url: null },
+  { id: 'm5', room_id: 'r1', user_id: 'me', role: 'member', joined_at: '', name: 'Я', avatar_url: null },
 ];
 
 const message = (id: string, extra: Partial<Message> = {}): Message => ({
@@ -35,6 +37,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   kind: 'text',
   author_id: 'u1',
   author_name: 'Алексей',
+  author_avatar_url: null,
   reply_to_id: null,
   body: `Сообщение ${id}`,
   mentions: [],

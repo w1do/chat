@@ -1,0 +1,92 @@
+/rooms/{room}/photo:
+  parameters:
+    - name: room
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    operationId: setRoomPhoto
+    tags: [rooms]
+    summary: Фотография комнаты (owner/admin); новая вытесняет прежнюю
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [image]
+            properties:
+              image: { type: string, format: binary }
+    responses:
+      '200':
+        description: Фотография установлена.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/RoomImage' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Приватная комната не показана постороннему.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429': { $ref: '#/components/responses/RateLimited' }
+  delete:
+    operationId: clearRoomPhoto
+    tags: [rooms]
+    summary: Снять фотографию комнаты (owner/admin)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '204': { description: Комната снова показана эмодзи. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404':
+        description: Приватная комната не показана постороннему.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }
+/room-photos/{image}:
+  parameters:
+    - name: image
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showRoomPhoto
+    tags: [rooms]
+    summary: Файл фотографии комнаты (webp)
+    description: Доступен тем же, кому доступна сама комната.
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Изображение.
+        content:
+          image/webp:
+            schema: { type: string, format: binary }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+/room-photos/{image}/thumb:
+  parameters:
+    - name: image
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    operationId: showRoomPhotoThumb
+    tags: [rooms]
+    summary: Файл фотографии комнаты в мелком размере (webp)
+    security: [{ sanctumCookie: [] }]
+    responses:
+      '200':
+        description: Изображение.
+        content:
+          image/webp:
+            schema: { type: string, format: binary }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }

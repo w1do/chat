@@ -1,5 +1,5 @@
 type: object
-required: [id, room_id, user_id, role, joined_at, name]
+required: [id, room_id, user_id, role, joined_at, name, avatar_url]
 properties:
   id: { type: string, description: ULID записи членства. }
   room_id: { type: string }
@@ -7,3 +7,9 @@ properties:
   role: { type: string, enum: [owner, admin, member] }
   joined_at: { type: string, format: date-time }
   name: { type: [string, "null"], description: Имя пользователя. }
+  avatar_url:
+    type: [string, "null"]
+    description: >-
+      Текущая аватарка участника в мелком размере. null — аватарки нет,
+      интерфейс рисует букву имени. Прежние аватарки здесь не перечисляются:
+      набор видит только его владелец.

@@ -20,13 +20,58 @@ export interface AuthUser {
   created_at: string;
   /** false — пароль выдан системой при входе по приглашению. */
   password_set?: boolean;
+  /** Текущая аватарка, мелкий размер; null — рисуется буква имени. */
+  avatar_url: string | null;
+  /** Та же аватарка крупно — для экрана профиля. */
+  avatar_large_url: string | null;
+  /** Личные обои переписки; видны только владельцу. */
+  wallpaper_url: string | null;
+}
+
+/** Изображение профиля: аватарка из набора или обои. */
+export interface ProfileImage {
+  id: string;
+  url: string;
+  thumb_url: string | null;
+  current?: boolean;
 }
 
 interface UserEnvelope {
   data: AuthUser;
 }
 
+function imageBody(file: File): FormData {
+  const body = new FormData();
+  body.append('image', file);
+
+  return body;
+}
+
 export const identityApi = {
+  /** Набор аватарок человека: его видит только он сам. */
+  async avatars(client: ApiClient): Promise<ProfileImage[]> {
+    return ((await client.get('/me/avatars')) as { data: ProfileImage[] }).data;
+  },
+  async uploadAvatar(client: ApiClient, file: File): Promise<ProfileImage> {
+    return ((await client.post('/me/avatars', { body: imageBody(file) })) as { data: ProfileImage }).data;
+  },
+  /** Выбор прежней аватарки: файл не перезагружается. */
+  async selectAvatar(client: ApiClient, avatarId: string): Promise<ProfileImage> {
+    return ((await client.patch(`/me/avatars/${avatarId}`)) as { data: ProfileImage }).data;
+  },
+  async deleteAvatar(client: ApiClient, avatarId: string): Promise<void> {
+    await client.delete(`/me/avatars/${avatarId}`);
+  },
+  /** Снять текущую, сохранив набор: вернуться к букве имени. */
+  async clearAvatar(client: ApiClient): Promise<void> {
+    await client.delete('/me/avatar');
+  },
+  async setWallpaper(client: ApiClient, file: File): Promise<ProfileImage> {
+    return ((await client.post('/me/wallpaper', { body: imageBody(file) })) as { data: ProfileImage }).data;
+  },
+  async clearWallpaper(client: ApiClient): Promise<void> {
+    await client.delete('/me/wallpaper');
+  },
   async login(client: ApiClient, input: LoginInput): Promise<AuthUser> {
     return ((await client.post('/auth/login', { body: input })) as UserEnvelope).data;
   },

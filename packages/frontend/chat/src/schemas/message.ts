@@ -17,6 +17,7 @@ export const messageSchema = z.object({
   kind: z.enum(['text', 'system']),
   author_id: z.string(),
   author_name: z.string().nullable(),
+  author_avatar_url: z.string().nullable(),
   reply_to_id: z.string().nullable(),
   body: z.string().nullable(),
   mentions: z.array(z.string()),

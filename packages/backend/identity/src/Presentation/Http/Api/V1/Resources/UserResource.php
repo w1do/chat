@@ -24,6 +24,9 @@ final class UserResource extends JsonResource
             'email_verified_at' => $this->resource->emailVerifiedAt,
             'created_at' => $this->resource->createdAt,
             'password_set' => $this->resource->passwordSet,
+            'avatar_url' => $this->resource->avatarUrl,
+            'avatar_large_url' => $this->resource->avatarLargeUrl,
+            'wallpaper_url' => $this->resource->wallpaperUrl,
         ];
     }
 }
