@@ -62,7 +62,8 @@ services:
       APP_NAME: ${APP_NAME:-Self-Hosted Chat}
     networks: [internal]
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]
+      # 127.0.0.1, не localhost: localhost внутри контейнера — это ::1.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3

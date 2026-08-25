@@ -30,4 +30,7 @@ USER nginx
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s CMD wget -q --spider http://localhost:8080/config.json || exit 1
+# Именно 127.0.0.1, а не localhost: внутри контейнера тот резолвится в ::1,
+# а nginx слушает IPv4 — проверка получала бы «connection refused», и
+# балансировщик перестал бы маршрутизировать на живой контейнер.
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -q --spider http://127.0.0.1:8080/healthz || exit 1
