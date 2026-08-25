@@ -54,7 +54,7 @@ export function ChatPage() {
   const { user } = useAuth();
   const { settings, set } = useSettings();
   const { setTheme } = useTheme();
-  const { keyboard, height, offsetTop, bottom } = useKeyboardInsets();
+  const { keyboard, height, offsetTop } = useKeyboardInsets();
 
   const theme: ThemeTokens = THEMES[settings.theme];
   const [tab, setTab] = useState<'chats' | 'settings'>('chats');
@@ -103,13 +103,12 @@ export function ChatPage() {
 
   return (
     // Приложение живёт ровно в видимой области и компенсирует прокрутку,
-    // которую iOS Safari делает сам при открытии клавиатуры. Нижняя полоса
-    // видимой области раздаётся вёрстке переменной: по ней считает отступ
-    // любой закреплённый низ — панель ввода и нижняя навигация.
+    // которую iOS Safari делает сам при открытии клавиатуры. Полоса браузера
+    // вычтена уже здесь, поэтому закреплённому низу остаётся только вырез
+    // устройства — иначе одна и та же полоса учитывалась бы дважды.
     <div
       className="w-full flex justify-center"
       style={{
-        ['--app-bottom-inset' as string]: `${bottom}px`,
         background: theme.bg,
         position: 'fixed',
         top: 0,
@@ -140,7 +139,7 @@ export function ChatPage() {
             <div
               role="status"
               className="absolute left-0 right-0 z-20 px-3"
-              style={{ bottom: 'calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 74px)' }}
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 74px)' }}
             >
               <div
                 className="flex items-center gap-3 px-3 py-2.5"
@@ -211,7 +210,7 @@ export function ChatPage() {
             aria-label="Разделы"
             className="absolute left-1/2 flex gap-1 p-1.5 blur-chrome"
             style={{
-              bottom: 'calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 14px)',
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)',
               transform: 'translateX(-50%)',
               background: theme.chromeAlpha,
               borderRadius: 22,

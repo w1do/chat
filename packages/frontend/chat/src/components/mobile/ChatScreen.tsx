@@ -430,8 +430,15 @@ export function ChatScreen({
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               autoCapitalize="sentences"
               autoCorrect="on"
-              className="flex-1 resize-none bg-transparent px-3 py-2 outline-none"
-              style={{ color: theme.text, maxHeight: 116, fontSize: Math.max(MIN_INPUT_FONT, fontSize), lineHeight: 1.35 }}
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none"
+              style={{
+                color: theme.text,
+                // Поле не ниже соседних кнопок: узкая полоска под палец неудобна.
+                minHeight: 40,
+                maxHeight: 116,
+                fontSize: Math.max(MIN_INPUT_FONT, fontSize),
+                lineHeight: 1.35,
+              }}
             />
 
             <button

@@ -37,12 +37,10 @@
   -webkit-touch-callout: default;
 }
 .safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
-/* Низ экрана держится за реально видимую область, а не только за вырез
-   устройства: --app-bottom-inset измеряет полосу браузера, env() — вырез.
-   Берём большее из двух; без visualViewport переменная равна 0. */
-.safe-bottom {
-  padding-bottom: calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 12px);
-}
+/* Только вырез устройства. Полосу браузера сюда добавлять нельзя: оболочка уже
+   занимает ровно видимую область (её высота — visualViewport), поэтому вторая
+   поправка на ту же полосу превращалась в пустоту под панелью ввода. */
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
 
 /* Выключенные анимации: системная настройка «уменьшить движение» или тумблер. */
 .still *, .still *::before, .still *::after {
