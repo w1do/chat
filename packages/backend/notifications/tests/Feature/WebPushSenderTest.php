@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Vendor\Identity\Domain\Models\User;
 use Vendor\Notifications\Domain\Contracts\PushResult;
 use Vendor\Notifications\Domain\Contracts\PushTransport;
 use Vendor\Notifications\Domain\Enums\Category;
@@ -133,4 +134,30 @@ it('raises other failures so the queue retries, keeping the subscription', funct
         ->toThrow(PushDeliveryFailed::class);
 
     expect(PushSubscription::query()->count())->toBe(1);
+});
+
+it('explains the test command when push is off or the user has no devices', function (): void {
+    configurePush(false);
+
+    $this->artisan('chat:push-test', ['login' => 'кто-угодно'])
+        ->expectsOutputToContain('Push выключены')
+        ->assertFailed();
+
+    configurePush();
+    $user = User::factory()->create(['username' => 'без-устройств']);
+
+    $this->artisan('chat:push-test', ['login' => $user->username])
+        ->expectsOutputToContain('нет подписанных устройств')
+        ->assertFailed();
+});
+
+it('reports how many devices got the test push', function (): void {
+    configurePush();
+    fakeTransport();
+    $user = User::factory()->create(['username' => 'с-устройством']);
+    subscribeDevice((string) $user->getKey(), 'https://push.example.com/test-device');
+
+    $this->artisan('chat:push-test', ['login' => $user->username])
+        ->expectsOutputToContain('Отправлено устройств: 1 из 1')
+        ->assertSuccessful();
 });

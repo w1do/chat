@@ -117,7 +117,7 @@ export function ChatPage() {
       }}
     >
       <div
-        className={`relative w-full overflow-hidden ${wide ? 'flex max-w-[1440px]' : 'max-w-md'} ${settings.animations ? '' : 'still'}`}
+        className={`relative w-full overflow-hidden ${wide ? 'flex' : 'max-w-md'} ${settings.animations ? '' : 'still'}`}
         style={{ height: '100%', background: theme.bg, color: theme.text }}
       >
         <div

@@ -18,7 +18,9 @@ RUN cd apps/chat-api \
 FROM dunglas/frankenphp:1.9-php8.4 AS runtime
 
 # Расширения, которые собираются из исходников самого образа: сеть не нужна.
-RUN install-php-extensions pcntl pdo_pgsql opcache intl zip \
+# bcmath нужен Web Push: без него библиотека шлёт trigger_error, а Laravel
+# превращает его в исключение — задание доставки падало бы на каждом push.
+RUN install-php-extensions pcntl pdo_pgsql opcache intl zip bcmath \
     && useradd --create-home --uid 10001 app
 
 # phpredis тянется с pecl.php.net и потому доступен не в каждой сети.
@@ -26,6 +28,11 @@ RUN install-php-extensions pcntl pdo_pgsql opcache intl zip \
 # делает config/database.php по факту наличия расширения.
 RUN install-php-extensions redis \
     || echo "phpredis недоступен при сборке — будет использован predis"
+
+# GMP ускоряет подпись Web Push; требует пакета из сети, поэтому необязателен —
+# при его отсутствии библиотека работает на bcmath.
+RUN install-php-extensions gmp \
+    || echo "gmp недоступен при сборке — расчёты пойдут на bcmath"
 
 COPY infra/docker/api/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY infra/docker/api/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini

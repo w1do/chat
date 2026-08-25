@@ -12,6 +12,7 @@ use Vendor\Notifications\Infrastructure\Preferences\EloquentPreferenceResolver;
 use Vendor\Notifications\Infrastructure\Presence\AlwaysInactiveInspector;
 use Vendor\Notifications\Infrastructure\Push\WebPushTransport;
 use Vendor\Notifications\Presentation\Console\GeneratePushKeysCommand;
+use Vendor\Notifications\Presentation\Console\SendTestPushCommand;
 
 final class NotificationsServiceProvider extends ServiceProvider
 {
@@ -39,7 +40,7 @@ final class NotificationsServiceProvider extends ServiceProvider
         }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([GeneratePushKeysCommand::class]);
+            $this->commands([GeneratePushKeysCommand::class, SendTestPushCommand::class]);
         }
 
         $this->publishes([
