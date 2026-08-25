@@ -10,7 +10,16 @@ test('registers with a login only, keeps the session and logs out', async ({ pag
   await page.goto('/login');
   await page.getByRole('button', { name: 'Регистрация' }).click();
   await page.getByRole('textbox', { name: 'Логин' }).fill(login);
-  await page.getByRole('textbox', { name: 'Пароль' }).fill('e2e-password-123');
+  const password = page.getByRole('textbox', { name: 'Пароль' });
+  await password.fill('e2e-password-123');
+
+  // Пароль вводят вслепую, поэтому его можно показать и проверить.
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: /Показать пароль/ }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+  // Нажатие «глазика» не отправляет форму.
+  await expect(page.getByRole('button', { name: 'Создать аккаунт' })).toBeVisible();
+
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
 
   await expect(page.getByRole('heading', { name: 'Чаты' })).toBeVisible();

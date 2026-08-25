@@ -67,6 +67,10 @@ export function RegisterForm({ theme, passwordMinLength, defaultLogin = '', onLo
         theme={theme}
         label="Пароль"
         type="password"
+        revealable
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         autoComplete="new-password"
         hint={passwordHint(passwordMinLength)}
         error={errors.password?.message}

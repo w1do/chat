@@ -58,6 +58,10 @@ export function PasswordForm({ theme, passwordMinLength, onSubmit }: PasswordFor
         theme={theme}
         label="Текущий пароль"
         type="password"
+        revealable
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         autoComplete="current-password"
         error={errors.current_password?.message}
         {...register('current_password')}
@@ -66,6 +70,10 @@ export function PasswordForm({ theme, passwordMinLength, onSubmit }: PasswordFor
         theme={theme}
         label="Новый пароль"
         type="password"
+        revealable
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         autoComplete="new-password"
         hint={passwordHint(passwordMinLength)}
         error={errors.password?.message}

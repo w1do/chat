@@ -89,5 +89,12 @@
   100% { transform: translateY(115vh) rotate(540deg); opacity: 0; }
 }
 
-/* Видимый фокус на полях форм: клавиатурная навигация должна быть заметна. */
-.field-focus:focus-visible { box-shadow: inset 0 0 0 2px currentColor; }
+/* Видимый фокус на полях форм: клавиатурная навигация должна быть заметна.
+   Именно outline, а не тень: рамку ошибки поле задаёт инлайновым box-shadow, а
+   инлайн всегда перебивает правило таблицы стилей — тенью фокус был бы не
+   виден там, где нужнее всего, на поле с ошибкой. Outline инлайном не задаётся
+   и складывается с ней. */
+.field-focus:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}

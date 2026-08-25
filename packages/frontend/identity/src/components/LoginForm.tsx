@@ -60,6 +60,10 @@ export function LoginForm({ theme, defaultLogin = '', onLoginChange, onSubmit }:
         theme={theme}
         label="Пароль"
         type="password"
+        revealable
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         autoComplete="current-password"
         error={errors.password?.message}
         {...register('password')}
