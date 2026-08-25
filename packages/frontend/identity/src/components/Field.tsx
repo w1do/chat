@@ -68,16 +68,26 @@ export function Field({
     // уводят её в конец. Асинхронное восстановление здесь недопустимо: оно
     // догонит человека, когда он уже печатает, и перемешает ввод.
     if (node) {
-      const caret = node.selectionStart;
+      // Фокус возвращаем только если он и был в поле: при нажатии кнопки с
+      // клавиатуры он должен остаться на кнопке, иначе следующий Enter уйдёт
+      // в поле и отправит форму, а пробел допишется в пароль.
+      const wasFocused = document.activeElement === node;
+      const start = node.selectionStart;
+      const end = node.selectionEnd;
 
       node.type = next ? 'text' : 'password';
-      node.focus();
 
-      if (caret !== null) {
-        try {
-          node.setSelectionRange(caret, caret);
-        } catch {
-          // Поле уже не принимает выделение — терять из-за этого ввод незачем.
+      if (wasFocused) {
+        node.focus();
+
+        if (start !== null) {
+          try {
+            // Обе границы: иначе выделенный пароль схлопнулся бы в точку и
+            // следующий символ дописался бы к старому вместо замены.
+            node.setSelectionRange(start, end ?? start);
+          } catch {
+            // Поле уже не принимает выделение — терять из-за этого ввод незачем.
+          }
         }
       }
     }
@@ -120,7 +130,7 @@ export function Field({
             // Клик отбирает фокус у поля, а на телефоне это схлопывает клавиатуру.
             onMouseDown={(event) => event.preventDefault()}
             aria-pressed={shown}
-            aria-label={`${shown ? 'Скрыть' : 'Показать'} пароль: ${label}`}
+            aria-label={`Показать пароль: ${label}`}
             className="tap absolute grid place-items-center"
             style={{
               width: 30,

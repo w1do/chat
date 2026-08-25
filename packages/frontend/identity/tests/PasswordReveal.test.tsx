@@ -24,7 +24,7 @@ describe('переключатель показа пароля', () => {
     await userEvent.click(eye(/Показать пароль/));
     expect(input).toHaveAttribute('type', 'text');
 
-    await userEvent.click(eye(/Скрыть пароль/));
+    await userEvent.click(eye(/Показать пароль/));
     expect(input).toHaveAttribute('type', 'password');
   });
 
@@ -48,7 +48,7 @@ describe('переключатель показа пароля', () => {
 
     await userEvent.click(button);
 
-    expect(eye(/Скрыть пароль/)).toHaveAttribute('aria-pressed', 'true');
+    expect(eye(/Показать пароль/)).toHaveAttribute('aria-pressed', 'true');
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -187,5 +187,41 @@ describe('видимый фокус', () => {
 
     expect(input.style.fontSize).toBe('16px');
     expect(Number.parseInt(input.style.paddingRight, 10)).toBeGreaterThan(30);
+  });
+});
+
+describe('переключение с клавиатуры', () => {
+  it('оставляет фокус на кнопке и не отправляет форму', async () => {
+    const onSubmit = vi.fn();
+    render(<LoginForm theme={LIGHT} onSubmit={onSubmit} />);
+
+    const input = screen.getByLabelText('Пароль');
+    await userEvent.type(input, 'secret');
+
+    const button = eye(/Показать пароль/);
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(input).toHaveAttribute('type', 'text');
+    // Фокус остался на кнопке: иначе следующий Enter ушёл бы в поле и отправил форму.
+    expect(document.activeElement).toBe(button);
+
+    await userEvent.keyboard('{Enter}');
+    expect(input).toHaveAttribute('type', 'password');
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('не схлопывает выделение при переключении', async () => {
+    render(<LoginForm theme={LIGHT} onSubmit={vi.fn()} />);
+    const input = screen.getByLabelText('Пароль') as HTMLInputElement;
+
+    await userEvent.type(input, 'oldpass');
+    input.setSelectionRange(0, 7);
+    const setSelectionRange = vi.spyOn(input, 'setSelectionRange');
+
+    await userEvent.click(eye(/Показать пароль/));
+
+    // Обе границы, иначе следующий символ допишется к старому паролю.
+    expect(setSelectionRange).toHaveBeenCalledWith(0, 7);
   });
 });
