@@ -8,6 +8,7 @@ import { Avatar, Group, Row, Segmented, Sheet, Toggle, useElementHeight, type Th
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSystemStatus } from '../app/admin';
+import { usePushSubscription, type PushState } from '../app/push';
 import type { AppSettings } from '../app/settings';
 
 interface SettingsScreenProps {
@@ -18,6 +19,19 @@ interface SettingsScreenProps {
   onRequestNotifications: () => Promise<void>;
   onToast: (text: string) => void;
 }
+
+/** Объяснение состояния push: тумблер не должен молчать. */
+const PUSH_HINT: Record<PushState, string> = {
+  on: 'Приходят, даже когда чат закрыт',
+  off: 'Включите, чтобы узнавать о сообщениях при закрытом чате',
+  denied: 'Запрещены в настройках браузера — разрешите их там',
+  unsupported: 'Браузер не поддерживает push-уведомления',
+  'not-configured': 'На этом сервере push не настроены администратором',
+  'needs-install': 'На iPhone push работают только после установки приложения на экран «Домой»',
+};
+
+/** В остальных состояниях переключать нечего — показываем только объяснение. */
+const PUSH_TOGGLEABLE: PushState[] = ['on', 'off'];
 
 type SheetId = 'appearance' | 'chat' | 'profile' | 'email' | 'password' | 'channels' | null;
 
@@ -38,6 +52,7 @@ export function SettingsScreen({
   // Признак администратора — успешный ответ админского эндпоинта: у обычного
   // пользователя он 403, и раздел просто не появляется.
   const admin = useSystemStatus();
+  const push = usePushSubscription();
   const preferences = useNotificationPreferences();
   const updatePreferences = useUpdatePreferences();
 
@@ -100,6 +115,27 @@ export function SettingsScreen({
             value={notificationPermission === 'default' ? 'Включить' : undefined}
             onClick={
               notificationPermission === 'default' ? () => void onRequestNotifications() : undefined
+            }
+          />
+          <Row
+            theme={theme}
+            title="Push-уведомления"
+            hint={PUSH_HINT[push.state]}
+            right={
+              PUSH_TOGGLEABLE.includes(push.state) ? (
+                <Toggle
+                  theme={theme}
+                  label="Push-уведомления"
+                  checked={push.state === 'on'}
+                  onChange={() => {
+                    if (push.busy) return;
+
+                    void (push.state === 'on' ? push.disable() : push.enable()).then(() =>
+                      onToast(push.state === 'on' ? 'Push выключены' : 'Push включены'),
+                    );
+                  }}
+                />
+              ) : undefined
             }
           />
           <Row

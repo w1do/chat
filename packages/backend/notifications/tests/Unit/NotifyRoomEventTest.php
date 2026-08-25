@@ -126,9 +126,40 @@ it('queues slow channels per category and respects preferences', function (): vo
 
     app(NotifyRoomEventHandler::class)->handle(notifyCommand('actor-1', [(string) $recipient->getKey()], Category::Mention));
 
-    Bus::assertNotDispatched(DeliverNotificationJob::class);
+    // Почта отключена, а push — отдельный канал и продолжает работать.
+    Bus::assertNotDispatched(
+        DeliverNotificationJob::class,
+        fn (DeliverNotificationJob $job): bool => $job->channel === Channel::Mail,
+    );
+    Bus::assertDispatched(
+        DeliverNotificationJob::class,
+        fn (DeliverNotificationJob $job): bool => $job->channel === Channel::Push,
+    );
+
     // Лента при этом продолжает работать.
     expect(DB::table('notifications')->where('notifiable_id', $recipient->getKey())->count())->toBeGreaterThan(0);
+});
+
+it('stops sending push once the user turns the channel off', function (): void {
+    Bus::fake();
+    activeIn([]);
+    $recipient = User::factory()->create();
+
+    NotificationPreference::query()->create([
+        'user_id' => $recipient->getKey(),
+        'category' => 'message',
+        'channel' => 'push',
+        'enabled' => false,
+    ]);
+
+    app(NotifyRoomEventHandler::class)->handle(notifyCommand('actor-1', [(string) $recipient->getKey()]));
+
+    Bus::assertNotDispatched(
+        DeliverNotificationJob::class,
+        fn (DeliverNotificationJob $job): bool => $job->channel === Channel::Push,
+    );
+    // Лента остаётся: тумблер push не выключает уведомления внутри приложения.
+    expect(DB::table('notifications')->where('notifiable_id', $recipient->getKey())->count())->toBe(1);
 });
 
 it('routes bulk messages and security to their own queues', function (): void {

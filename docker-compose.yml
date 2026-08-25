@@ -57,6 +57,10 @@ x-api-env: &api-env
     TYPESENSE_PORT: 8108
     TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-chat-typesense-key}
     AI_ENABLED: ${AI_ENABLED:-false}
+    # Web Push: пусто — уведомления на устройства выключены.
+    VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+    VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
     AI_PROVIDER: ${AI_PROVIDER:-polza}
     AI_BASE_URL: ${AI_BASE_URL:-https://polza.ai/api/v1}
     AI_API_KEY: ${AI_API_KEY:-}
@@ -103,6 +107,8 @@ services:
       REVERB_SCHEME: ""
       REVERB_APP_KEY: ${REVERB_APP_KEY:-chatkey}
       AI_ENABLED: ${AI_ENABLED:-false}
+      # Публичный ключ уезжает в SPA через /config.json.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
     depends_on: [api, reverb]
     # Вторая сеть — та, в которой живёт балансировщик панели: без неё Traefik
     # не видит контейнер и отвечает «404 not found» на ваш домен.

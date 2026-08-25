@@ -11,6 +11,8 @@ export interface RuntimeConfig {
     appKey: string;
   };
   ai: { enabled: string };
+  /** Пустой ключ означает, что push на сервере не настроен. */
+  push?: { publicKey: string };
   branding: { appName: string };
 }
 

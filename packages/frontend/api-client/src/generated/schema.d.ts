@@ -333,6 +333,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подписать устройство на push-уведомления
+         * @description Подписка приходит от браузера. Повторный вызов с тем же endpoint обновляет существующую запись, а не создаёт вторую.
+         */
+        post: operations["subscribeDevice"];
+        /**
+         * Отписать устройство
+         * @description Удаляет подписку текущего пользователя. Чужая подписка не затрагивается; ответ одинаков и когда подписки уже не было.
+         */
+        delete: operations["unsubscribeDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -1425,6 +1449,70 @@ export interface operations {
                         };
                     };
                 };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    subscribeDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    endpoint: string;
+                    keys: {
+                        p256dh: string;
+                        auth: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Устройство подписано. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    unsubscribeDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    endpoint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Подписки больше нет. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthenticated"];
             422: components["responses"]["ValidationError"];

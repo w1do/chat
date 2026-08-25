@@ -1,0 +1,61 @@
+/push-subscriptions:
+  post:
+    operationId: subscribeDevice
+    tags: [notifications]
+    summary: Подписать устройство на push-уведомления
+    description: >
+      Подписка приходит от браузера. Повторный вызов с тем же endpoint обновляет
+      существующую запись, а не создаёт вторую.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [endpoint, keys]
+            properties:
+              endpoint: { type: string, format: uri, maxLength: 2048 }
+              keys:
+                type: object
+                required: [p256dh, auth]
+                properties:
+                  p256dh: { type: string }
+                  auth: { type: string }
+    responses:
+      '201':
+        description: Устройство подписано.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: string }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+  delete:
+    operationId: unsubscribeDevice
+    tags: [notifications]
+    summary: Отписать устройство
+    description: >
+      Удаляет подписку текущего пользователя. Чужая подписка не затрагивается;
+      ответ одинаков и когда подписки уже не было.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [endpoint]
+            properties:
+              endpoint: { type: string, format: uri, maxLength: 2048 }
+    responses:
+      '204': { description: Подписки больше нет. }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '422': { $ref: '#/components/responses/ValidationError' }

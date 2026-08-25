@@ -9,6 +9,9 @@
   "ai": {
     "enabled": "${AI_ENABLED}"
   },
+  "push": {
+    "publicKey": "${VAPID_PUBLIC_KEY}"
+  },
   "branding": {
     "appName": "${APP_NAME}"
   }

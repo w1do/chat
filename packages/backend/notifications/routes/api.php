@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Vendor\Notifications\Presentation\Http\Api\V1\Controllers\NotificationController;
 use Vendor\Notifications\Presentation\Http\Api\V1\Controllers\PreferenceController;
+use Vendor\Notifications\Presentation\Http\Api\V1\Controllers\PushSubscriptionController;
 
 Route::prefix(config('notifications.routes.prefix', 'api/v1'))
     ->middleware([...config('notifications.routes.middleware', ['api']), 'auth:sanctum'])
@@ -15,4 +16,7 @@ Route::prefix(config('notifications.routes.prefix', 'api/v1'))
 
         Route::get('/notification-preferences', [PreferenceController::class, 'index'])->name('preferences.index');
         Route::patch('/notification-preferences', [PreferenceController::class, 'update'])->name('preferences.update');
+
+        Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
+        Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
     });

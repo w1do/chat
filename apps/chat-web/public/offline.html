@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Нет связи — Семейный чат</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: #f4f4f7;
+        color: #14131a;
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      p { color: #86858f; margin: 8px 0 0; }
+      button {
+        margin-top: 20px;
+        padding: 12px 20px;
+        font-size: 16px;
+        border: 0;
+        border-radius: 14px;
+        background: #14131a;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div style="font-size: 44px">📡</div>
+      <h1 style="font-size: 20px; margin: 12px 0 0">Нет связи</h1>
+      <p>Чат откроется, как только появится интернет.<br />Отправленные сообщения не потеряются.</p>
+      <button type="button" onclick="location.reload()">Попробовать снова</button>
+    </main>
+  </body>
+</html>

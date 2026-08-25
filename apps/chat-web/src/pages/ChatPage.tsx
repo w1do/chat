@@ -20,7 +20,15 @@ import {
   type MagicPhase,
 } from '@vendor/chat';
 import { useAuth } from '@vendor/identity';
-import { Confetti, THEMES, Toast, useKeyboardInsets, useTheme, type ThemeTokens } from '@vendor/ui';
+import {
+  Confetti,
+  THEMES,
+  Toast,
+  useKeyboardInsets,
+  useMediaQuery,
+  useTheme,
+  type ThemeTokens,
+} from '@vendor/ui';
 import { MessageCircle, Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -29,6 +37,7 @@ import { realtimeAdapter } from '../app/echo';
 import { runtimeConfig } from '../app/runtime-config';
 import { applyTabCounter, raiseSystemNotification } from '../app/notifications';
 import { useNotificationFeed } from '@vendor/notifications';
+import { useInstallPrompt } from '../app/install';
 import { useSettings, type AppSettings } from '../app/settings';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -55,6 +64,10 @@ export function ChatPage() {
   const createRoom = useCreateRoom();
   const notifications = useNotificationFeed();
   const chatOpen = Boolean(roomId);
+  // Раскладка выбирается по ширине окна: user-agent врёт на планшетах и в
+  // режиме рабочего стола браузера.
+  const wide = useMediaQuery('(min-width: 1024px)');
+  const install = useInstallPrompt();
 
   const showToast = (text: string) => {
     setToast(text);
@@ -104,17 +117,58 @@ export function ChatPage() {
       }}
     >
       <div
-        className={`relative w-full max-w-md overflow-hidden ${settings.animations ? '' : 'still'}`}
+        className={`relative w-full overflow-hidden ${wide ? 'flex max-w-[1440px]' : 'max-w-md'} ${settings.animations ? '' : 'still'}`}
         style={{ height: '100%', background: theme.bg, color: theme.text }}
       >
         <div
-          className="absolute inset-0"
-          style={{
-            transform: chatOpen ? 'translateX(-22%)' : 'none',
-            filter: chatOpen ? 'brightness(.94)' : 'none',
-            transition: `transform .4s ${SPRING}, filter .4s ease`,
-          }}
+          className={wide ? 'relative shrink-0' : 'absolute inset-0'}
+          style={
+            wide
+              ? { width: 380, height: '100%', borderRight: `1px solid ${theme.hairline}` }
+              : {
+                  transform: chatOpen ? 'translateX(-22%)' : 'none',
+                  filter: chatOpen ? 'brightness(.94)' : 'none',
+                  transition: `transform .4s ${SPRING}, filter .4s ease`,
+                }
+          }
         >
+          {tab === 'chats' && install.canInstall ? (
+            <div
+              role="status"
+              className="absolute left-0 right-0 z-20 px-3"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 74px)' }}
+            >
+              <div
+                className="flex items-center gap-3 px-3 py-2.5"
+                style={{ background: theme.surface, borderRadius: 16, boxShadow: '0 8px 30px rgba(20,19,26,.16)' }}
+              >
+                <span aria-hidden="true" style={{ fontSize: 22 }}>
+                  📲
+                </span>
+                <p className="flex-1 text-[13.5px]" style={{ color: theme.text }}>
+                  Поставьте чат на экран «Домой» — так приходят уведомления.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void install.install()}
+                  className="tap text-[13.5px] font-medium px-3 py-1.5"
+                  style={{ background: theme.text, color: theme.bg, borderRadius: 12 }}
+                >
+                  Установить
+                </button>
+                <button
+                  type="button"
+                  onClick={install.dismiss}
+                  aria-label="Скрыть предложение установки"
+                  className="tap text-[13.5px] px-1"
+                  style={{ color: theme.muted }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {tab === 'chats' ? (
             <RoomsScreen
               rooms={rooms.data}
@@ -199,12 +253,16 @@ export function ChatPage() {
         </div>
 
         <div
-          className="absolute inset-0"
-          style={{
-            transform: chatOpen ? 'translateX(0)' : 'translateX(100%)',
-            transition: `transform .42s ${SPRING}`,
-            boxShadow: '-16px 0 40px rgba(0,0,0,.20)',
-          }}
+          className={wide ? 'relative flex-1 min-w-0' : 'absolute inset-0'}
+          style={
+            wide
+              ? { height: '100%' }
+              : {
+                  transform: chatOpen ? 'translateX(0)' : 'translateX(100%)',
+                  transition: `transform .42s ${SPRING}`,
+                  boxShadow: '-16px 0 40px rgba(0,0,0,.20)',
+                }
+          }
         >
           {roomId ? (
             <ActiveRoom
@@ -217,6 +275,21 @@ export function ChatPage() {
               onOpenMembers={() => navigate(`/rooms/${roomId}/settings`)}
               onToast={showToast}
             />
+          ) : wide ? (
+            // Правая колонка не пустует: она объясняет, что делать дальше.
+            <div className="h-full grid place-items-center px-8 text-center">
+              <div>
+                <span aria-hidden="true" style={{ fontSize: 44 }}>
+                  💬
+                </span>
+                <p className="text-[17px] font-medium mt-3" style={{ color: theme.text }}>
+                  Выберите комнату слева
+                </p>
+                <p className="text-[14px] mt-1" style={{ color: theme.muted }}>
+                  Или создайте новую — семья, дом, что угодно.
+                </p>
+              </div>
+            </div>
           ) : null}
         </div>
 

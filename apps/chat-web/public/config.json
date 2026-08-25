@@ -2,5 +2,6 @@
   "apiBaseUrl": "/api/v1",
   "reverb": { "host": "localhost", "port": "8080", "scheme": "http", "appKey": "dev" },
   "ai": { "enabled": "false" },
+  "push": { "publicKey": "" },
   "branding": { "appName": "Chat (dev)" }
 }

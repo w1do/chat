@@ -14,6 +14,8 @@ manager или файл `.env` с правами 0600.
   `REVERB_ALLOWED_ORIGINS` — явный allowlist, wildcard запрещён;
 - **Почта**: `MAIL_*`;
 - **Поиск**: `TYPESENSE_API_KEY`;
+- **Push-уведомления**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+  (генерируются командой `php artisan chat:push-keys`; пусто — push выключены);
 - **AI**: `AI_ENABLED`, `AI_PROVIDER`, `AI_API_KEY` (этап 10);
 - **Хранилище**: `S3_*` (опционально, профиль `s3`).
 

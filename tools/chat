@@ -468,7 +468,7 @@ PY
       docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true \
         -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web \
         mcr.microsoft.com/playwright:v1.58.1-noble \
-        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts --reporter=line"
+        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/desktop.spec.ts --reporter=line"
       rc=$?
       "$0" e2e-stack-down
       exit $rc

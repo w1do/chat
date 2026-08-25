@@ -9,7 +9,8 @@
         "illuminate/support": "^13.0",
         "vendor/shared-kernel": "^0.1",
         "illuminate/bus": "^13.0",
-        "illuminate/queue": "^13.0"
+        "illuminate/queue": "^13.0",
+        "minishlink/web-push": "^11.0"
     },
     "require-dev": {
         "orchestra/testbench": "^11.0",

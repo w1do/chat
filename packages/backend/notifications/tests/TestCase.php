@@ -7,6 +7,7 @@ namespace Vendor\Notifications\Tests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
+use Vendor\Identity\Domain\Models\User;
 use Vendor\Identity\IdentityServiceProvider;
 use Vendor\Notifications\NotificationsServiceProvider;
 
@@ -21,6 +22,15 @@ abstract class TestCase extends TestbenchTestCase
             IdentityServiceProvider::class,
             NotificationsServiceProvider::class,
         ];
+    }
+
+    /** Аутентифицированный пользователь для запросов API. */
+    protected function actingAsUser(): User
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        return $user;
     }
 
     protected function defineEnvironment($app): void

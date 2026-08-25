@@ -15,6 +15,7 @@ use Throwable;
 use Vendor\Notifications\Domain\Enums\Category;
 use Vendor\Notifications\Domain\Enums\Channel;
 use Vendor\Notifications\Infrastructure\Channels\MailChannelSender;
+use Vendor\Notifications\Infrastructure\Push\WebPushSender;
 
 /**
  * Доставка медленного канала. Идемпотентно: уникальный замок гасит дубли при
@@ -67,11 +68,14 @@ final class DeliverNotificationJob implements ShouldBeUnique, ShouldQueue
         return (int) config('notifications.jobs.unique_seconds', 120);
     }
 
-    public function handle(MailChannelSender $mail): void
+    public function handle(MailChannelSender $mail, WebPushSender $push): void
     {
-        if ($this->channel === Channel::Mail) {
-            $mail->send($this->recipientId, $this->category, $this->payload);
-        }
+        match ($this->channel) {
+            Channel::Mail => $mail->send($this->recipientId, $this->category, $this->payload),
+            Channel::Push => $push->send($this->recipientId, $this->category, $this->payload),
+            // Лента пишется синхронно в обработчике: сюда она не доходит.
+            Channel::Database => null,
+        };
     }
 
     public function failed(Throwable $exception): void

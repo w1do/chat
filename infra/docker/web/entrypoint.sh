@@ -11,9 +11,11 @@ set -eu
 : "${REVERB_SCHEME:=}"
 : "${REVERB_APP_KEY:=}"
 : "${AI_ENABLED:=false}"
+# Публичный ключ VAPID: пустой означает, что push на сервере не настроен.
+: "${VAPID_PUBLIC_KEY:=}"
 : "${APP_NAME:=Self-Hosted Chat}"
 
-export API_BASE_URL REVERB_HOST REVERB_PORT REVERB_SCHEME REVERB_APP_KEY AI_ENABLED APP_NAME
+export API_BASE_URL REVERB_HOST REVERB_PORT REVERB_SCHEME REVERB_APP_KEY AI_ENABLED APP_NAME VAPID_PUBLIC_KEY
 
 envsubst < /usr/share/nginx/config.template.json > /usr/share/nginx/html/config.json
 

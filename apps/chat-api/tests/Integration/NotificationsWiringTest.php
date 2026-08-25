@@ -9,6 +9,9 @@ use Vendor\Chat\Domain\Contracts\PresenceRegistry;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
+use Vendor\Notifications\Domain\Contracts\PushTransport;
+use Vendor\Notifications\Domain\Models\PushSubscription;
+use Vendor\Notifications\Testing\FakePushTransport;
 
 uses(RefreshDatabase::class);
 
@@ -124,4 +127,61 @@ it('notifies an invited member', function (): void {
 
     expect($row)->not->toBeNull()
         ->and(json_decode((string) $row->data, true)['category'])->toBe('room_invite');
+});
+
+it('pushes to devices of a member who is not in the room', function (): void {
+    config()->set('notifications.push.public_key', 'BPublicKeyForTests');
+    config()->set('notifications.push.private_key', 'PrivateKeyForTests');
+
+    $transport = new FakePushTransport;
+    app()->instance(PushTransport::class, $transport);
+
+    presence();
+    [$room, $author, $recipient] = roomWithTwo();
+    PushSubscription::query()->create([
+        'user_id' => $recipient->getKey(),
+        'endpoint' => 'https://push.example.com/recipient',
+        'endpoint_hash' => PushSubscription::hashEndpoint('https://push.example.com/recipient'),
+        'p256dh' => 'key',
+        'auth' => 'auth',
+    ]);
+
+    $this->actingAs($author)
+        ->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'пирог готов'])
+        ->assertCreated();
+
+    expect($transport->sent)->toHaveCount(1);
+
+    $notification = json_decode($transport->sent[0]['payload'], true);
+    expect($notification['title'])->toBe($room->name)
+        ->and($notification['body'])->toContain('пирог готов')
+        ->and($notification['url'])->toBe('/rooms/'.$room->id);
+});
+
+it('sends no push to the author or to someone reading the room', function (): void {
+    config()->set('notifications.push.public_key', 'BPublicKeyForTests');
+    config()->set('notifications.push.private_key', 'PrivateKeyForTests');
+
+    $transport = new FakePushTransport;
+    app()->instance(PushTransport::class, $transport);
+
+    [$room, $author, $recipient] = roomWithTwo();
+    // Получатель сейчас читает эту комнату.
+    presence(["{$room->id}:{$recipient->getKey()}"]);
+
+    foreach ([$author, $recipient] as $user) {
+        PushSubscription::query()->create([
+            'user_id' => $user->getKey(),
+            'endpoint' => 'https://push.example.com/'.$user->getKey(),
+            'endpoint_hash' => PushSubscription::hashEndpoint('https://push.example.com/'.$user->getKey()),
+            'p256dh' => 'key',
+            'auth' => 'auth',
+        ]);
+    }
+
+    $this->actingAs($author)
+        ->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'я тут'])
+        ->assertCreated();
+
+    expect($transport->sent)->toBe([]);
 });
