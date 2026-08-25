@@ -43,7 +43,13 @@ test('the assistant suggests instead of publishing, and chat works without it', 
 
   const disabled = page.getByText('Обработка текста внешним ИИ отключена на этом сервере');
 
-  if (await disabled.isVisible({ timeout: 5_000 }).catch(() => false)) {
+  // isVisible() проверяет мгновенно — содержимое листа появляется на такт позже.
+  const isDisabled = await disabled
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (isDisabled) {
     // Помощник выключен: об этом сказано словами, а сообщение отправляется.
     await page.keyboard.press('Escape');
     await composer.press('Enter');

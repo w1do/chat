@@ -1,6 +1,9 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { RADIUS, SPRING, type ThemeTokens } from '../styles/tokens';
+
+// Столько же длится transform панели ниже.
+const CLOSE_ANIMATION_MS = 420;
 
 interface SheetProps {
   open: boolean;
@@ -15,6 +18,23 @@ interface SheetProps {
 /** Выезжающий лист: им сделаны и помощник, и все настройки. */
 export function Sheet({ open, title, subtitle, onClose, theme, accent, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
+
+  // Содержимое живёт только у открытого листа (и ещё мгновение, пока он
+  // уезжает). Иначе поля закрытых листов остаются в DOM: их видит менеджер
+  // паролей браузера и до них доходит табуляция.
+  const [mounted, setMounted] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+
+      return;
+    }
+
+    const timer = setTimeout(() => setMounted(false), CLOSE_ANIMATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [open]);
 
   // Escape закрывает лист; фокус уходит внутрь при открытии.
   useEffect(() => {
@@ -92,7 +112,7 @@ export function Sheet({ open, title, subtitle, onClose, theme, accent, children 
             <X size={16} />
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto scroll-area safe-bottom">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto scroll-area safe-bottom">{mounted ? children : null}</div>
       </div>
     </div>
   );
