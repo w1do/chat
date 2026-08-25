@@ -19,6 +19,7 @@ const message: Message = {
   deleted: false,
   created_at: '2026-08-25T12:00:00Z',
   reactions: [],
+  attachments: [],
   payload: null,
 };
 

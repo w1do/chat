@@ -27,6 +27,7 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
         created_at: event.data.created_at,
         reactions: [],
         payload: event.data.payload,
+        attachments: event.data.attachments ?? [],
       };
 
       queryClient.setQueryData<MessagesData>(messagesKey(event.room_id), (data) => {

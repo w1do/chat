@@ -1,0 +1,20 @@
+type: object
+required: [id, name, mime_type, size, url, thumb_url, width, height]
+properties:
+  id: { type: string, description: UUID вложения. }
+  name: { type: string, description: "Имя файла, как его показывают человеку." }
+  mime_type: { type: string, description: "Тип содержимого, определённый сервером." }
+  size: { type: integer, description: Размер файла в байтах. }
+  url: { type: string, description: Адрес скачивания через приложение по праву чтения сообщения. }
+  thumb_url:
+    type: [string, "null"]
+    description: >-
+      Адрес миниатюры изображения. null — миниатюра ещё готовится или файлу
+      не положена (не-изображения); это описанное состояние контракта,
+      а не ошибка.
+  width:
+    type: [integer, "null"]
+    description: Ширина исходного изображения; null у не-изображений.
+  height:
+    type: [integer, "null"]
+    description: Высота исходного изображения; null у не-изображений.

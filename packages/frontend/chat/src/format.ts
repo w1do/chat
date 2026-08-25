@@ -40,6 +40,17 @@ export function typingSummary(names: readonly string[], max = 3): string | null 
   return `${shown} и ещё ${names.length - max} ${verb}…`;
 }
 
+/** Размер файла человеческим языком: «841 КБ», «2,4 МБ». */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
+
+  const mb = bytes / (1024 * 1024);
+  const rounded = mb >= 10 ? String(Math.round(mb)) : (Math.round(mb * 10) / 10).toString().replace('.', ',');
+
+  return `${rounded} МБ`;
+}
+
 export const ROLE_LABEL: Record<string, string> = {
   owner: 'владелец',
   admin: 'администратор',

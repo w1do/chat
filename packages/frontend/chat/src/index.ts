@@ -1,5 +1,5 @@
 // Публичный entrypoint пакета @vendor/chat.
-export { aiApi, invitesApi, messagesApi, roomsApi, searchApi, type Invite } from './api';
+export { aiApi, attachmentsApi, invitesApi, messagesApi, roomsApi, searchApi, type Invite } from './api';
 export { ChatProvider, useChatClient } from './adapters/ChatProvider';
 export { EchoAdapter } from './adapters/EchoAdapter';
 export type {
@@ -44,8 +44,18 @@ export { RoomManagePanel } from './components/mobile/RoomManagePanel';
 export { RoomGlyph } from './components/RoomGlyph';
 export { InvitePanel, cleanNickname, MIN_NICKNAME_LENGTH } from './components/mobile/InvitePanel';
 export { MemberRow, canChangeRole, canRemoveMember } from './components/mobile/MemberRow';
-export { buildGroups, dayLabel, formatTime, typingSummary, ROLE_LABEL } from './format';
+export { buildGroups, dayLabel, formatFileSize, formatTime, typingSummary, ROLE_LABEL } from './format';
 export { useDeleteMessage, useEditMessage, useMessages, useReactions, useSendMessage } from './hooks/useMessages';
+export {
+  ATTACHMENT_MAX_FILES,
+  ATTACHMENT_MAX_SIZE_MB,
+  useAttachmentUploads,
+  type AttachmentUploads,
+  type PendingAttachment,
+} from './hooks/useAttachmentUploads';
+export { AttachmentGallery } from './components/mobile/AttachmentGallery';
+export { MessageAttachments, isImageAttachment } from './components/mobile/AttachmentTiles';
+export { ComposerAttachments } from './components/mobile/ComposerAttachments';
 export {
   useCreateRoom,
   useMemberCandidates,
@@ -57,10 +67,12 @@ export {
 } from './hooks/useRooms';
 export { MentionPicker } from './components/MentionPicker';
 export {
+  attachmentSchema,
   messagePageSchema,
   messageSchema,
   reactionSchema,
   sendMessageSchema,
+  type Attachment,
   type Message,
   type MessagePage,
   type Reaction,

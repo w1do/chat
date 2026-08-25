@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\AttachmentController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\AttachmentFileController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\InviteController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
@@ -41,6 +43,13 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
         Route::delete('/rooms/{room}/members/me', [MemberController::class, 'leave'])->name('members.leave');
         Route::patch('/rooms/{room}/members/{member}', [MemberController::class, 'update'])->name('members.role');
         Route::delete('/rooms/{room}/members/{member}', [MemberController::class, 'destroy'])->name('members.remove');
+
+        // Вложения: файл загружается отдельно до отправки сообщения
+        // (design 3); выдача — через приложение по праву чтения сообщения.
+        Route::post('/rooms/{room}/attachments', [AttachmentController::class, 'store'])
+            ->middleware('throttle:chat-attachments')->name('attachments.upload');
+        Route::get('/attachments/{attachment}', [AttachmentFileController::class, 'show'])->name('attachments.show');
+        Route::get('/attachments/{attachment}/thumb', [AttachmentFileController::class, 'thumb'])->name('attachments.thumb');
 
         Route::get('/rooms/{room}/messages', [MessageController::class, 'index'])->name('messages.index');
         Route::post('/rooms/{room}/messages', [MessageController::class, 'store'])->name('messages.send');

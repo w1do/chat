@@ -11,7 +11,7 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
+import { Check, CheckCheck, ChevronLeft, Lock, Paperclip, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   dayLabel,
@@ -23,8 +23,12 @@ import {
   typingSummary,
 } from '../../format';
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
-import type { Message, SendMessageInput } from '../../schemas/message';
+import type { Attachment, Message, SendMessageInput } from '../../schemas/message';
+import type { PendingAttachment } from '../../hooks/useAttachmentUploads';
 import { MentionPicker } from '../MentionPicker';
+import { AttachmentGallery } from './AttachmentGallery';
+import { isImageAttachment } from './AttachmentTiles';
+import { ComposerAttachments } from './ComposerAttachments';
 import { RoomGlyph } from '../RoomGlyph';
 import { useMessageGestures } from '../../hooks/useMessageGestures';
 import { EmojiPicker } from './EmojiPicker';
@@ -71,6 +75,11 @@ interface ChatScreenProps {
   /** Черновик под управлением приложения: помощник его заменяет. */
   draft: string;
   onDraftChange: (text: string) => void;
+  /** Вложения панели ввода: состоянием владеет приложение (useAttachmentUploads). */
+  attachments?: PendingAttachment[];
+  onPickFiles?: (files: File[]) => void;
+  onRemoveAttachment?: (localId: string) => void;
+  onRetryAttachment?: (localId: string) => void;
   /** Короткое сообщение пользователю (копирование текста, подсказки). */
   onToast?: (text: string) => void;
 }
@@ -107,6 +116,10 @@ export function ChatScreen({
   onInvite,
   draft,
   onDraftChange,
+  attachments = [],
+  onPickFiles,
+  onRemoveAttachment,
+  onRetryAttachment,
   onToast,
   wallpaperUrl,
 }: ChatScreenProps) {
@@ -126,6 +139,21 @@ export function ChatScreen({
   const [emojiOpen, setEmojiOpen] = useState(false);
   // Действия спрятаны в жесты — один раз объясняем, где они.
   const [hintSeen, setHintSeen] = useState(() => readGestureHintSeen());
+  const fileInput = useRef<HTMLInputElement>(null);
+  // Открытая галерея: изображения одного сообщения и стартовая позиция.
+  const [gallery, setGallery] = useState<{ images: Attachment[]; index: number } | null>(null);
+
+  const readyAttachmentIds = attachments.flatMap((item) => (item.attachment ? [item.attachment.id] : []));
+  const uploadsBusy = attachments.some((item) => item.status === 'uploading');
+  // Отправлять есть что, когда есть текст или готовые файлы — и ничего не грузится.
+  const canSend = (draft.trim() !== '' || readyAttachmentIds.length > 0) && !uploadsBusy;
+
+  const openGallery = (message: Message, attachmentId: string) => {
+    const images = message.attachments.filter(isImageAttachment);
+    const index = images.findIndex((image) => image.id === attachmentId);
+
+    if (index >= 0) setGallery({ images, index });
+  };
 
   /** Ответ начинается жестом или из меню: цитата над полем и фокус в нём. */
   const startReply = (message: Message) => {
@@ -176,7 +204,7 @@ export function ChatScreen({
 
   const submit = async () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!canSend) return;
 
     setSendError(null);
     try {
@@ -184,12 +212,13 @@ export function ChatScreen({
         body: text,
         reply_to_id: replyTo?.id ?? null,
         mentions: mentions.length > 0 ? mentions : undefined,
+        attachments: readyAttachmentIds.length > 0 ? readyAttachmentIds : undefined,
       });
       onDraftChange('');
       setReplyTo(null);
       setMentions([]);
     } catch {
-      // Текст остаётся в поле — можно отправить повторно.
+      // Текст и вложения остаются на месте — можно отправить повторно.
       setSendError('Не удалось отправить. Попробуйте ещё раз.');
     }
   };
@@ -325,12 +354,22 @@ export function ChatScreen({
             style={{ background: theme.surfaceAlt, borderRadius: RADIUS.sm, color: theme.muted }}
           >
             <span className="flex-1 min-w-0 truncate">
-              Ответ {namesById.get(replyTo.author_id) ?? replyTo.author_name ?? ''}: {replyTo.body}
+              Ответ {namesById.get(replyTo.author_id) ?? replyTo.author_name ?? ''}:{' '}
+              {replyTo.body || (replyTo.attachments.length > 0 ? 'Вложение' : '')}
             </span>
             <button type="button" aria-label="Отменить ответ" onClick={() => setReplyTo(null)} className="tap">
               ✕
             </button>
           </div>
+        ) : null}
+
+        {attachments.length > 0 && canWrite ? (
+          <ComposerAttachments
+            items={attachments}
+            theme={theme}
+            onRemove={(localId) => onRemoveAttachment?.(localId)}
+            onRetry={(localId) => onRetryAttachment?.(localId)}
+          />
         ) : null}
 
         {emojiOpen && canWrite ? (
@@ -410,6 +449,33 @@ export function ChatScreen({
               transition: 'box-shadow .3s ease',
             }}
           >
+            {onPickFiles ? (
+              <>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  data-testid="attachment-input"
+                  onChange={(event) => {
+                    const picked = Array.from(event.target.files ?? []);
+                    if (picked.length > 0) onPickFiles(picked);
+                    // Сброс: тот же файл можно выбрать повторно.
+                    event.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  aria-label="Приложить файлы"
+                  className="tap grid place-items-center shrink-0"
+                  style={{ width: 36, height: 36, borderRadius: 18, background: theme.surfaceAlt, color: theme.muted }}
+                >
+                  <Paperclip size={18} />
+                </button>
+              </>
+            ) : null}
+
             <label htmlFor="composer-body" className="sr-only">
               Сообщение
             </label>
@@ -474,7 +540,7 @@ export function ChatScreen({
             <button
               type="button"
               onClick={() => void submit()}
-              disabled={!draft.trim()}
+              disabled={!canSend}
               className="grid place-items-center shrink-0 tap"
               style={{
                 width: 36,
@@ -482,10 +548,10 @@ export function ChatScreen({
                 borderRadius: 18,
                 background: theme.text,
                 color: theme.bg,
-                transform: draft.trim() ? 'scale(1)' : 'scale(.6)',
-                opacity: draft.trim() ? 1 : 0,
+                transform: canSend ? 'scale(1)' : 'scale(.6)',
+                opacity: canSend ? 1 : 0,
                 transition: `transform .26s ${SPRING}, opacity .2s ease`,
-                marginRight: draft.trim() ? 0 : -42,
+                marginRight: canSend ? 0 : -42,
               }}
               aria-label="Отправить"
             >
@@ -622,6 +688,7 @@ export function ChatScreen({
                       onOpenActions={setActionsFor}
                       onToggleReaction={onToggleReaction}
                       onJump={jumpToMessage}
+                      onOpenAttachment={openGallery}
                     />
                   ))}
                 </div>
@@ -666,6 +733,14 @@ export function ChatScreen({
 
           return true;
         }}
+        />
+      ) : null}
+
+      {gallery !== null ? (
+        <AttachmentGallery
+          images={gallery.images}
+          initialIndex={gallery.index}
+          onClose={() => setGallery(null)}
         />
       ) : null}
 

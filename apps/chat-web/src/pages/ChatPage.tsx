@@ -2,6 +2,7 @@ import {
   ChatScreen,
   MagicSheet,
   RoomsScreen,
+  useAttachmentUploads,
   useCreateRoom,
   useDeleteMessage,
   useMembers,
@@ -327,6 +328,7 @@ function ActiveRoom({
   const members = useMembers(roomId);
   const messages = useMessages(roomId);
   const send = useSendMessage(roomId, currentUserId);
+  const uploads = useAttachmentUploads(roomId, onToast);
   const remove = useDeleteMessage(roomId);
   const react = useReactions(roomId);
   const typing = useTyping(roomId);
@@ -419,6 +421,10 @@ function ActiveRoom({
           setDraft(text);
           if (undoText !== null && text === '') setUndoText(null);
         }}
+        attachments={uploads.items}
+        onPickFiles={uploads.add}
+        onRemoveAttachment={uploads.remove}
+        onRetryAttachment={uploads.retry}
         onBack={onBack}
         onOpenMembers={onOpenMembers}
         onInvite={async () => {
@@ -436,6 +442,8 @@ function ActiveRoom({
         onSend={async (input) => {
           typing.stopTyping();
           await send.mutateAsync(input);
+          // Отправленные файлы ушли с сообщением — панель ввода чиста.
+          uploads.clear();
           setUndoText(null);
         }}
         onTyping={typing.notifyTyping}

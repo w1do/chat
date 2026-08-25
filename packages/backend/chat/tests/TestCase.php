@@ -9,6 +9,7 @@ use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
 use Spatie\MediaLibrary\MediaLibraryServiceProvider;
 use Vendor\Chat\ChatServiceProvider;
+use Vendor\Chat\Tests\Support\TestPathGenerator;
 use Vendor\Identity\IdentityServiceProvider;
 
 abstract class TestCase extends TestbenchTestCase
@@ -35,9 +36,12 @@ abstract class TestCase extends TestbenchTestCase
         $app['config']->set('identity.routes.enabled', false);
 
         // Медиа в тестах пакета: диск подменяется Storage::fake, конверсии
-        // выполняются синхронно. Раскладка бакета — забота приложения.
+        // выполняются синхронно. Раскладка бакета — забота приложения; здесь
+        // её повторяет фикстура, как и таблицу медиа ниже.
         $app['config']->set('media-library.disk_name', 'media');
         $app['config']->set('media-library.queue_connection_name', 'sync');
+        $app['config']->set('media-library.queue_name', 'media');
+        $app['config']->set('media-library.path_generator', TestPathGenerator::class);
         $app['config']->set('filesystems.disks.media', [
             'driver' => 'local',
             'root' => storage_path('framework/testing/disks/media'),

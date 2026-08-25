@@ -81,8 +81,8 @@ export const roomsApi = {
 
 // --- Сообщения ---------------------------------------------------------------
 
-import { messagePageSchema, messageSchema, reactionSchema } from './schemas/message';
-import type { Message, MessagePage, Reaction, SendMessageInput } from './schemas/message';
+import { attachmentSchema, messagePageSchema, messageSchema, reactionSchema } from './schemas/message';
+import type { Attachment, Message, MessagePage, Reaction, SendMessageInput } from './schemas/message';
 
 export const messagesApi = {
   async list(client: ApiClient, roomId: string, cursor?: string | null, limit = 50): Promise<MessagePage> {
@@ -106,6 +106,20 @@ export const messagesApi = {
   async toggleReaction(client: ApiClient, messageId: string, emoji: string): Promise<Reaction> {
     return reactionSchema.parse(
       ((await client.post(`/messages/${messageId}/reactions`, { body: { emoji } })) as { data: unknown }).data,
+    );
+  },
+};
+
+// --- Вложения ----------------------------------------------------------------
+
+export const attachmentsApi = {
+  /** Файл загружается до отправки: у каждого свой ход и своя ошибка (design 3). */
+  async upload(client: ApiClient, roomId: string, file: File): Promise<Attachment> {
+    const body = new FormData();
+    body.append('file', file);
+
+    return attachmentSchema.parse(
+      ((await client.post(`/rooms/${roomId}/attachments`, { body })) as { data: unknown }).data,
     );
   },
 };

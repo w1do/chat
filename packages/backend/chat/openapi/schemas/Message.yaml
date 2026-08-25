@@ -25,6 +25,12 @@ properties:
   reactions:
     type: array
     items: { $ref: '#/components/schemas/Reaction' }
+  attachments:
+    type: array
+    description: >-
+      Вложения сообщения; пустой список у сообщения без вложений. У мягко
+      удалённого сообщения поле отсутствует — его вложения не перечисляются.
+    items: { $ref: '#/components/schemas/Attachment' }
   payload:
     type: [object, "null"]
     description: Данные системного события (event, actor_id); null для обычных сообщений.

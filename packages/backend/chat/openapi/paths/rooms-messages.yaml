@@ -52,13 +52,21 @@
         application/json:
           schema:
             type: object
-            required: [body]
+            description: >-
+              Сообщение полно, когда есть непустой текст или хотя бы одно
+              вложение; форма без того и другого отклоняется (422).
             properties:
-              body: { type: string, maxLength: 4000 }
+              body: { type: [string, "null"], maxLength: 4000 }
               reply_to_id: { type: [string, "null"] }
               mentions:
                 type: array
                 maxItems: 20
+                items: { type: string }
+              attachments:
+                type: array
+                description: >-
+                  UUID загруженных вложений этого же автора и этой же комнаты;
+                  предел количества задаётся установкой (по умолчанию 10).
                 items: { type: string }
     responses:
       '201':

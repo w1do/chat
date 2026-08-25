@@ -6,7 +6,10 @@ namespace Vendor\Chat\Application\Commands;
 
 final readonly class SendMessageCommand
 {
-    /** @param list<string> $mentions */
+    /**
+     * @param  list<string>  $mentions
+     * @param  list<string>  $attachments  идентификаторы загруженных вложений
+     */
     public function __construct(
         public string $roomId,
         public string $authorId,
@@ -14,5 +17,6 @@ final readonly class SendMessageCommand
         public ?string $replyToId = null,
         public array $mentions = [],
         public ?string $idempotencyKey = null,
+        public array $attachments = [],
     ) {}
 }

@@ -47,6 +47,62 @@
                     }
                 }
             },
+            "Attachment": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "mime_type",
+                    "size",
+                    "url",
+                    "thumb_url",
+                    "width",
+                    "height"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "UUID вложения."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Имя файла, как его показывают человеку."
+                    },
+                    "mime_type": {
+                        "type": "string",
+                        "description": "Тип содержимого, определённый сервером."
+                    },
+                    "size": {
+                        "type": "integer",
+                        "description": "Размер файла в байтах."
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "Адрес скачивания через приложение по праву чтения сообщения."
+                    },
+                    "thumb_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Адрес миниатюры изображения. null — миниатюра ещё готовится или файлу не положена (не-изображения); это описанное состояние контракта, а не ошибка."
+                    },
+                    "width": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Ширина исходного изображения; null у не-изображений."
+                    },
+                    "height": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Высота исходного изображения; null у не-изображений."
+                    }
+                }
+            },
             "AuditEntry": {
                 "AuditEntry": {
                     "type": "object",
@@ -328,6 +384,13 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Reaction"
+                        }
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "description": "Вложения сообщения; пустой список у сообщения без вложений. У мягко удалённого сообщения поле отсутствует — его вложения не перечисляются.",
+                        "items": {
+                            "$ref": "#/components/schemas/Attachment"
                         }
                     },
                     "payload": {
@@ -1241,6 +1304,94 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/attachments/{attachment}": {
+            "parameters": [
+                {
+                    "name": "attachment",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "operationId": "downloadAttachment",
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Файл вложения (отдаётся на скачивание)",
+                "description": "Доступен тем, кто вправе читать сообщение. Ответ уходит с заголовком «Content-Disposition: attachment» — браузер не исполняет содержимое. Вложения удалённого сообщения не отдаются.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Содержимое файла.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                }
+            }
+        },
+        "/attachments/{attachment}/thumb": {
+            "parameters": [
+                {
+                    "name": "attachment",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "get": {
+                "operationId": "showAttachmentThumb",
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Миниатюра изображения-вложения (webp)",
+                "description": "Есть только у изображений и только когда конверсия готова.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Миниатюра.",
+                        "content": {
+                            "image/webp": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
                     }
                 }
             }
@@ -3290,6 +3441,92 @@
                 }
             }
         },
+        "/rooms/{room}/attachments": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "post": {
+                "operationId": "uploadAttachment",
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Загрузка вложения до отправки сообщения",
+                "description": "Файл загружается отдельным запросом; сообщение затем отправляется со списком идентификаторов. Право — то же, что на отправку сообщения. Принимаются только типы из белого списка установки; исполняемые файлы отклоняются. Не отправленное вложение убирается по расписанию.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Файл принят и лежит в объектном хранилище.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Attachment"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "description": "Приватная комната не показана постороннему.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                }
+            }
+        },
         "/rooms/{room}/invites": {
             "parameters": [
                 {
@@ -3851,12 +4088,13 @@
                         "application/json": {
                             "schema": {
                                 "type": "object",
-                                "required": [
-                                    "body"
-                                ],
+                                "description": "Сообщение полно, когда есть непустой текст или хотя бы одно вложение; форма без того и другого отклоняется (422).",
                                 "properties": {
                                     "body": {
-                                        "type": "string",
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
                                         "maxLength": 4000
                                     },
                                     "reply_to_id": {
@@ -3868,6 +4106,13 @@
                                     "mentions": {
                                         "type": "array",
                                         "maxItems": 20,
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "attachments": {
+                                        "type": "array",
+                                        "description": "UUID загруженных вложений этого же автора и этой же комнаты; предел количества задаётся установкой (по умолчанию 10).",
                                         "items": {
                                             "type": "string"
                                         }
