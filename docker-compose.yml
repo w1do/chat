@@ -11,7 +11,10 @@
 #
 # Для production обязательно задайте свои DB_PASSWORD, REDIS_PASSWORD,
 # REVERB_APP_SECRET и TYPESENSE_API_KEY в .env — см. .env.example.
-name: chat
+#
+# Имя проекта здесь не задаётся намеренно: панель называет его сама, и
+# фиксированное имя расходилось бы с именами контейнеров, по которым она
+# строит маршруты.
 
 x-api-env: &api-env
     APP_NAME: ${APP_NAME:-Семейный чат}
