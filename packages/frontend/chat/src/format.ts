@@ -15,7 +15,29 @@ export function dayLabel(iso: string): string {
   if (date.toDateString() === today.toDateString()) return 'Сегодня';
   if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
 
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' });
+}
+
+/**
+ * «Печатает» человеческим языком: один — «печатает», двое и больше —
+ * «печатают», длинный список сворачивается в «и ещё N».
+ */
+export function typingSummary(names: readonly string[], max = 3): string | null {
+  if (names.length === 0) return null;
+
+  const verb = names.length === 1 ? 'печатает' : 'печатают';
+
+  if (names.length <= max) {
+    const head = names.slice(0, -1).join(', ');
+    const tail = names[names.length - 1]!;
+    const list = names.length === 1 ? tail : `${head} и ${tail}`;
+
+    return `${list} ${verb}…`;
+  }
+
+  const shown = names.slice(0, max).join(', ');
+
+  return `${shown} и ещё ${names.length - max} ${verb}…`;
 }
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -99,4 +121,24 @@ export function isSearchUnavailable(error: unknown): boolean {
   const status = (error as { status?: number }).status;
 
   return status === 503;
+}
+
+const GESTURE_HINT_KEY = 'chat:gesture-hint-seen';
+
+/** Подсказку о жестах показываем один раз на устройство. */
+export function readGestureHintSeen(): boolean {
+  try {
+    return window.localStorage.getItem(GESTURE_HINT_KEY) === '1';
+  } catch {
+    // Приватный режим или заблокированное хранилище — покажем подсказку снова.
+    return false;
+  }
+}
+
+export function rememberGestureHint(): void {
+  try {
+    window.localStorage.setItem(GESTURE_HINT_KEY, '1');
+  } catch {
+    // Ничего страшного: подсказка просто появится ещё раз.
+  }
 }

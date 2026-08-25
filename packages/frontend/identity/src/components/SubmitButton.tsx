@@ -14,8 +14,8 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={busy}
-      className="w-full py-3 tap text-[15px] font-medium"
-      style={{ background: theme.text, color: theme.bg, borderRadius: RADIUS.sm, opacity: busy ? 0.7 : 1 }}
+      className="w-full py-3.5 tap text-[16px] font-medium"
+      style={{ background: theme.text, color: theme.bg, borderRadius: RADIUS.md, opacity: busy ? 0.7 : 1 }}
     >
       {children}
     </button>

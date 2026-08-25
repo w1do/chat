@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Высота видимой области и высота экранной клавиатуры.
- * На мобильных visualViewport уменьшается при открытии клавиатуры —
- * панель ввода должна подниматься над ней, а лента прокручиваться вниз.
+ * Геометрия видимой области: её высота, высота экранной клавиатуры и сдвиг
+ * вьюпорта. Сдвиг нужен отдельно: iOS Safari при открытии клавиатуры сам
+ * прокручивает документ, и без компенсации шапка уезжает за верхний край.
  */
-export function useKeyboardInsets(): { height: number; keyboard: number } {
-  const [state, setState] = useState({ height: 0, keyboard: 0 });
+export function useKeyboardInsets(): { height: number; keyboard: number; offsetTop: number } {
+  const [state, setState] = useState({ height: 0, keyboard: 0, offsetTop: 0 });
 
   useEffect(() => {
     const viewport = window.visualViewport;
 
     const measure = () => {
       const height = viewport?.height ?? window.innerHeight;
-      const keyboard = Math.max(0, window.innerHeight - height - (viewport?.offsetTop ?? 0));
-      setState({ height, keyboard });
+      const offsetTop = viewport?.offsetTop ?? 0;
+      const keyboard = Math.max(0, window.innerHeight - height - offsetTop);
+
+      setState({ height, keyboard, offsetTop });
     };
 
     measure();

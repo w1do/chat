@@ -65,11 +65,12 @@ test('two users talk, search history and see what was missed', async ({ browser 
     await expect(bob.getByText(new RegExp(roomName))).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 60_000 });
 
-  // Автор удаляет своё сообщение — история сохраняет место, тело исчезает.
+  // Автор удаляет своё сообщение через меню действий: постоянных кнопок у
+  // сообщений больше нет — действия живут на жестах и в меню.
   await alice
     .locator('article', { hasText: 'Ты пропустил самое интересное' })
-    .getByRole('button', { name: /Удалить сообщение/ })
-    .click({ force: true });
+    .click({ button: 'right' });
+  await alice.getByRole('button', { name: 'Удалить' }).click();
   await expect(alice.getByText('Сообщение удалено').first()).toBeVisible({ timeout: 10_000 });
 
   await contextA.close();

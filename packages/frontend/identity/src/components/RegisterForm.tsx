@@ -9,18 +9,25 @@ import { SubmitButton } from './SubmitButton';
 
 interface RegisterFormProps {
   theme: ThemeTokens;
+  /** Логин, введённый на соседней вкладке формы: не теряется при переключении. */
+  defaultLogin?: string;
+  /** Каждое изменение логина уходит наверх — им делятся вход и регистрация. */
+  onLoginChange?: (login: string) => void;
   onSubmit: (input: RegisterInput) => Promise<unknown>;
 }
 
 /** Регистрация: придумал логин и пароль — уже внутри. Почта — потом, в настройках. */
-export function RegisterForm({ theme, onSubmit }: RegisterFormProps) {
+export function RegisterForm({ theme, defaultLogin = '', onLoginChange, onSubmit }: RegisterFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { login: defaultLogin } as Partial<RegisterInput>,
+  });
 
   const submit = handleSubmit(async (input) => {
     setServerError(null);
@@ -52,7 +59,7 @@ export function RegisterForm({ theme, onSubmit }: RegisterFormProps) {
         autoComplete="username"
         autoCapitalize="none"
         error={errors.login?.message}
-        {...register('login')}
+        {...register('login', { onChange: (event) => onLoginChange?.(event.target.value) })}
       />
       <Field
         theme={theme}

@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Dots,
   MIN_INPUT_FONT,
   RADIUS,
@@ -13,11 +14,22 @@ import {
 } from '@vendor/ui';
 import { Check, CheckCheck, ChevronLeft, Lock, RotateCcw, Search, Send, Smile, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { dayLabel, formatTime, ROLE_LABEL, splitTimeline } from '../../format';
+import {
+  dayLabel,
+  formatTime,
+  readGestureHintSeen,
+  rememberGestureHint,
+  ROLE_LABEL,
+  splitTimeline,
+  typingSummary,
+} from '../../format';
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Message, SendMessageInput } from '../../schemas/message';
 import { MentionPicker } from '../MentionPicker';
+import { useMessageGestures } from '../../hooks/useMessageGestures';
 import { EmojiPicker } from './EmojiPicker';
+import { MessageActionsSheet } from './MessageActionsSheet';
+import { MessageBubble, QUICK_REACTION } from './MessageBubble';
 import { SearchSheet } from './SearchSheet';
 import { SystemEntry } from './SystemEntry';
 import type { Member, Room } from '../../schemas/room';
@@ -55,6 +67,8 @@ interface ChatScreenProps {
   /** Черновик под управлением приложения: помощник его заменяет. */
   draft: string;
   onDraftChange: (text: string) => void;
+  /** Короткое сообщение пользователю (копирование текста, подсказки). */
+  onToast?: (text: string) => void;
 }
 
 /** Экран переписки: лента с группировкой по автору, панель ввода, помощник. */
@@ -88,6 +102,7 @@ export function ChatScreen({
   onOpenMembers,
   draft,
   onDraftChange,
+  onToast,
 }: ChatScreenProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -101,8 +116,18 @@ export function ChatScreen({
   const [mentions, setMentions] = useState<string[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [reactionFor, setReactionFor] = useState<string | null>(null);
+  const [actionsFor, setActionsFor] = useState<Message | null>(null);
+  // Смещение пузыря во время свайпа: id сообщения → сдвиг в пикселях.
+  const [swipe, setSwipe] = useState<{ id: string; offset: number } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // Действия спрятаны в жесты — один раз объясняем, где они.
+  const [hintSeen, setHintSeen] = useState(() => readGestureHintSeen());
+
+  /** Ответ начинается жестом или из меню: цитата над полем и фокус в нём. */
+  const startReply = (message: Message) => {
+    setReplyTo(message);
+    textarea.current?.focus();
+  };
 
   /** Переход от цитаты к оригиналу: подсветка гаснет сама. */
   const jumpToMessage = (messageId: string) => {
@@ -133,7 +158,7 @@ export function ChatScreen({
 
   useEffect(() => {
     scrollToBottom(true);
-  }, [ordered.length, typingUserIds.length]);
+  }, [ordered.length]);
 
   useEffect(() => {
     scrollToBottom(false);
@@ -162,8 +187,19 @@ export function ChatScreen({
   const typingNames = typingUserIds
     .filter((id) => id !== currentUserId)
     .map((id) => namesById.get(id) ?? 'Кто-то');
+  // «Печатает» живёт в шапке: в ленте оно дёргало прокрутку.
+  const typingLine = showTyping ? typingSummary(typingNames) : null;
 
   const mentionMatch = /@([\p{L}\w-]*)$/u.exec(draft);
+
+  /** Имя автора цитируемого сообщения — участник может быть уже не в комнате. */
+  const replyAuthorName = (message: Message): string => {
+    const original = message.reply_to_id ? byId.get(message.reply_to_id) : undefined;
+
+    if (original === undefined) return '';
+
+    return namesById.get(original.author_id) ?? original.author_name ?? '';
+  };
 
   let lastDay: string | null = null;
 
@@ -186,6 +222,22 @@ export function ChatScreen({
           <p role="status" className="py-6 text-center text-[15px]" style={{ color: theme.muted }}>
             Пока тихо. Напишите первым.
           </p>
+        ) : null}
+
+        {!hintSeen && ordered.length > 0 && canWrite ? (
+          <div className="flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setHintSeen(true);
+                rememberGestureHint();
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[12.5px] tap"
+              style={{ background: theme.amberSoft, color: theme.amberText, borderRadius: 12 }}
+            >
+              Потяните сообщение влево — ответить, удерживайте — меню. Понятно
+            </button>
+          </div>
         ) : null}
 
         {hasMore ? (
@@ -229,208 +281,43 @@ export function ChatScreen({
             <div key={group.key}>
               {showDay ? <DayDivider iso={group.items[0]!.created_at} theme={theme} /> : null}
 
-              <div className={`flex mb-2.5 ${own ? 'justify-end' : 'justify-start'}`}>
-                {!own ? (
-                  <span aria-hidden="true" className="shrink-0 mr-2" style={{ width: 2.5, borderRadius: 2, background: hue }} />
-                ) : null}
+              <div className={`flex items-end gap-2 mb-3 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
+                <Avatar userId={group.authorId} name={author} size={30} theme={theme} />
 
-                <div className="flex flex-col gap-0.5" style={{ maxWidth: '80%' }}>
-                  {!own ? (
-                    <span className="text-[13px] font-semibold px-1 mb-0.5" style={{ color: hue }}>
-                      {author}
-                    </span>
-                  ) : null}
+                <div className="flex flex-col gap-0.5 min-w-0" style={{ maxWidth: 'calc(100% - 46px)' }}>
+                  {/* Имя автора над первым пузырём — у обеих сторон, как на макете. */}
+                  <span
+                    className={`text-[12.5px] font-semibold px-1 ${own ? 'text-right' : 'text-left'}`}
+                    style={{ color: own ? theme.muted : hue }}
+                  >
+                    {author}
+                  </span>
 
-                  {group.items.map((message, index) => {
-                    const isLast = index === group.items.length - 1;
-                    const reply: Message | null = message.reply_to_id ? (byId.get(message.reply_to_id) ?? null) : null;
-                    const reactionCount = message.reactions.reduce((sum, reaction) => sum + reaction.count, 0);
-
-                    return (
-                      <article
-                        key={message.id}
-                        data-message-id={message.id}
-                        aria-label={`Сообщение ${message.id}`}
-                        onDoubleClick={() => !message.deleted && onToggleReaction(message.id, '❤️')}
-                        className={`relative px-3.5 py-2 ${own ? 'enter-right' : 'enter-left'}`}
-                        style={{
-                          background: own ? theme.own : theme.surface,
-                          color: own ? theme.ownText : theme.text,
-                          borderRadius: RADIUS.bubble,
-                          borderTopLeftRadius: !own && index === 0 ? 8 : RADIUS.bubble,
-                          borderTopRightRadius: own && index === 0 ? 8 : RADIUS.bubble,
-                          alignSelf: own ? 'flex-end' : 'flex-start',
-                          marginBottom: reactionCount > 0 ? 12 : 0,
-                          opacity: message.deleted ? 0.6 : 1,
-                          boxShadow:
-                            highlightedId === message.id ? `0 0 0 2px ${theme.amber}` : 'none',
-                          transition: 'box-shadow .4s ease',
-                        }}
-                      >
-                        {message.reply_to_id ? (
-                          <button
-                            type="button"
-                            onClick={() => jumpToMessage(message.reply_to_id!)}
-                            aria-label={`Перейти к сообщению ${message.reply_to_id}`}
-                            className="w-full text-left text-[12.5px] mb-1 px-2 py-1 tap flex gap-2"
-                            style={{
-                              background: own ? overlayOnOwn(theme) : theme.surfaceAlt,
-                              borderRadius: 8,
-                              color: own ? theme.ownText : theme.muted,
-                            }}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="shrink-0"
-                              style={{
-                                width: 2,
-                                borderRadius: 2,
-                                background: reply ? voiceHue(reply.author_id) : theme.faint,
-                              }}
-                            />
-                            <span className="min-w-0">
-                              <span className="block font-semibold truncate">
-                                {reply ? (namesById.get(reply.author_id) ?? reply.author_name ?? '') : 'Сообщение'}
-                              </span>
-                              <span className="block truncate">
-                                {reply === null
-                                  ? 'Сообщение не загружено'
-                                  : reply.deleted
-                                    ? 'Сообщение удалено'
-                                    : reply.body}
-                              </span>
-                            </span>
-                          </button>
-                        ) : null}
-
-                        <p
-                          style={{
-                            fontSize,
-                            lineHeight: 1.35,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            fontStyle: message.deleted ? 'italic' : 'normal',
-                          }}
-                        >
-                          {message.deleted ? 'Сообщение удалено' : message.body}
-                        </p>
-
-                        {isLast && !message.deleted ? (
-                          <span
-                            className="flex items-center gap-1 justify-end mt-0.5 text-[11px] tnum"
-                            style={{ color: own ? `${theme.ownText}99` : theme.faint }}
-                          >
-                            {message.edited_at ? <em>изменено</em> : null}
-                            {formatTime(message.created_at)}
-                            {own ? (
-                              message.id.startsWith('optimistic-') ? (
-                                <Check size={13} aria-label="отправляется" />
-                              ) : (
-                                <CheckCheck size={13} aria-label="отправлено" />
-                              )
-                            ) : null}
-                          </span>
-                        ) : null}
-
-                        {reactionCount > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => onToggleReaction(message.id, message.reactions[0]!.emoji)}
-                            aria-label={`Реакции: ${reactionCount}`}
-                            className="absolute pop grid place-items-center tap"
-                            style={{
-                              bottom: -11,
-                              [own ? 'left' : 'right']: 10,
-                              padding: '1px 6px',
-                              background: theme.surface,
-                              borderRadius: 11,
-                              fontSize: 12,
-                              color: theme.text,
-                              boxShadow: '0 2px 8px rgba(20,19,26,.16)',
-                            }}
-                          >
-                            {message.reactions.map((reaction) => reaction.emoji).join(' ')} {reactionCount}
-                          </button>
-                        ) : null}
-
-                        {!message.deleted ? (
-                          <span
-                            className="absolute flex flex-col gap-1"
-                            style={{ top: 2, [own ? 'right' : 'left']: -22 }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => setReplyTo(message)}
-                              aria-label={`Ответить на сообщение ${message.id}`}
-                              className="tap"
-                              style={{ color: theme.faint, fontSize: 12 }}
-                            >
-                              ↩
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setReactionFor((current) => (current === message.id ? null : message.id))}
-                              aria-label={`Выбрать реакцию для сообщения ${message.id}`}
-                              aria-expanded={reactionFor === message.id}
-                              className="tap"
-                              style={{ color: theme.faint, fontSize: 12 }}
-                            >
-                              ☺
-                            </button>
-                            {own ? (
-                              <button
-                                type="button"
-                                onClick={() => onDeleteMessage(message.id)}
-                                aria-label={`Удалить сообщение ${message.id}`}
-                                className="tap"
-                                style={{ color: theme.faint, fontSize: 12 }}
-                              >
-                                ✕
-                              </button>
-                            ) : null}
-                          </span>
-                        ) : null}
-
-                        {reactionFor === message.id ? (
-                          <span
-                            className="absolute z-20"
-                            style={{ top: '100%', [own ? 'right' : 'left']: 0, width: 232 }}
-                          >
-                            <EmojiPicker
-                              theme={theme}
-                              label={`Реакции для сообщения ${message.id}`}
-                              onPick={(emoji) => {
-                                onToggleReaction(message.id, emoji);
-                                setReactionFor(null);
-                              }}
-                            />
-                          </span>
-                        ) : null}
-                      </article>
-                    );
-                  })}
+                  {group.items.map((message, index) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      reply={message.reply_to_id ? (byId.get(message.reply_to_id) ?? null) : null}
+                      replyAuthor={replyAuthorName(message)}
+                      own={own}
+                      first={index === 0}
+                      last={index === group.items.length - 1}
+                      theme={theme}
+                      fontSize={fontSize}
+                      highlighted={highlightedId === message.id}
+                      onReply={startReply}
+                      onQuickReaction={(target) => onToggleReaction(target.id, QUICK_REACTION)}
+                      onOpenActions={setActionsFor}
+                      onToggleReaction={onToggleReaction}
+                      onJump={jumpToMessage}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
           );
         })}
 
-        {showTyping && typingNames.length > 0 ? (
-          <div className="flex mb-2.5 enter-left" role="status" aria-live="polite">
-            <span aria-hidden="true" className="shrink-0 mr-2" style={{ width: 2.5, borderRadius: 2, background: theme.muted }} />
-            <div>
-              <span className="text-[13px] font-semibold px-1" style={{ color: theme.muted }}>
-                {typingNames.length === 1 ? `${typingNames[0]} печатает` : `${typingNames.slice(0, 2).join(', ')} печатают`}
-              </span>
-              <div
-                className="px-4 py-3 mt-0.5"
-                style={{ background: theme.surface, borderRadius: RADIUS.bubble, borderTopLeftRadius: 8 }}
-              >
-                <Dots color={theme.faint} />
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
 
       <header
@@ -473,6 +360,7 @@ export function ChatScreen({
           <h1 className="text-[16px] font-semibold truncate" style={{ color: theme.text, letterSpacing: '-0.01em' }}>
             {room.name}
           </h1>
+          {/* Одна строка на все состояния: подмена не двигает ленту. */}
           {connection !== 'connected' ? (
             <p
               role="alert"
@@ -485,6 +373,15 @@ export function ChatScreen({
                 ? 'Соединение потеряно.'
                 : 'Переподключение… история будет синхронизирована.'}
             </p>
+          ) : typingLine !== null ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-1.5 text-[12.5px] truncate"
+              style={{ color: theme.amberText }}
+            >
+              {typingLine} <Dots color={theme.amberText} size={3} />
+            </p>
           ) : (
             <p className="text-[12.5px] truncate" style={{ color: theme.muted }}>
               {room.topic ??
@@ -493,6 +390,22 @@ export function ChatScreen({
           )}
         </button>
       </header>
+
+      <MessageActionsSheet
+        message={actionsFor}
+        authorName={
+          actionsFor === null
+            ? ''
+            : (namesById.get(actionsFor.author_id) ?? actionsFor.author_name ?? 'Участник')
+        }
+        own={actionsFor?.author_id === currentUserId}
+        theme={theme}
+        onClose={() => setActionsFor(null)}
+        onReply={startReply}
+        onReact={(message, emoji) => onToggleReaction(message.id, emoji)}
+        onDelete={(message) => onDeleteMessage(message.id)}
+        onCopied={(ok) => onToast?.(ok ? 'Текст скопирован' : 'Не удалось скопировать текст')}
+      />
 
       {/* Монтируем только открытым: запрос поиска не живёт фоном. */}
       {searchOpen ? (

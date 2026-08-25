@@ -44,7 +44,7 @@ export function ChatPage() {
   const { user } = useAuth();
   const { settings, set } = useSettings();
   const { setTheme } = useTheme();
-  const { keyboard, height } = useKeyboardInsets();
+  const { keyboard, height, offsetTop } = useKeyboardInsets();
 
   const theme: ThemeTokens = THEMES[settings.theme];
   const [tab, setTab] = useState<'chats' | 'settings'>('chats');
@@ -88,9 +88,20 @@ export function ChatPage() {
   });
 
   return (
+    // Приложение живёт ровно в видимой области и компенсирует прокрутку,
+    // которую iOS Safari делает сам при открытии клавиатуры.
     <div
       className="w-full flex justify-center"
-      style={{ background: theme.bg, height: height ? `${height}px` : '100dvh', overflow: 'hidden' }}
+      style={{
+        background: theme.bg,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: height ? `${height}px` : '100dvh',
+        transform: offsetTop ? `translateY(${offsetTop}px)` : undefined,
+        overflow: 'hidden',
+      }}
     >
       <div
         className={`relative w-full max-w-md overflow-hidden ${settings.animations ? '' : 'still'}`}

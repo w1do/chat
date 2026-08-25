@@ -22,6 +22,8 @@ const SUBTITLES: Record<Mode, string> = {
 /** Вход и регистрация в оформлении дизайн-системы (design 1a/1b). */
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
+  // Логин общий для входа и регистрации: переключение вкладки его не теряет.
+  const [sharedLogin, setSharedLogin] = useState('');
   const { login, register } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
@@ -29,19 +31,40 @@ export function LoginPage() {
   const theme: ThemeTokens = THEMES[settings.theme];
 
   return (
-    <div className="w-full flex justify-center" style={{ background: theme.bg, minHeight: '100dvh' }}>
-      <main className="w-full max-w-md px-5 safe-top" style={{ color: theme.text }}>
-        <h1 className="text-[28px] font-semibold mb-1" style={{ letterSpacing: '-0.035em' }}>
-          {TITLES[mode]}
-        </h1>
-        <p className="text-[14px] mb-5" style={{ color: theme.muted }}>
-          {SUBTITLES[mode]}
-        </p>
+    <div
+      className="w-full grid place-items-center px-5"
+      style={{ background: theme.bg, minHeight: '100dvh', paddingTop: 24, paddingBottom: 24 }}
+    >
+      <main className="w-full max-w-sm" style={{ color: theme.text }}>
+        <div className="text-center mb-6">
+          <span
+            aria-hidden="true"
+            className="inline-grid place-items-center mb-3"
+            style={{ width: 56, height: 56, borderRadius: 20, background: theme.surfaceAlt, fontSize: 28 }}
+          >
+            💬
+          </span>
+          <h1 className="text-[26px] font-semibold" style={{ letterSpacing: '-0.03em' }}>
+            {TITLES[mode]}
+          </h1>
+          <p className="text-[14px] mt-1" style={{ color: theme.muted }}>
+            {SUBTITLES[mode]}
+          </p>
+        </div>
 
-        <div className="p-4" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
+        <div
+          className="p-5"
+          style={{
+            background: theme.surface,
+            borderRadius: RADIUS.md,
+            boxShadow: '0 10px 40px rgba(20,19,26,.08)',
+          }}
+        >
           {mode === 'login' ? (
             <LoginForm
               theme={theme}
+              defaultLogin={sharedLogin}
+              onLoginChange={setSharedLogin}
               onSubmit={async (input) => {
                 await login.mutateAsync(input);
                 navigate('/');
@@ -51,6 +74,8 @@ export function LoginPage() {
           {mode === 'register' ? (
             <RegisterForm
               theme={theme}
+              defaultLogin={sharedLogin}
+              onLoginChange={setSharedLogin}
               onSubmit={async (input) => {
                 await register.mutateAsync(input);
                 navigate('/');
@@ -62,7 +87,7 @@ export function LoginPage() {
           ) : null}
         </div>
 
-        <nav aria-label="Способы входа" className="flex flex-wrap gap-4 mt-4">
+        <nav aria-label="Способы входа" className="flex flex-wrap justify-center gap-4 mt-5">
           {mode !== 'login' ? (
             <button type="button" className="text-[15px] tap" style={{ color: theme.text }} onClick={() => setMode('login')}>
               Вход

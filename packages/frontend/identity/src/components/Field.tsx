@@ -15,19 +15,20 @@ export function Field({ label, hint, error, theme, ...inputProps }: FieldProps) 
 
   return (
     <div>
-      <label htmlFor={id} className="block text-[13px] mb-1" style={{ color: theme.muted }}>
+      <label htmlFor={id} className="block text-[13px] font-medium mb-1.5" style={{ color: theme.muted }}>
         {label}
       </label>
       <input
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="w-full px-3 py-2.5 outline-none"
+        className="w-full px-3.5 py-3 outline-none field-focus"
         style={{
           background: theme.surfaceAlt,
-          borderRadius: RADIUS.sm,
+          borderRadius: RADIUS.md,
           color: theme.text,
           fontSize: 16,
+          // Видимая рамка ошибки и фокуса: без неё поле «немое» (WCAG 2.2).
           boxShadow: error ? `inset 0 0 0 1.5px ${theme.danger}` : 'none',
         }}
         {...inputProps}

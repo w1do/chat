@@ -46,9 +46,9 @@ test('two users chat in real time with typing and reconnect resync', async ({ br
     timeout: 10_000,
   });
 
-  // Typing: Bob печатает — Alice видит индикатор.
+  // Typing: Bob печатает — Alice видит это в шапке комнаты, а не в ленте.
   await bob.getByRole('textbox', { name: 'Сообщение' }).fill('Пишу ответ');
-  await expect(alice.getByText(/печата/)).toBeVisible({ timeout: 10_000 });
+  await expect(alice.getByRole('banner').getByText(/печата/)).toBeVisible({ timeout: 10_000 });
 
   // Bob отправляет — Alice получает live.
   await bob.getByRole('textbox', { name: 'Сообщение' }).press('Enter');
