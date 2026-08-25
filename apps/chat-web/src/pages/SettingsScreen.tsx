@@ -73,7 +73,7 @@ export function SettingsScreen({
 
   return (
     <div className="relative h-full" style={{ background: theme.bg }}>
-      <Screen theme={theme} header={renderHeader()} contentStyle={{ paddingBottom: 96 }}>
+      <Screen theme={theme} header={renderHeader()} contentStyle={{ paddingTop: 8, paddingBottom: 96 }}>
         <Group theme={theme} label="Профиль">
           <Row
             theme={theme}

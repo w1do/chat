@@ -278,7 +278,7 @@ export function ChatScreen({
   const renderComposer = () => (
       <div
         ref={composerRef}
-        className={`px-3 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
+        className={`px-2 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
         style={{ background: theme.chromeAlpha }}
       >
         {sendError ? (
@@ -383,10 +383,10 @@ export function ChatScreen({
           </div>
         ) : (
           <div
-            className="flex items-end gap-1.5 p-1.5"
+            className="flex items-end gap-1.5 w-full p-1.5"
             style={{
               background: theme.surface,
-              borderRadius: 24,
+              borderRadius: 22,
               boxShadow: magicBusy ? `0 0 0 2px ${theme.amber}` : '0 1px 3px rgba(20,19,26,.10)',
               transition: 'box-shadow .3s ease',
             }}
@@ -475,7 +475,7 @@ export function ChatScreen({
       <Screen
         theme={theme}
         contentRef={scroller}
-        contentClassName="px-3"
+        contentClassName="px-3 pt-2"
         header={renderHeader()}
         footer={renderComposer()}
       >

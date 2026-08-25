@@ -52,4 +52,16 @@ describe('useKeyboardInsets', () => {
     expect(result.current.offsetTop).toBe(120);
     expect(result.current.keyboard).toBe(220);
   });
+
+  it('не принимает панель браузера за клавиатуру', () => {
+    // iOS: layout-вьюпорт выше визуального из-за адресной строки. Если считать
+    // это клавиатурой, панель ввода теряет нижний безопасный отступ.
+    const viewport = fakeViewport(800);
+    const { result } = renderHook(() => useKeyboardInsets());
+
+    act(() => viewport.set({ height: 740 }));
+
+    expect(result.current.keyboard).toBe(0);
+    expect(result.current.height).toBe(740);
+  });
 });

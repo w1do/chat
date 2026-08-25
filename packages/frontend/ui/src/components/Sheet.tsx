@@ -36,18 +36,24 @@ export function Sheet({ open, title, subtitle, onClose, theme, accent, children 
     return () => clearTimeout(timer);
   }, [open]);
 
-  // Escape закрывает лист; фокус уходит внутрь при открытии.
+  // Обработчик закрытия держим в ref: иначе эффект ниже перезапускался бы на
+  // каждом перерисовывании (onClose — новая функция каждый раз) и возвращал
+  // фокус на панель, отбирая его у поля ввода — клавиатура тут же схлопывалась.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Escape закрывает лист; фокус уходит внутрь один раз, при открытии.
   useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') closeRef.current();
     };
     window.addEventListener('keydown', onKeyDown);
     panel.current?.focus();
 
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <div

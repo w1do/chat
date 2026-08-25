@@ -92,7 +92,7 @@ export function RoomsScreen({
     <Screen
       theme={theme}
       header={renderHeader()}
-      contentStyle={{ paddingBottom: 96 }}
+      contentStyle={{ paddingTop: 4, paddingBottom: 96 }}
     >
         <div className="px-3 pt-2">
           {isLoading ? (

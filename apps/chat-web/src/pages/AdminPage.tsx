@@ -40,6 +40,7 @@ export function AdminPage() {
       <main className="h-full w-full max-w-md" style={{ color: theme.text }}>
         <Screen
           theme={theme}
+          contentStyle={{ paddingTop: 8, paddingBottom: 24 }}
           header={
             <header className="flex items-center gap-2 px-2 pb-3 safe-top">
               <button

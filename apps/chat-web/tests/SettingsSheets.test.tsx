@@ -37,6 +37,39 @@ describe('Sheet', () => {
     expect(document.querySelector('input[type="password"]')).toBeNull();
   });
 
+  it('не отбирает фокус у поля при перерисовке', async () => {
+    // Регресс: эффект фокуса перезапускался на каждом рендере, фокус уходил на
+    // панель и клавиатура на телефоне схлопывалась.
+    function Rerendering() {
+      const [, setTick] = useState(0);
+
+      return (
+        <>
+          <button type="button" onClick={() => setTick((value) => value + 1)}>
+            Перерисовать
+          </button>
+          <Sheet open title="Поиск" theme={LIGHT} onClose={() => undefined}>
+            <label htmlFor="query">Что ищем</label>
+            <input id="query" />
+          </Sheet>
+        </>
+      );
+    }
+
+    render(<Rerendering />);
+
+    const field = screen.getByLabelText('Что ищем');
+    field.focus();
+    expect(field).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Перерисовать' }));
+    field.focus();
+    await userEvent.type(field, 'борщ');
+
+    expect(field).toHaveFocus();
+    expect(field).toHaveValue('борщ');
+  });
+
   it('hides the chrome of a closed sheet instead of letting it peek out', async () => {
     render(<Harness />);
 
