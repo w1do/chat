@@ -113,10 +113,15 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: ${PROXY_NETWORK:-dokploy-network}
+      # Два маршрута: по http (пока нет сертификата) и по https.
+      traefik.http.routers.chat-http.rule: Host(`${APP_DOMAIN:-localhost}`)
+      traefik.http.routers.chat-http.entrypoints: ${TRAEFIK_HTTP_ENTRYPOINT:-web}
+      traefik.http.routers.chat-http.service: chat
       traefik.http.routers.chat.rule: Host(`${APP_DOMAIN:-localhost}`)
       traefik.http.routers.chat.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
       traefik.http.routers.chat.tls: "true"
       traefik.http.routers.chat.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.routers.chat.service: chat
       traefik.http.services.chat.loadbalancer.server.port: "8080"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]

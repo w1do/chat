@@ -80,7 +80,21 @@ docker compose exec api php artisan tinker --execute='echo config("database.redi
 docker compose exec web wget -qO- http://localhost:8080/config.json
 ```
 
-Если ответ есть, дело в маршрутизации:
+Если ответ есть, дело в маршрутизации. Разберитесь по шагам:
+
+**Шаг 1. Нет ли в панели старой записи домена.** Запись, созданная до того,
+как из стека убрали отдельный прокси, ссылается на несуществующий сервис.
+Traefik создаёт по ней маршрут с тем же доменом, и запрос уходит в никуда.
+Удалите все записи домена в разделе Domains и передеплойте: маршрут объявлен в
+`docker-compose.yml`, панели его дублировать не нужно.
+
+**Шаг 2. Какие маршруты видит сам Traefik:**
+
+```bash
+docker exec $(docker ps -qf name=traefik | head -1) wget -qO- http://localhost:8080/api/http/routers | tr ',' '\n' | grep -iE 'rule|service|status'
+```
+
+**Шаг 3. Остальное:
 
 - `APP_DOMAIN` должен совпадать с доменом в панели: из него собирается правило
   `Host(...)` в метках Traefik. Проверить, что реально прописано:
