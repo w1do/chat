@@ -104,6 +104,20 @@ services:
     # Вторая сеть — та, в которой живёт балансировщик панели: без неё Traefik
     # не видит контейнер и отвечает «404 not found» на ваш домен.
     networks: [chat, proxy]
+    # Маршрут для Traefik задаётся здесь, а не только в панели: контейнер
+    # состоит в нескольких сетях, и балансировщику нужно явно указать нужную,
+    # иначе домен отвечает 404. Панель может добавить свои метки — они не
+    # конфликтуют, оба маршрута ведут в этот же контейнер. Имя роутера `chat`
+    # фиксировано (подстановка переменных в именах меток не работает): при
+    # втором экземпляре на том же Traefik переименуйте его здесь.
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${PROXY_NETWORK:-dokploy-network}
+      traefik.http.routers.chat.rule: Host(`${APP_DOMAIN:-localhost}`)
+      traefik.http.routers.chat.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.chat.tls: "true"
+      traefik.http.routers.chat.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.services.chat.loadbalancer.server.port: "8080"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/config.json"]
       interval: 30s

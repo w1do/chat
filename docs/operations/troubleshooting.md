@@ -82,6 +82,11 @@ docker compose exec web wget -qO- http://localhost:8080/config.json
 
 Если ответ есть, дело в маршрутизации:
 
+- `APP_DOMAIN` должен совпадать с доменом в панели: из него собирается правило
+  `Host(...)` в метках Traefik. Проверить, что реально прописано:
+  ```bash
+  docker inspect chat-web-1 --format '{{json .Config.Labels}}' | tr ',' '\n' | grep -i traefik
+  ```
 - домен должен указывать на сервис **`web`**, порт **`8080`** (не на `api`
   и не на 80);
 - контейнер `web` должен быть в сети балансировщика. В Dokploy это
@@ -89,8 +94,10 @@ docker compose exec web wget -qO- http://localhost:8080/config.json
   ```bash
   docker inspect chat-web-1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'
   ```
-  В списке должны быть две сети: своя (`chat`) и сеть панели. Если у панели
-  сеть называется иначе, задайте `PROXY_NETWORK` в переменных окружения.
+  В списке должна быть сеть панели. Контейнер состоит в нескольких сетях,
+  поэтому в метках явно указано `traefik.docker.network` — без этого
+  балансировщик может пытаться идти во внутреннюю сеть и не достучаться.
+  Если у панели сеть называется иначе, задайте `PROXY_NETWORK`.
 
 Если сеть отсутствует, `docker compose up -d` завершится ошибкой
 `network dokploy-network declared as external, but could not be found` — это
