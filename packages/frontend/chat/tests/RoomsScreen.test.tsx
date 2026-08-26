@@ -18,6 +18,8 @@ const room = (id: string, name: string, extra: Partial<Room> = {}): Room => ({
   unread_count: 0,
   photo_url: null,
   photo_large_url: null,
+  kind: 'room',
+  counterpart: null,
   ...extra,
 });
 
@@ -97,5 +99,39 @@ describe('RoomsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось создать комнату.');
+  });
+
+  it('renders a mixed list with a direct message: counterpart name, mention and unread', async () => {
+    const onOpen = vi.fn();
+    const dm: Room = room('d1', null, {
+      kind: 'direct',
+      counterpart: { id: 'u2', username: 'bob', name: 'Bob Builder', avatar_url: null },
+      unread_count: 5,
+      member_count: null,
+    });
+
+    render(
+      <RoomsScreen
+        rooms={[room('r1', 'Общая'), dm]}
+        isLoading={false}
+        {...base}
+        onOpen={onOpen}
+      />,
+    );
+
+    // Подпись диалога — имя собеседника, а не название комнаты
+    expect(screen.getByRole('button', { name: /Bob Builder/ })).toBeInTheDocument();
+    // Подстрока показывает ник и что это личная переписка
+    expect(screen.getByText('@bob · личная переписка')).toBeInTheDocument();
+    // Бейдж непрочитанного отображается
+    expect(screen.getByLabelText('Непрочитанных: 5')).toHaveTextContent('5');
+    // Для диалога не показывается счётчик участников (иконка и число)
+    expect(screen.queryByText(/👤/)).toBeInTheDocument(); // для комнаты есть
+    // но рядом с «Bob Builder» отдельного счётчика участников быть не должно
+    expect(
+      screen
+        .getByRole('button', { name: /Bob Builder/ })
+        .querySelector('[aria-label="Непрочитанных: 5"]')
+    ).toBeTruthy();
   });
 });

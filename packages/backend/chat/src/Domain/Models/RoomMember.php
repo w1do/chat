@@ -19,6 +19,7 @@ use Vendor\Chat\Domain\Enums\RoomRole;
  * @property RoomRole $role
  * @property Carbon $joined_at
  * @property ?string $last_read_message_id
+ * @property ?Carbon $hidden_at
  */
 class RoomMember extends Model
 {
@@ -29,13 +30,14 @@ class RoomMember extends Model
 
     protected $table = 'room_members';
 
-    protected $fillable = ['room_id', 'user_id', 'role', 'joined_at'];
+    protected $fillable = ['room_id', 'user_id', 'role', 'joined_at', 'hidden_at'];
 
     protected function casts(): array
     {
         return [
             'role' => RoomRole::class,
             'joined_at' => 'datetime',
+            'hidden_at' => 'datetime',
         ];
     }
 

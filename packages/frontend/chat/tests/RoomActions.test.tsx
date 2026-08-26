@@ -19,6 +19,8 @@ const room = (extra: Partial<Room> = {}): Room => ({
   unread_count: 0,
   photo_url: null,
   photo_large_url: null,
+  kind: 'room',
+  counterpart: null,
   ...extra,
 });
 

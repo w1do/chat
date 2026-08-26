@@ -16,7 +16,9 @@ import {
   useRoom,
   useRooms,
   useSendMessage,
+  useStartConversation,
   useTyping,
+  roomLabel,
   type MagicAction,
   type MagicPhase,
 } from '@vendor/chat';
@@ -64,6 +66,7 @@ export function ChatPage() {
 
   const rooms = useRooms();
   const createRoom = useCreateRoom();
+  const startConversation = useStartConversation();
   const notifications = useNotificationFeed();
   const chatOpen = Boolean(roomId);
   // Раскладка выбирается по ширине окна: user-agent врёт на планшетах и в
@@ -92,7 +95,7 @@ export function ChatPage() {
   const { permission, request: requestNotifications } = useNotificationPermission();
 
   useIncomingMessages(realtimeAdapter(), {
-    rooms: new Map((rooms.data ?? []).filter((room) => room.my_role !== null).map((room) => [room.id, room.name])),
+    rooms: new Map((rooms.data ?? []).filter((room) => room.my_role !== null).map((room) => [room.id, roomLabel(room)])),
     currentUserId: user?.id ?? '',
     activeRoomId: roomId,
     onNotice: (message) => {
@@ -187,6 +190,10 @@ export function ChatPage() {
               unreadNotifications={notifications.data?.meta.unread ?? 0}
               onCreateRoom={async (input) => {
                 const room = await createRoom.mutateAsync(input);
+                navigate(`/rooms/${room.id}`);
+              }}
+              onStartConversation={async (userId) => {
+                const room = await startConversation.mutateAsync(userId);
                 navigate(`/rooms/${room.id}`);
               }}
             />
@@ -429,7 +436,7 @@ function ActiveRoom({
         onOpenMembers={onOpenMembers}
         onInvite={async () => {
           try {
-            const invite = await createInvite(room.data!.id, room.data!.name);
+            const invite = await createInvite(room.data!.id, roomLabel(room.data!));
 
             // Если буфер недоступен, показываем саму ссылку — приглашение не
             // должно молча пропасть.

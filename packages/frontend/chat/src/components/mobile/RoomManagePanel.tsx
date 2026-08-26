@@ -77,7 +77,7 @@ function PhotoBlock({
     <section aria-label="Фотография комнаты" className="px-3 mb-5">
       <div className="p-3 flex flex-col gap-3" style={{ background: theme.surface, borderRadius: RADIUS.md }}>
         <div className="flex items-center gap-3">
-          <RoomGlyph name={room.name} photoUrl={room.photo_url} size={56} radius={18} theme={theme} />
+          <RoomGlyph name={room.name ?? ''} photoUrl={room.photo_url} size={56} radius={18} theme={theme} />
           <p className="flex-1 min-w-0 text-[13px]" style={{ color: theme.muted }}>
             {room.photo_url
               ? 'Фотографию видят все участники комнаты.'
@@ -148,7 +148,7 @@ function EditForm({
     formState: { errors, isSubmitting },
   } = useForm<UpdateRoomInput>({
     resolver: zodResolver(updateRoomSchema),
-    defaultValues: { name: room.name, topic: room.topic ?? '' },
+    defaultValues: { name: room.name ?? '', topic: room.topic ?? '' },
   });
 
   const submit = handleSubmit(async (input) => {
@@ -236,7 +236,7 @@ function DeleteBlock({
   const [error, setError] = useState<string | null>(null);
 
   // Цена ошибки — вся переписка, поэтому подтверждение дословное.
-  const matches = confirmation.trim() === room.name.trim();
+  const matches = confirmation.trim() === (room.name ?? '').trim();
 
   return (
     <section className="px-3 mb-5">

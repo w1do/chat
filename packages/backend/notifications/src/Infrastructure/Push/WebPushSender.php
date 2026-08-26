@@ -87,7 +87,8 @@ final readonly class WebPushSender
         $preview = (string) ($payload['preview'] ?? '');
 
         return [
-            'title' => (string) ($payload['room_name'] ?? 'Чат'),
+            // Личное сообщение называет отправителя: названия у диалога нет.
+            'title' => (string) ($payload['room_name'] ?? $payload['actor_name'] ?? 'Чат'),
             'body' => trim(($payload['actor_name'] ?? '').': '.$this->shorten($preview, $length), ': '),
             'category' => $category->value,
             // Клиент откроет комнату по этому адресу.

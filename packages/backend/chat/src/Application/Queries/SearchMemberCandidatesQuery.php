@@ -7,7 +7,10 @@ namespace Vendor\Chat\Application\Queries;
 final readonly class SearchMemberCandidatesQuery
 {
     public function __construct(
-        public string $roomId,
+        /** null — поиск собеседника для диалога: комнаты ещё нет. */
+        public ?string $roomId,
         public string $term,
+        /** Кого не предлагать: для диалога — самого ищущего. */
+        public ?string $excludeUserId = null,
     ) {}
 }

@@ -88,6 +88,62 @@ it('stays silent for a member who is active in that room', function (): void {
     expect(DB::table('notifications')->count())->toBe(0);
 });
 
+it('notifies about a direct message by naming the sender, not a room', function (): void {
+    config()->set('notifications.push.public_key', 'BPublicKeyForTests');
+    config()->set('notifications.push.private_key', 'PrivateKeyForTests');
+
+    $transport = new FakePushTransport;
+    app()->instance(PushTransport::class, $transport);
+
+    presence();
+    $author = User::factory()->create(['name' => 'Анна']);
+    $reader = User::factory()->create();
+
+    $dialogId = test()->actingAs($author)
+        ->postJson('/api/v1/direct-conversations', ['user_id' => (string) $reader->getKey()])
+        ->json('data.id');
+
+    PushSubscription::query()->create([
+        'user_id' => $reader->getKey(),
+        'endpoint' => 'https://push.example.com/direct',
+        'endpoint_hash' => PushSubscription::hashEndpoint('https://push.example.com/direct'),
+        'p256dh' => 'key',
+        'auth' => 'auth',
+    ]);
+
+    $this->actingAs($author)->postJson("/api/v1/rooms/{$dialogId}/messages", ['body' => 'Это личное'])
+        ->assertCreated();
+
+    // В ленте — отправитель, названия комнаты нет.
+    $row = DB::table('notifications')->where('notifiable_id', $reader->getKey())->first();
+    $data = json_decode((string) $row->data, true);
+
+    expect($data['room_name'])->toBeNull()
+        ->and($data['actor_name'])->toBe('Анна');
+
+    // Push озаглавлен отправителем, переход ведёт в диалог.
+    $notification = json_decode($transport->sent[0]['payload'], true);
+    expect($notification['title'])->toBe('Анна')
+        ->and($notification['url'])->toBe('/rooms/'.$dialogId);
+});
+
+it('keeps a reader who is inside the conversation without a notification', function (): void {
+    $author = User::factory()->create();
+    $reader = User::factory()->create();
+
+    $dialogId = test()->actingAs($author)
+        ->postJson('/api/v1/direct-conversations', ['user_id' => (string) $reader->getKey()])
+        ->json('data.id');
+
+    // Собеседник прямо сейчас читает диалог.
+    presence(["{$dialogId}:{$reader->getKey()}"]);
+
+    $this->actingAs($author)->postJson("/api/v1/rooms/{$dialogId}/messages", ['body' => 'Ты тут?'])
+        ->assertCreated();
+
+    expect(DB::table('notifications')->count())->toBe(0);
+});
+
 it('raises a mention notification instead of a plain message one', function (): void {
     presence();
     [$room, $author, $reader] = roomWithTwo();

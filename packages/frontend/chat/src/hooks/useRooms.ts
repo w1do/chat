@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { roomsApi } from '../api';
+import { directApi, roomsApi } from '../api';
 import { useChatClient } from '../adapters/ChatProvider';
 import type { CreateRoomInput, UpdateRoomInput } from '../schemas/room';
 
@@ -41,6 +41,46 @@ export function useMemberCandidates(roomId: string, query: string) {
     queryKey: ['chat', 'rooms', roomId, 'candidates', term],
     queryFn: () => roomsApi.memberCandidates(client, roomId, term),
     enabled: term.length >= 2,
+  });
+}
+
+/**
+ * Собеседник для нового диалога: тот же поиск по нику, что и приглашение,
+ * с той же частотой; короткий запрос на сервер не ходит.
+ */
+export function useDirectCandidates(query: string) {
+  const client = useChatClient();
+  const term = query.trim().replace(/^@+/, '');
+
+  return useQuery({
+    queryKey: ['chat', 'direct-candidates', term],
+    queryFn: () => directApi.candidates(client, term),
+    enabled: term.length >= 2,
+  });
+}
+
+/** Начало диалога: повтор открывает прежнюю переписку, а не создаёт вторую. */
+export function useStartConversation() {
+  const client = useChatClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => directApi.start(client, userId),
+    onSuccess: (room) => {
+      queryClient.setQueryData(roomKey(room.id), room);
+      void queryClient.invalidateQueries({ queryKey: ROOMS_KEY });
+    },
+  });
+}
+
+/** Скрытие диалога у себя: список пустеет, история и собеседник — нет. */
+export function useHideConversation() {
+  const client = useChatClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (roomId: string) => directApi.hide(client, roomId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ROOMS_KEY }),
   });
 }
 

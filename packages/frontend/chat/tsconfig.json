@@ -1,4 +1,7 @@
 {
   "extends": "@vendor/tooling/tsconfig/react.json",
-  "include": ["src"]
+  "include": ["src"],
+  "compilerOptions": {
+    "jsx": "react"
+  }
 }

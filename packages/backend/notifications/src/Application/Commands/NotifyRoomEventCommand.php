@@ -13,7 +13,8 @@ final readonly class NotifyRoomEventCommand
     public function __construct(
         public Category $category,
         public string $roomId,
-        public string $roomName,
+        /** null — личная переписка: у диалога нет названия, уведомление называет отправителя. */
+        public ?string $roomName,
         public string $actorId,
         public string $actorName,
         public array $recipientIds,

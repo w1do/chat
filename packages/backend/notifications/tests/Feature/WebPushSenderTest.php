@@ -105,6 +105,18 @@ it('builds a notification with room, author and a short preview only', function 
         ->and($encoded)->not->toContain('internal-message-identifier');
 });
 
+it('titles a direct-conversation push with the sender name', function (): void {
+    configurePush();
+
+    $sender = app(WebPushSender::class);
+    $method = new ReflectionMethod($sender, 'notification');
+    $notification = $method->invoke($sender, Category::Message, pushPayload(['room_name' => null]));
+
+    // У диалога нет названия: заголовок — отправитель, переход — в диалог.
+    expect($notification['title'])->toBe('Алексей')
+        ->and($notification['url'])->toBe('/rooms/room-1');
+});
+
 it('delivers to every device of the recipient', function (): void {
     configurePush();
     $transport = fakeTransport();

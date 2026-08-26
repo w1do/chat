@@ -1,9 +1,9 @@
 import { Avatar, Dots, RADIUS, Screen, voiceHue, type ThemeTokens } from '@vendor/ui';
 import { RoomGlyph } from '../RoomGlyph';
-import { Bell, Lock, Plus } from 'lucide-react';
+import { Bell, Lock, MessageCirclePlus, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { Room } from '../../schemas/room';
-import { formatTime } from '../../format';
+import { roomLabel, type Room } from '../../schemas/room';
+import { StartConversationPanel } from './StartConversationPanel';
 
 interface RoomsScreenProps {
   rooms: Room[] | undefined;
@@ -20,6 +20,8 @@ interface RoomsScreenProps {
   /** Непрочитанные уведомления — бейдж на колокольчике. */
   unreadNotifications?: number;
   onCreateRoom: (input: { name: string; visibility: 'public' | 'private' }) => Promise<unknown>;
+  /** Начало личной переписки с выбранным человеком. */
+  onStartConversation: (userId: string) => Promise<unknown>;
 }
 
 /** Экран «Чаты»: список комнат, счётчики непрочитанного, создание комнаты. */
@@ -36,9 +38,11 @@ export function RoomsScreen({
   onOpenNotifications,
   unreadNotifications = 0,
   onCreateRoom,
+  onStartConversation,
 }: RoomsScreenProps) {
   const headerRef = useRef<HTMLElement>(null);
   const [creating, setCreating] = useState(false);
+  const [startingConversation, setStartingConversation] = useState(false);
 
   /** Шапка — закреплённый край Screen: список прокручивается под ней. */
   const renderHeader = () => (
@@ -53,7 +57,7 @@ export function RoomsScreen({
               Чаты
             </h1>
             <p className="text-[13px] mt-0.5" style={{ color: theme.muted }}>
-              {rooms ? `${rooms.length} комнат` : '…'}
+              {rooms ? `${rooms.length} переписок` : '…'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -120,6 +124,8 @@ export function RoomsScreen({
                   const unread = room.unread_count ?? 0;
                   const typingName = typingByRoom[room.id];
                   const isMember = room.my_role !== null;
+                  const isDirect = room.kind === 'direct';
+                  const label = roomLabel(room);
 
                   return (
                     <li key={room.id}>
@@ -133,7 +139,7 @@ export function RoomsScreen({
                         }}
                       >
                         <RoomGlyph
-                          name={room.name}
+                          name={label}
                           photoUrl={room.photo_url}
                           size={46}
                           radius={16}
@@ -146,9 +152,11 @@ export function RoomsScreen({
                               className="text-[16px] font-semibold truncate"
                               style={{ color: theme.text, letterSpacing: '-0.01em' }}
                             >
-                              {room.name}
+                              {label}
                             </span>
-                            {room.visibility === 'private' ? <Lock size={12} style={{ color: theme.faint }} /> : null}
+                            {!isDirect && room.visibility === 'private' ? (
+                              <Lock size={12} style={{ color: theme.faint }} />
+                            ) : null}
                           </span>
 
                           {typingName ? (
@@ -157,15 +165,19 @@ export function RoomsScreen({
                             </span>
                           ) : (
                             <span className="block text-[14px] truncate mt-0.5" style={{ color: theme.muted }}>
-                              {room.topic ?? (isMember ? 'Вы участник' : 'Открытая комната — можно вступить')}
+                              {isDirect
+                                ? `@${room.counterpart?.username ?? ''} · личная переписка`
+                                : (room.topic ?? (isMember ? 'Вы участник' : 'Открытая комната — можно вступить'))}
                             </span>
                           )}
                         </span>
 
                         <span className="flex flex-col items-end gap-1 shrink-0" style={{ minWidth: 42 }}>
-                          <span className="text-[12px] tnum" style={{ color: theme.faint }}>
-                            {room.member_count ?? 0} 👤
-                          </span>
+                          {!isDirect ? (
+                            <span className="text-[12px] tnum" style={{ color: theme.faint }}>
+                              {room.member_count ?? 0} 👤
+                            </span>
+                          ) : null}
                           {unread > 0 ? (
                             <span
                               aria-label={`Непрочитанных: ${unread}`}
@@ -200,6 +212,33 @@ export function RoomsScreen({
               setCreating(false);
             }}
           />
+
+          {startingConversation ? (
+            <StartConversationPanel
+              theme={theme}
+              onStart={async (userId) => {
+                await onStartConversation(userId);
+                setStartingConversation(false);
+              }}
+              onCancel={() => setStartingConversation(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStartingConversation(true)}
+              className="w-full flex items-center gap-2 mt-3 px-3 py-3 tap"
+              style={{ background: theme.surface, borderRadius: RADIUS.md, color: theme.text }}
+            >
+              <span
+                aria-hidden="true"
+                className="grid place-items-center"
+                style={{ width: 28, height: 28, borderRadius: 14, background: theme.surfaceAlt, color: voiceHue('new-direct') }}
+              >
+                <MessageCirclePlus size={16} />
+              </span>
+              <span className="text-[16px]">Новый диалог</span>
+            </button>
+          )}
         </div>
     </Screen>
   );

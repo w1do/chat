@@ -1,0 +1,12 @@
+type: object
+description: >-
+  Собеседник личной переписки: этого достаточно, чтобы подписать диалог и
+  решить, какие действия показывать, без дополнительных запросов.
+required: [id, username, name, avatar_url]
+properties:
+  id: { type: string, description: ULID собеседника. }
+  username: { type: string, description: Ник собеседника. }
+  name: { type: string, description: Отображаемое имя; подпись диалога следует за ним. }
+  avatar_url:
+    type: [string, "null"]
+    description: Аватарка собеседника в мелком размере; null — рисуется буква имени.

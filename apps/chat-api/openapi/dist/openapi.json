@@ -155,6 +155,37 @@
                     }
                 }
             },
+            "Counterpart": {
+                "type": "object",
+                "description": "Собеседник личной переписки: этого достаточно, чтобы подписать диалог и решить, какие действия показывать, без дополнительных запросов.",
+                "required": [
+                    "id",
+                    "username",
+                    "name",
+                    "avatar_url"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ULID собеседника."
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "Ник собеседника."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Отображаемое имя; подпись диалога следует за ним."
+                    },
+                    "avatar_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Аватарка собеседника в мелком размере; null — рисуется буква имени."
+                    }
+                }
+            },
             "Invite": {
                 "Invite": {
                     "type": "object",
@@ -624,6 +655,7 @@
                     "name",
                     "topic",
                     "visibility",
+                    "kind",
                     "created_by",
                     "archived_at",
                     "created_at",
@@ -631,15 +663,20 @@
                     "member_count",
                     "unread_count",
                     "photo_url",
-                    "photo_large_url"
+                    "photo_large_url",
+                    "counterpart"
                 ],
                 "properties": {
                     "id": {
                         "type": "string",
-                        "description": "ULID комнаты."
+                        "description": "ULID переписки."
                     },
                     "name": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Название комнаты; у диалога названия нет — подпись даёт собеседник."
                     },
                     "topic": {
                         "type": [
@@ -653,6 +690,14 @@
                             "public",
                             "private"
                         ]
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "room",
+                            "direct"
+                        ],
+                        "description": "Вид переписки — комната или личный диалог."
                     },
                     "created_by": {
                         "type": "string"
@@ -679,7 +724,7 @@
                             "member",
                             null
                         ],
-                        "description": "Роль текущего пользователя, null для не-участника."
+                        "description": "Роль текущего пользователя, null для не-участника. В диалоге оба — member."
                     },
                     "member_count": {
                         "type": [
@@ -699,14 +744,25 @@
                             "string",
                             "null"
                         ],
-                        "description": "Фотография комнаты в мелком размере — для списка переписок. null, когда фотографии нет: интерфейс рисует эмодзи из названия."
+                        "description": "Фотография комнаты в мелком размере — для списка переписок; у диалога — аватарка собеседника. null, когда изображения нет: интерфейс рисует эмодзи из подписи."
                     },
                     "photo_large_url": {
                         "type": [
                             "string",
                             "null"
                         ],
-                        "description": "Та же фотография в крупном размере — для шапки комнаты."
+                        "description": "То же изображение в крупном размере — для шапки переписки."
+                    },
+                    "counterpart": {
+                        "description": "Собеседник диалога; у комнаты отсутствует, а не пуст.",
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Counterpart"
+                            }
+                        ]
                     }
                 }
             },
@@ -1746,6 +1802,201 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/NotFound"
+                    }
+                }
+            }
+        },
+        "/direct-conversation-candidates": {
+            "get": {
+                "operationId": "searchDirectConversationCandidates",
+                "tags": [
+                    "direct-conversations"
+                ],
+                "summary": "С кем можно начать переписку (поиск по нику)",
+                "description": "Тот же поиск по началу ника, что и у приглашений, с теми же правилами и частотой; сам ищущий в выдачу не попадает. Отметка already_member здесь всегда false — комнаты нет.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 64
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Подходящие люди; не больше десяти.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MemberCandidate"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "429": {
+                        "description": "Слишком часто; действует лимит приглашений.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/direct-conversations": {
+            "post": {
+                "operationId": "startDirectConversation",
+                "tags": [
+                    "direct-conversations"
+                ],
+                "summary": "Начало личной переписки (повтор возвращает ту же)",
+                "description": "Начинает диалог с человеком или открывает уже существующий: между одной парой людей переписка только одна, порядок участников не важен. Оба собеседника — обычные участники, владельца у диалога нет. Частота ограничена как у приглашений.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "type": "string",
+                                        "description": "ULID собеседника."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Переписка создана.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Room"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Переписка уже существовала — возвращена прежняя.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "data"
+                                    ],
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Room"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "429": {
+                        "description": "Слишком часто; действует лимит приглашений.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/direct-conversations/{room}/hide": {
+            "parameters": [
+                {
+                    "name": "room",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "post": {
+                "operationId": "hideDirectConversation",
+                "tags": [
+                    "direct-conversations"
+                ],
+                "summary": "Скрыть диалог у себя",
+                "description": "Убирает диалог из списка только у скрывшего: переписка и собеседник не затрагиваются, история сохраняется целиком, новое сообщение возвращает диалог в список. Комнату скрыть нельзя — из неё выходят. Постороннему отвечаем 404: существование чужого диалога не показываем.",
+                "security": [
+                    {
+                        "sanctumCookie": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Диалог скрыт из списка скрывшего."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthenticated"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "description": "Диалог не найден.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
                     }
                 }
             }

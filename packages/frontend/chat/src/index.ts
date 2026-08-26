@@ -58,12 +58,15 @@ export { MessageAttachments, isImageAttachment } from './components/mobile/Attac
 export { ComposerAttachments } from './components/mobile/ComposerAttachments';
 export {
   useCreateRoom,
+  useDirectCandidates,
+  useHideConversation,
   useMemberCandidates,
   useMembers,
   useMembershipActions,
   useRoom,
   useRoomActions,
   useRooms,
+  useStartConversation,
 } from './hooks/useRooms';
 export { MentionPicker } from './components/MentionPicker';
 export {
@@ -83,10 +86,12 @@ export {
   memberCandidateSchema,
   memberSchema,
   profileImageSchema,
+  roomLabel,
   roomSchema,
   updateRoomSchema,
   type CreateRoomInput,
   type Member,
+  type Counterpart,
   type MemberCandidate,
   type ProfileImage,
   type Room,

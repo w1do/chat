@@ -7,6 +7,7 @@ namespace Vendor\Chat\Application\Handlers\Queries;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vendor\Chat\Application\DTOs\RoomData;
 use Vendor\Chat\Application\Queries\ListRoomsQuery;
+use Vendor\Chat\Application\Support\Counterparts;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
@@ -16,23 +17,47 @@ final readonly class ListRoomsHandler
     /** @return list<RoomData> */
     public function handle(ListRoomsQuery $query, Authenticatable $user): array
     {
+        $viewerId = (string) $user->getAuthIdentifier();
+
         $rooms = Room::query()
             ->visibleTo($user)
             ->whereNull('archived_at')
             ->when($query->visibility !== null, fn ($q) => $q->where('visibility', $query->visibility))
-            ->when($query->search !== null, fn ($q) => $q->where('name', 'like', '%'.$query->search.'%'))
             ->withCount('members')
-            ->with(['members' => fn ($q) => $q->where('user_id', $user->getAuthIdentifier())])
-            ->orderBy('name')
+            ->with(['members' => fn ($q) => $q->where('user_id', $viewerId)])
             ->get();
 
-        $unread = $this->unreadCounters((string) $user->getAuthIdentifier(), $rooms->pluck('id')->all());
+        // Скрытые диалоги не показываются до нового сообщения; у собеседника,
+        // которому ещё не написали, запись участия скрыта с самого начала —
+        // пустой диалог виден только инициатору (spec chat/direct-messages).
+        $rooms = $rooms->reject(
+            fn (Room $room): bool => $room->isDirect() && $room->members->first()?->hidden_at !== null,
+        );
 
-        return $rooms->map(fn (Room $room): RoomData => RoomData::fromModel(
-            $room,
-            myRole: $room->members->first()?->role->value,
-            memberCount: (int) $room->members_count,
-            unreadCount: $unread[$room->id] ?? null,
+        // Собеседники диалогов — одним запросом на весь список (design 5).
+        $counterparts = Counterparts::forRooms($rooms->all(), $viewerId);
+
+        // Подпись переписки: название комнаты или имя собеседника. Поиск и
+        // порядок списка живут на подписи — одно правило на оба вида.
+        $labeled = $rooms
+            ->map(fn (Room $room): array => [
+                'room' => $room,
+                'label' => $room->isDirect() ? (string) ($counterparts[$room->id]->name ?? '') : $room->name,
+            ])
+            ->when($query->search !== null, fn ($collection) => $collection->filter(
+                fn (array $entry): bool => mb_stripos($entry['label'], trim((string) $query->search)) !== false,
+            ))
+            ->sortBy(fn (array $entry): string => mb_strtolower($entry['label']))
+            ->values();
+
+        $unread = $this->unreadCounters($viewerId, $labeled->pluck('room.id')->all());
+
+        return $labeled->map(fn (array $entry): RoomData => RoomData::fromModel(
+            $entry['room'],
+            myRole: $entry['room']->members->first()?->role->value,
+            memberCount: (int) $entry['room']->members_count,
+            unreadCount: $unread[$entry['room']->id] ?? null,
+            counterpart: $counterparts[$entry['room']->id] ?? null,
         ))->all();
     }
 

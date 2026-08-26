@@ -258,6 +258,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/direct-conversation-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * С кем можно начать переписку (поиск по нику)
+         * @description Тот же поиск по началу ника, что и у приглашений, с теми же правилами и частотой; сам ищущий в выдачу не попадает. Отметка already_member здесь всегда false — комнаты нет.
+         */
+        get: operations["searchDirectConversationCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/direct-conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начало личной переписки (повтор возвращает ту же)
+         * @description Начинает диалог с человеком или открывает уже существующий: между одной парой людей переписка только одна, порядок участников не важен. Оба собеседника — обычные участники, владельца у диалога нет. Частота ограничена как у приглашений.
+         */
+        post: operations["startDirectConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/direct-conversations/{room}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Скрыть диалог у себя
+         * @description Убирает диалог из списка только у скрывшего: переписка и собеседник не затрагиваются, история сохраняется целиком, новое сообщение возвращает диалог в список. Комнату скрыть нельзя — из неё выходят. Постороннему отвечаем 404: существование чужого диалога не показываем.
+         */
+        post: operations["hideDirectConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invites/{invite}": {
         parameters: {
             query?: never;
@@ -970,6 +1032,17 @@ export interface components {
             height: number | null;
         };
         AuditEntry: unknown;
+        /** @description Собеседник личной переписки: этого достаточно, чтобы подписать диалог и решить, какие действия показывать, без дополнительных запросов. */
+        Counterpart: {
+            /** @description ULID собеседника. */
+            id: string;
+            /** @description Ник собеседника. */
+            username: string;
+            /** @description Отображаемое имя; подпись диалога следует за ним. */
+            name: string;
+            /** @description Аватарка собеседника в мелком размере; null — рисуется буква имени. */
+            avatar_url: string | null;
+        };
         Invite: unknown;
         InviteAccepted: unknown;
         Member: {
@@ -1084,29 +1157,37 @@ export interface components {
             model: string;
         };
         Room: {
-            /** @description ULID комнаты. */
+            /** @description ULID переписки. */
             id: string;
-            name: string;
+            /** @description Название комнаты; у диалога названия нет — подпись даёт собеседник. */
+            name: string | null;
             topic: string | null;
             /** @enum {string} */
             visibility: "public" | "private";
+            /**
+             * @description Вид переписки — комната или личный диалог.
+             * @enum {string}
+             */
+            kind: "room" | "direct";
             created_by: string;
             /** Format: date-time */
             archived_at: string | null;
             /** Format: date-time */
             created_at: string;
             /**
-             * @description Роль текущего пользователя, null для не-участника.
+             * @description Роль текущего пользователя, null для не-участника. В диалоге оба — member.
              * @enum {string|null}
              */
             my_role: "owner" | "admin" | "member" | null;
             member_count: number | null;
             /** @description Непрочитанные сообщения; null для комнат, где пользователь не состоит. */
             unread_count: number | null;
-            /** @description Фотография комнаты в мелком размере — для списка переписок. null, когда фотографии нет: интерфейс рисует эмодзи из названия. */
+            /** @description Фотография комнаты в мелком размере — для списка переписок; у диалога — аватарка собеседника. null, когда изображения нет: интерфейс рисует эмодзи из подписи. */
             photo_url: string | null;
-            /** @description Та же фотография в крупном размере — для шапки комнаты. */
+            /** @description То же изображение в крупном размере — для шапки переписки. */
             photo_large_url: string | null;
+            /** @description Собеседник диалога; у комнаты отсутствует, а не пуст. */
+            counterpart: null | components["schemas"]["Counterpart"];
         };
         RoomImage: {
             /** @description Идентификатор изображения. */
@@ -1671,6 +1752,122 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    searchDirectConversationCandidates: {
+        parameters: {
+            query?: {
+                query?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Подходящие люди; не больше десяти. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberCandidate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Слишком часто; действует лимит приглашений. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    startDirectConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description ULID собеседника. */
+                    user_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Переписка уже существовала — возвращена прежняя. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Room"];
+                    };
+                };
+            };
+            /** @description Переписка создана. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Room"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationError"];
+            /** @description Слишком часто; действует лимит приглашений. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    hideDirectConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Диалог скрыт из списка скрывшего. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Диалог не найден. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     revokeRoomInvite: {

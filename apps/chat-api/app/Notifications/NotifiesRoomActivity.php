@@ -45,12 +45,15 @@ final readonly class NotifiesRoomActivity
         $authorName = $this->displayName($message->author_id);
         $mentions = array_values(array_intersect($message->mentions ?? [], $memberIds));
 
+        // У личной переписки нет названия: уведомление назовёт отправителя.
+        $roomName = $room->isDirect() ? null : $room->name;
+
         // Упоминание — отдельная, более заметная категория.
         if ($mentions !== []) {
             $this->notifier->handle(new NotifyRoomEventCommand(
                 category: Category::Mention,
                 roomId: $room->id,
-                roomName: $room->name,
+                roomName: $roomName,
                 actorId: $message->author_id,
                 actorName: $authorName,
                 recipientIds: $mentions,
@@ -65,7 +68,7 @@ final readonly class NotifiesRoomActivity
             $this->notifier->handle(new NotifyRoomEventCommand(
                 category: Category::Message,
                 roomId: $room->id,
-                roomName: $room->name,
+                roomName: $roomName,
                 actorId: $message->author_id,
                 actorName: $authorName,
                 recipientIds: $others,

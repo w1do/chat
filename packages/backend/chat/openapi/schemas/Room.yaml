@@ -1,17 +1,23 @@
 type: object
-required: [id, name, topic, visibility, created_by, archived_at, created_at, my_role, member_count, unread_count, photo_url, photo_large_url]
+required: [id, name, topic, visibility, kind, created_by, archived_at, created_at, my_role, member_count, unread_count, photo_url, photo_large_url, counterpart]
 properties:
-  id: { type: string, description: ULID комнаты. }
-  name: { type: string }
+  id: { type: string, description: ULID переписки. }
+  name:
+    type: [string, "null"]
+    description: Название комнаты; у диалога названия нет — подпись даёт собеседник.
   topic: { type: [string, "null"] }
   visibility: { type: string, enum: [public, private] }
+  kind:
+    type: string
+    enum: [room, direct]
+    description: Вид переписки — комната или личный диалог.
   created_by: { type: string }
   archived_at: { type: [string, "null"], format: date-time }
   created_at: { type: string, format: date-time }
   my_role:
     type: [string, "null"]
     enum: [owner, admin, member, null]
-    description: Роль текущего пользователя, null для не-участника.
+    description: Роль текущего пользователя, null для не-участника. В диалоге оба — member.
   member_count: { type: [integer, "null"] }
   unread_count:
     type: [integer, "null"]
@@ -19,8 +25,14 @@ properties:
   photo_url:
     type: [string, "null"]
     description: >-
-      Фотография комнаты в мелком размере — для списка переписок. null, когда
-      фотографии нет: интерфейс рисует эмодзи из названия.
+      Фотография комнаты в мелком размере — для списка переписок; у диалога —
+      аватарка собеседника. null, когда изображения нет: интерфейс рисует
+      эмодзи из подписи.
   photo_large_url:
     type: [string, "null"]
-    description: Та же фотография в крупном размере — для шапки комнаты.
+    description: То же изображение в крупном размере — для шапки переписки.
+  counterpart:
+    description: Собеседник диалога; у комнаты отсутствует, а не пуст.
+    oneOf:
+      - type: "null"
+      - $ref: '#/components/schemas/Counterpart'

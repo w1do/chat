@@ -79,6 +79,29 @@ export const roomsApi = {
   },
 };
 
+// --- Личные переписки --------------------------------------------------------
+
+export const directApi = {
+  /** Начало диалога идемпотентно: повтор возвращает ту же переписку. */
+  async start(client: ApiClient, userId: string): Promise<Room> {
+    return roomSchema.parse(
+      ((await client.post('/direct-conversations', { body: { user_id: userId } })) as { data: unknown }).data,
+    );
+  },
+  /** С кем можно начать переписку: тот же поиск по нику, что у приглашений. */
+  async candidates(client: ApiClient, query: string): Promise<MemberCandidate[]> {
+    const response = (await client.get('/direct-conversation-candidates', { query: { query } })) as {
+      data: unknown[];
+    };
+
+    return response.data.map((candidate) => memberCandidateSchema.parse(candidate));
+  },
+  /** Скрыть диалог у себя; переписка и собеседник не затрагиваются. */
+  async hide(client: ApiClient, roomId: string): Promise<void> {
+    await client.post(`/direct-conversations/${roomId}/hide`);
+  },
+};
+
 // --- Сообщения ---------------------------------------------------------------
 
 import { attachmentSchema, messagePageSchema, messageSchema, reactionSchema } from './schemas/message';

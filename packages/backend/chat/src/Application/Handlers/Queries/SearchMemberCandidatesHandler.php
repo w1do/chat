@@ -11,7 +11,9 @@ use Vendor\Chat\Domain\Models\RoomMember;
 /**
  * Поиск людей, которых можно позвать в комнату (design 5): начало ника без
  * учёта регистра, короткий запрос не ищет вовсе, ответ ограничен десятью
- * людьми — это приглашение, а не справочник ников установки.
+ * людьми — это приглашение, а не справочник ников установки. Тем же поиском
+ * находится собеседник для диалога — тогда комнаты нет, а сам ищущий из
+ * выдачи исключается: диалог с собой невозможен.
  */
 final readonly class SearchMemberCandidatesHandler
 {
@@ -34,11 +36,12 @@ final readonly class SearchMemberCandidatesHandler
 
         $candidates = $userModel::query()
             ->whereRaw("lower(username) like ? escape '\'", [$this->prefix($term)])
+            ->when($query->excludeUserId !== null, fn ($q) => $q->whereKeyNot($query->excludeUserId))
             ->orderBy('username')
             ->limit(self::LIMIT)
             ->get(['id', 'username', 'name']);
 
-        $memberIds = RoomMember::query()
+        $memberIds = $query->roomId === null ? [] : RoomMember::query()
             ->where('room_id', $query->roomId)
             ->whereIn('user_id', $candidates->pluck('id'))
             ->pluck('user_id')

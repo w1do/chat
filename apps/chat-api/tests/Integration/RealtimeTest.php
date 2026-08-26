@@ -6,11 +6,14 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Opis\JsonSchema\Validator;
 use Tests\Support\FakePresenceRegistry;
 use Vendor\Chat\Application\Commands\SendMessageCommand;
 use Vendor\Chat\Application\Commands\SetTypingCommand;
+use Vendor\Chat\Application\Commands\StartDirectConversationCommand;
 use Vendor\Chat\Application\Handlers\Commands\SendMessageHandler;
 use Vendor\Chat\Application\Handlers\Commands\SetTypingHandler;
+use Vendor\Chat\Application\Handlers\Commands\StartDirectConversationHandler;
 use Vendor\Chat\Domain\Contracts\PresenceRegistry;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
@@ -81,6 +84,74 @@ it('authorizes the user channel only for its owner', function (): void {
         'channel_name' => "private-user.{$alice->externalId()}",
         'socket_id' => '123.456',
     ])->assertStatus(403);
+});
+
+it('authorizes the conversation channel by participation only', function (): void {
+    $anna = User::factory()->create();
+    $boris = User::factory()->create();
+    $outsider = User::factory()->create();
+
+    $conversation = app(StartDirectConversationHandler::class)->handle(new StartDirectConversationCommand(
+        initiatorId: (string) $anna->getKey(),
+        counterpartId: (string) $boris->getKey(),
+    ))['room'];
+
+    // Канал диалога — обычный канал комнаты: авторизуется по участию.
+    foreach ([$anna, $boris] as $participant) {
+        $this->actingAs($participant)->postJson('/broadcasting/auth', [
+            'channel_name' => "private-room.{$conversation->id}",
+            'socket_id' => '123.456',
+        ])->assertOk();
+
+        $this->actingAs($participant)->postJson('/broadcasting/auth', [
+            'channel_name' => "presence-room.{$conversation->id}.presence",
+            'socket_id' => '123.456',
+        ])->assertOk();
+    }
+
+    $this->actingAs($outsider)->postJson('/broadcasting/auth', [
+        'channel_name' => "private-room.{$conversation->id}",
+        'socket_id' => '123.456',
+    ])->assertStatus(403);
+
+    $this->actingAs($outsider)->postJson('/broadcasting/auth', [
+        'channel_name' => "presence-room.{$conversation->id}.presence",
+        'socket_id' => '123.456',
+    ])->assertStatus(403);
+});
+
+it('sends dialog messages as the same versioned event on the same channel', function (): void {
+    Event::fake([MessageCreatedV1::class]);
+
+    $anna = User::factory()->create(['name' => 'Анна']);
+    $boris = User::factory()->create();
+
+    $conversation = app(StartDirectConversationHandler::class)->handle(new StartDirectConversationCommand(
+        initiatorId: (string) $anna->getKey(),
+        counterpartId: (string) $boris->getKey(),
+    ))['room'];
+
+    app(SendMessageHandler::class)->handle(new SendMessageCommand(
+        roomId: $conversation->id,
+        authorId: (string) $anna->getKey(),
+        body: 'Личное сообщение',
+    ));
+
+    Event::assertDispatched(MessageCreatedV1::class, function (MessageCreatedV1 $event) use ($conversation): bool {
+        // Прежняя схема события и прежний канал — без исключений для диалога
+        // (spec contracts/api-and-realtime).
+        $payload = json_decode((string) json_encode($event->broadcastWith()));
+        $validator = new Validator;
+        $validator->resolver()?->registerPrefix(
+            'https://contracts.chat.local/realtime/',
+            dirname(__DIR__, 4).'/packages/contracts/realtime',
+        );
+        $result = $validator->validate($payload, 'https://contracts.chat.local/realtime/message.created.v1.schema.json');
+
+        return $event->broadcastAs() === 'message.created.v1'
+            && $result->isValid()
+            && $event->broadcastOn()[0]->name === "private-room.{$conversation->id}";
+    });
 });
 
 it('broadcasts message.created.v1 after commit with envelope payload', function (): void {

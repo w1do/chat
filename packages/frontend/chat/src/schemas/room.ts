@@ -1,20 +1,40 @@
 import { z } from 'zod';
 
+/** Собеседник диалога: подпись, ник и аватарка — всё для списка и шапки. */
+export const counterpartSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  name: z.string(),
+  avatar_url: z.string().nullable(),
+});
+
 export const roomSchema = z.object({
   id: z.string(),
-  name: z.string(),
+  /** Название комнаты; у диалога его нет — подпись даёт собеседник. */
+  name: z.string().nullable(),
   topic: z.string().nullable(),
   visibility: z.enum(['public', 'private']),
+  /** Вид переписки: комната или личный диалог. */
+  kind: z.enum(['room', 'direct']),
   created_by: z.string(),
   archived_at: z.string().nullable(),
   created_at: z.string(),
   my_role: z.enum(['owner', 'admin', 'member']).nullable(),
   member_count: z.number().nullable(),
   unread_count: z.number().nullable(),
-  /** Фотография комнаты; null — рисуется эмодзи из названия. */
+  /** Фотография комнаты или аватарка собеседника; null — рисуется эмодзи. */
   photo_url: z.string().nullable(),
   photo_large_url: z.string().nullable(),
+  /** Собеседник диалога; у комнаты отсутствует. */
+  counterpart: counterpartSchema.nullable(),
 });
+
+/** Подпись переписки: название комнаты или имя собеседника (design 5). */
+export function roomLabel(room: Pick<Room, 'kind' | 'name' | 'counterpart'>): string {
+  if (room.kind === 'direct') return room.counterpart?.name ?? 'Диалог';
+
+  return room.name ?? '';
+}
 
 export const memberSchema = z.object({
   id: z.string(),
@@ -56,6 +76,7 @@ export const updateRoomSchema = z.object({
 });
 
 export type Room = z.infer<typeof roomSchema>;
+export type Counterpart = z.infer<typeof counterpartSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
 export type Member = z.infer<typeof memberSchema>;
 export type MemberCandidate = z.infer<typeof memberCandidateSchema>;

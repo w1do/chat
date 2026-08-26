@@ -11,7 +11,7 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, Lock, Paperclip, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
+import { Check, CheckCheck, ChevronLeft, EyeOff, Lock, Paperclip, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   dayLabel,
@@ -36,7 +36,7 @@ import { MessageActionsSheet } from './MessageActionsSheet';
 import { MessageBubble, QUICK_REACTION } from './MessageBubble';
 import { SearchSheet } from './SearchSheet';
 import { SystemEntry } from './SystemEntry';
-import type { Member, Room } from '../../schemas/room';
+import { roomLabel, type Member, type Room } from '../../schemas/room';
 
 interface ChatScreenProps {
   room: Room;
@@ -72,6 +72,8 @@ interface ChatScreenProps {
   onOpenMembers?: () => void;
   /** Приглашение: экран отдаёт наружу готовый текст со ссылкой. */
   onInvite?: () => void;
+  /** Скрытие диалога у себя; есть только у личной переписки. */
+  onHide?: () => Promise<unknown>;
   /** Черновик под управлением приложения: помощник его заменяет. */
   draft: string;
   onDraftChange: (text: string) => void;
@@ -114,6 +116,7 @@ export function ChatScreen({
   onJoin,
   onOpenMembers,
   onInvite,
+  onHide,
   draft,
   onDraftChange,
   attachments = [],
@@ -133,6 +136,11 @@ export function ChatScreen({
   const [mentions, setMentions] = useState<string[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [hideConfirm, setHideConfirm] = useState(false);
+
+  // Диалог подписан собеседником и не имеет комнатных действий (spec).
+  const isDirect = room.kind === 'direct';
+  const label = roomLabel(room);
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   // Смещение пузыря во время свайпа: id сообщения → сдвиг в пикселях.
   const [swipe, setSwipe] = useState<{ id: string; offset: number } | null>(null);
@@ -246,9 +254,10 @@ export function ChatScreen({
   const renderHeader = () => (
     <header
       ref={headerRef}
-        className="flex items-center gap-2.5 px-2 pb-2.5 safe-top blur-chrome"
+        className="px-2 pb-2.5 safe-top blur-chrome"
         style={{ background: theme.chromeAlpha }}
       >
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={onBack}
@@ -258,17 +267,18 @@ export function ChatScreen({
         >
           <ChevronLeft size={26} />
         </button>
-        <RoomGlyph name={room.name} photoUrl={room.photo_url} size={36} radius={13} theme={theme} />
+        <RoomGlyph name={label} photoUrl={room.photo_url} size={36} radius={13} theme={theme} />
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
           className="tap grid place-items-center order-last shrink-0"
           style={{ width: 34, height: 34, color: theme.text }}
-          aria-label="Поиск по комнате"
+          aria-label="Поиск по переписке"
         >
           <Search size={19} />
         </button>
-        {onInvite ? (
+        {/* Комнатные действия в диалоге не показываются: приглашать некого. */}
+        {onInvite && !isDirect ? (
           <button
             type="button"
             onClick={onInvite}
@@ -278,15 +288,26 @@ export function ChatScreen({
             <UserPlus size={15} /> Пригласить
           </button>
         ) : null}
+        {onHide && isDirect ? (
+          <button
+            type="button"
+            onClick={() => setHideConfirm(true)}
+            className="tap grid place-items-center order-last shrink-0"
+            style={{ width: 34, height: 34, color: theme.text }}
+            aria-label="Скрыть диалог"
+          >
+            <EyeOff size={18} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenMembers}
-          disabled={!onOpenMembers}
-          aria-label="Участники комнаты"
+          disabled={!onOpenMembers || isDirect}
+          aria-label={isDirect ? 'Собеседник' : 'Участники комнаты'}
           className="min-w-0 flex-1 text-left tap"
         >
           <h1 className="text-[16px] font-semibold truncate" style={{ color: theme.text, letterSpacing: '-0.01em' }}>
-            {room.name}
+            {label}
           </h1>
           {/* Одна строка на все состояния: подмена не двигает ленту. */}
           {connection !== 'connected' ? (
@@ -312,11 +333,47 @@ export function ChatScreen({
             </p>
           ) : (
             <p className="text-[12.5px] truncate" style={{ color: theme.muted }}>
-              {room.topic ??
-                `${room.member_count ?? 0} участников${room.my_role ? ` · вы ${ROLE_LABEL[room.my_role]}` : ''}`}
+              {isDirect
+                ? `@${room.counterpart?.username ?? ''} · личная переписка`
+                : (room.topic ??
+                  `${room.member_count ?? 0} участников${room.my_role ? ` · вы ${ROLE_LABEL[room.my_role]}` : ''}`)}
             </p>
           )}
         </button>
+      </div>
+
+      {/* Скрытие обратимо, но неожиданно: подтверждаем одним лишним нажатием. */}
+      {hideConfirm ? (
+        <div
+          role="alertdialog"
+          aria-label="Скрыть диалог из списка?"
+          className="flex items-center gap-2 mt-2 px-3 py-2"
+          style={{ background: theme.surface, borderRadius: RADIUS.sm }}
+        >
+          <p className="flex-1 text-[13.5px]" style={{ color: theme.text }}>
+            Скрыть диалог из списка? Переписка сохранится и вернётся с новым сообщением.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setHideConfirm(false);
+              void onHide?.();
+            }}
+            className="tap text-[13.5px] font-medium px-3 py-1.5"
+            style={{ background: theme.text, color: theme.bg, borderRadius: 10 }}
+          >
+            Скрыть
+          </button>
+          <button
+            type="button"
+            onClick={() => setHideConfirm(false)}
+            className="tap text-[13.5px] px-2 py-1.5"
+            style={{ color: theme.muted }}
+          >
+            Отмена
+          </button>
+        </div>
+      ) : null}
       </header>
   );
 
@@ -721,7 +778,7 @@ export function ChatScreen({
         <SearchSheet
         open
         roomId={room.id}
-        roomName={room.name}
+        roomName={label}
         theme={theme}
         onClose={() => setSearchOpen(false)}
         onSelect={(messageId) => {

@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Domain\Policies;
 
+use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 
 final class MessagePolicy
 {
-    public function viewAny(Authenticatable $user, Room $room): bool
+    /** История диалога для постороннего не существует — как и сам диалог. */
+    public function viewAny(Authenticatable $user, Room $room): Response
     {
-        return $room->isPublic() || $room->hasMember($user);
+        if ($room->isPublic() || $room->hasMember($user)) {
+            return Response::allow();
+        }
+
+        return $room->isDirect() ? Response::denyAsNotFound() : Response::deny();
     }
 
     public function send(Authenticatable $user, Room $room): bool
@@ -20,11 +26,15 @@ final class MessagePolicy
         return ! $room->isArchived() && $room->hasMember($user);
     }
 
-    public function view(Authenticatable $user, Message $message): bool
+    public function view(Authenticatable $user, Message $message): Response
     {
         $room = $message->room;
 
-        return $room->isPublic() || $room->hasMember($user);
+        if ($room->isPublic() || $room->hasMember($user)) {
+            return Response::allow();
+        }
+
+        return $room->isDirect() ? Response::denyAsNotFound() : Response::deny();
     }
 
     public function update(Authenticatable $user, Message $message): bool

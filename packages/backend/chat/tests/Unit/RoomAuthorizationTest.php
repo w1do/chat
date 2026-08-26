@@ -79,8 +79,10 @@ it('hides private rooms from non-members but shows public ones', function (): vo
 
     $policy = new RoomPolicy;
 
-    expect($policy->view($user, $public))->toBeTrue()
-        ->and($policy->view($user, $private))->toBeFalse();
+    expect($policy->view($user, $public)->allowed())->toBeTrue()
+        ->and($policy->view($user, $private)->allowed())->toBeFalse()
+        // Приватная комната отвечает отказом, как и раньше; 404 — только у диалога.
+        ->and($policy->view($user, $private)->status())->toBeNull();
 
     $visible = Room::query()->visibleTo($user)->pluck('id');
     expect($visible)->toContain($public->id)->not->toContain($private->id);

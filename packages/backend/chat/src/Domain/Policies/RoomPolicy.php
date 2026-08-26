@@ -11,20 +11,40 @@ use Vendor\Chat\Domain\Models\Room;
 
 final class RoomPolicy
 {
-    public function view(Authenticatable $user, Room $room): bool
+    /**
+     * Публичная комната видна всем, приватная — участникам. Чужой диалог
+     * не показывается даже отказом: для постороннего его не существует
+     * (spec chat/direct-messages).
+     */
+    public function view(Authenticatable $user, Room $room): Response
     {
-        return $room->isPublic() || $room->hasMember($user);
+        if ($room->isPublic() || $room->hasMember($user)) {
+            return Response::allow();
+        }
+
+        return $room->isDirect() ? Response::denyAsNotFound() : Response::deny();
     }
 
     /** Название и описание правят владелец и админ: ошибка в названии поправима. */
     public function update(Authenticatable $user, Room $room): bool
     {
+        // У диалога нет названия и описания — править нечего. Вид проверяется
+        // в политике, а не в контроллере: обход через API невозможен (design).
+        if ($room->isDirect()) {
+            return false;
+        }
+
         return (bool) $room->roleOf($user)?->canManageRoom();
     }
 
     /** Архивирование обратимо, поэтому остаётся у владельца и админа. */
     public function archive(Authenticatable $user, Room $room): bool
     {
+        // Личная переписка не архивируется: у неё есть только скрытие у себя.
+        if ($room->isDirect()) {
+            return false;
+        }
+
         return (bool) $room->roleOf($user)?->canManageRoom();
     }
 
@@ -36,6 +56,12 @@ final class RoomPolicy
     public function changePhoto(Authenticatable $user, Room $room): Response
     {
         $role = $room->roleOf($user);
+
+        // Диалог подписан именем и аватаркой собеседника; своей фотографии
+        // у него нет.
+        if ($room->isDirect()) {
+            return $role === null ? Response::denyAsNotFound() : Response::deny();
+        }
 
         if ($role?->canManageRoom()) {
             return Response::allow();
@@ -51,6 +77,12 @@ final class RoomPolicy
     public function delete(Authenticatable $user, Room $room): Response
     {
         $role = $room->roleOf($user);
+
+        // Диалог не удаляется никем: переписка принадлежит обоим, у неё нет
+        // владельца (spec chat/direct-messages).
+        if ($room->isDirect()) {
+            return $role === null ? Response::denyAsNotFound() : Response::deny();
+        }
 
         if ($role === RoomRole::Owner) {
             return Response::allow();

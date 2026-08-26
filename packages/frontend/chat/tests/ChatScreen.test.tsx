@@ -20,8 +20,24 @@ const room = (extra: Partial<Room> = {}): Room => ({
   unread_count: 0,
   photo_url: null,
   photo_large_url: null,
+  kind: 'room',
+  counterpart: null,
   ...extra,
 });
+
+/** Личный диалог: без названия, подписан собеседником, без комнатных действий. */
+const directRoom = (extra: Partial<Room> = {}): Room =>
+  room({
+    id: 'd1',
+    name: null,
+    topic: null,
+    visibility: 'private',
+    my_role: 'member',
+    member_count: null,
+    kind: 'direct',
+    counterpart: { id: 'u-bob', username: 'bob', name: 'Bob Builder', avatar_url: null },
+    ...extra,
+  });
 
 const message = (id: string, extra: Partial<Message> = {}): Message => ({
   id,
@@ -398,5 +414,50 @@ describe('ChatScreen', () => {
     expect(screen.getByLabelText('Событие комнаты s2')).toHaveTextContent('Bob покинул комнату');
     // Системные записи не предлагают ответ и реакции.
     expect(screen.queryByRole('button', { name: 'Ответить на сообщение s1' })).toBeNull();
+  });
+
+  it('shows room actions in the header of a regular room', () => {
+    render(<Harness onInvite={vi.fn()} onOpenMembers={vi.fn()} />);
+
+    // Приглашение доступно, а шапка ведёт к участникам комнаты.
+    expect(screen.getByRole('button', { name: 'Пригласить' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Участники комнаты' })).toBeEnabled();
+    // Диалоговых действий в комнате нет.
+    expect(screen.queryByRole('button', { name: 'Скрыть диалог' })).toBeNull();
+  });
+
+  it('shows the counterpart in a direct header without room actions', () => {
+    render(
+      <Harness
+        room={directRoom()}
+        onInvite={vi.fn()}
+        onOpenMembers={vi.fn()}
+        onHide={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    // Шапка подписана именем собеседника и его ником.
+    expect(screen.getByRole('heading', { name: 'Bob Builder' })).toBeInTheDocument();
+    expect(screen.getByText('@bob · личная переписка')).toBeInTheDocument();
+
+    // Комнатных действий нет: ни переименования/участников, ни приглашения.
+    expect(screen.queryByRole('button', { name: 'Пригласить' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Собеседник' })).toBeDisabled();
+
+    // Зато диалог можно скрыть из списка.
+    expect(screen.getByRole('button', { name: 'Скрыть диалог' })).toBeInTheDocument();
+  });
+
+  it('hides a direct conversation only after a confirmation', async () => {
+    const onHide = vi.fn().mockResolvedValue(undefined);
+    render(<Harness room={directRoom()} onHide={onHide} />);
+
+    // Скрытие спрашивает подтверждение — случайное касание диалог не прячет.
+    await userEvent.click(screen.getByRole('button', { name: 'Скрыть диалог' }));
+    expect(onHide).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Скрыть диалог из списка?' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Скрыть' }));
+    expect(onHide).toHaveBeenCalledTimes(1);
   });
 });

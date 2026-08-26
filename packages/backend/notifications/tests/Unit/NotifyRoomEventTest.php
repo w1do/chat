@@ -54,6 +54,31 @@ it('creates a notification for a recipient who is not in the room', function ():
         ->and(json_decode((string) $row->data, true)['room_name'])->toBe('Общая');
 });
 
+it('names the sender instead of the room for a direct conversation', function (): void {
+    activeIn([]);
+    $recipient = User::factory()->create();
+
+    app(NotifyRoomEventHandler::class)->handle(new NotifyRoomEventCommand(
+        category: Category::Message,
+        roomId: 'direct-1',
+        roomName: null,
+        actorId: 'actor-1',
+        actorName: 'Алиса',
+        recipientIds: [(string) $recipient->getKey()],
+        preview: 'Привет лично',
+        messageId: 'message-1',
+    ));
+
+    $data = json_decode((string) DB::table('notifications')
+        ->where('notifiable_id', $recipient->getKey())
+        ->value('data'), true);
+
+    // Названия комнаты нет — уведомление опирается на отправителя.
+    expect($data['room_name'])->toBeNull()
+        ->and($data['actor_name'])->toBe('Алиса')
+        ->and($data['room_id'])->toBe('direct-1');
+});
+
 it('stays silent for a recipient who is active in that room', function (): void {
     $recipient = User::factory()->create();
     activeIn([(string) $recipient->getKey()]);

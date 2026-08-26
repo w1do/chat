@@ -18,6 +18,7 @@ use Vendor\Chat\Domain\Contracts\MessageSanitizer;
 use Vendor\Chat\Domain\Enums\MessageKind;
 use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Models\Message;
+use Vendor\Chat\Domain\Models\RoomMember;
 use Vendor\Chat\Domain\ValueObjects\MentionList;
 use Vendor\Chat\Domain\ValueObjects\MessageBody;
 
@@ -85,6 +86,14 @@ final readonly class SendMessageHandler
                 'body' => $body->value ?? '',
                 'mentions' => $mentions->isEmpty() ? null : $mentions->userIds,
             ]);
+
+            // Скрытый диалог возвращается в список с новым сообщением
+            // (spec chat/direct-messages). Отметка стоит только у участников
+            // диалогов, поэтому для комнат обновление не находит строк.
+            RoomMember::query()
+                ->where('room_id', $command->roomId)
+                ->whereNotNull('hidden_at')
+                ->update(['hidden_at' => null]);
 
             // Файл уже в хранилище; меняется только владелец записи медиа —
             // с комнаты на сообщение. Путь файла от владельца не зависит.

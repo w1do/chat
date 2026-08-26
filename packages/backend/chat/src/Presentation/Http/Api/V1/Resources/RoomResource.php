@@ -19,6 +19,7 @@ final class RoomResource extends JsonResource
             'name' => $this->resource->name,
             'topic' => $this->resource->topic,
             'visibility' => $this->resource->visibility,
+            'kind' => $this->resource->kind,
             'created_by' => $this->resource->createdBy,
             'archived_at' => $this->resource->archivedAt,
             'created_at' => $this->resource->createdAt,
@@ -27,6 +28,13 @@ final class RoomResource extends JsonResource
             'unread_count' => $this->resource->unreadCount,
             'photo_url' => $this->resource->photoUrl,
             'photo_large_url' => $this->resource->photoLargeUrl,
+            // Собеседник диалога; у комнаты отсутствует, а не пуст.
+            'counterpart' => $this->resource->counterpart === null ? null : [
+                'id' => $this->resource->counterpart->id,
+                'username' => $this->resource->counterpart->username,
+                'name' => $this->resource->counterpart->name,
+                'avatar_url' => $this->resource->counterpart->avatarUrl,
+            ],
         ];
     }
 }

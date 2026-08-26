@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\AttachmentController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\AttachmentFileController;
+use Vendor\Chat\Presentation\Http\Api\V1\Controllers\DirectConversationController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\InviteController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MemberController;
 use Vendor\Chat\Presentation\Http\Api\V1\Controllers\MessageController;
@@ -20,6 +21,16 @@ Route::prefix(config('chat.routes.prefix', 'api/v1'))
     ->scopeBindings()
     ->group(function (): void {
         Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
+
+        // Личная переписка: начало идемпотентно, поиск собеседника и частота —
+        // те же, что у приглашений; скрытие действует только у себя.
+        Route::post('/direct-conversations', [DirectConversationController::class, 'store'])
+            ->middleware('throttle:chat-invites')->name('directs.start');
+        Route::get('/direct-conversation-candidates', [DirectConversationController::class, 'candidates'])
+            ->middleware('throttle:chat-invites')->name('directs.candidates');
+        Route::post('/direct-conversations/{room}/hide', [DirectConversationController::class, 'hide'])
+            ->name('directs.hide');
+
         Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
         Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
         Route::patch('/rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
