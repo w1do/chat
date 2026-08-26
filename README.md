@@ -65,6 +65,13 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
 docker compose exec api php artisan chat:grant-admin ваш_логин
 ```
 
+Если человек забыл пароль, а восстановление по почте недоступно, оператор
+задаёт новый пароль из консоли служебной командой `admin:*`:
+
+```bash
+docker compose exec api php artisan admin:reset-password логин новый_пароль
+```
+
 ### Если сборка не проходит
 
 - `No releases available for package "pecl.php.net/redis"` — сервер не достучался
