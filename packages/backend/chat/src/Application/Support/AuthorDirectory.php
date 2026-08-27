@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Application\Support;
 
+use DateTimeInterface;
 use Illuminate\Support\Collection;
 use Vendor\SharedKernel\Contracts\Actor;
+use Vendor\SharedKernel\Contracts\Mentionable;
+use Vendor\SharedKernel\Contracts\Present;
 
 /**
  * Имена и аватарки авторов одним запросом. Пакет chat не знает класс
@@ -50,5 +53,42 @@ final class AuthorDirectory
     public static function avatar(array $authors, ?string $userId): ?string
     {
         return isset($authors[(string) $userId]) ? $authors[(string) $userId]->avatarUrl() : null;
+    }
+
+    /**
+     * Ник участника — по нему строится упоминание `@username` (spec
+     * chat/mention-autocomplete). Ник отдаёт контракт Mentionable: класс
+     * пользователя приложения пакету по-прежнему неизвестен (§4.1).
+     *
+     * @param  array<string, Actor>  $authors
+     */
+    public static function username(array $authors, ?string $userId): ?string
+    {
+        $user = $authors[(string) $userId] ?? null;
+
+        return $user instanceof Mentionable ? $user->mentionHandle() : null;
+    }
+
+    /**
+     * «В сети» — там, где класс пользователя умеет присутствие; иначе его
+     * просто нет, и интерфейс показывает участника без статуса (§4.1).
+     *
+     * @param  array<string, Actor>  $authors
+     */
+    public static function online(array $authors, ?string $userId): bool
+    {
+        $user = $authors[(string) $userId] ?? null;
+
+        return $user instanceof Present && $user->isOnline();
+    }
+
+    /** @param array<string, Actor> $authors */
+    public static function lastSeen(array $authors, ?string $userId): ?string
+    {
+        $user = $authors[(string) $userId] ?? null;
+
+        return $user instanceof Present
+            ? $user->lastSeenAt()?->format(DateTimeInterface::ATOM)
+            : null;
     }
 }

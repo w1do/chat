@@ -6,6 +6,20 @@
 
 - Участник открывает комнату → входит в presence-канал; остальные видят его
   в списке присутствующих (`PresenceDots`).
+- Любое действие вошедшего человека (запрос к API, авторизация канала) двигает
+  его метку активности `users.last_seen_at`; запись троттлится окном
+  (`PRESENCE_TOUCH_THROTTLE_SECONDS`, по умолчанию 60 с), поэтому каждый
+  запрос не превращается в `UPDATE`.
+- «В сети» выводится из времени: активность не давнее окна присутствия
+  (`PRESENCE_ONLINE_WINDOW_SECONDS`, по умолчанию 120 с). Молчаливый обрыв
+  соединения сам переводит человека в оффлайн — отдельного флага нет.
+- API отдаёт `is_online` и `last_seen_at` в профиле (`/me`), в списке
+  участников комнаты и у собеседника диалога (`counterpart`).
+- Интерфейс подписывает статус человеческим языком: «В сети», «был(а) в сети
+  только что / N мин назад / сегодня в HH:MM / вчера в HH:MM / D MMMM в HH:MM».
+  Строка присутствия стоит в шапке диалога и в строке участника комнаты;
+  зелёная точка — на аватарке. У комнаты шапка добавляет «N в сети» по
+  presence-каналу.
 - Пользователь печатает → сигнал `POST /rooms/{room}/typing` (троттлинг 3 с) →
   событие `typing.changed.v1` в presence-канале → индикатор у остальных.
 - Отправка сообщения гасит индикатор (`is_typing: false`).
@@ -21,7 +35,12 @@
 - `SetTypingCommand`/`SetTypingHandler` продлевают активность и публикуют
   доменное событие; broadcast — `TypingChangedV1` (presence-канал).
 - Frontend: `useRealtimeRoom` (подписка только для участников,
-  страховочный таймаут набора), `useTyping`, `TypingIndicator`, `PresenceDots`.
+  страховочный таймаут набора), `useTyping`, `TypingIndicator`, `PresenceDots`,
+  `PresenceBadge` и `formatLastSeen` (локализованные метки времени).
+- Метка активности: `PresenceTouch` (троттлинг через кэш) и middleware
+  `TouchLastSeen` — в группе `api` и на маршруте авторизации каналов;
+  признак «в сети» отдают контракты `Present`/`Actor` (`packages/backend/shared-kernel`),
+  поэтому пакет чата по-прежнему не знает класс пользователя приложения.
 
 ## Приветствие нового участника
 
@@ -48,11 +67,14 @@
 
 ## Проверки
 
+- `./tools/chat test api tests/Feature/PresenceTest.php` — метка активности,
+  окно троттлинга, поля `is_online`/`last_seen_at` в профиле и составе комнаты;
 - `./tools/chat test api tests/Integration/RedisPresenceRegistryTest.php` —
   TTL, disconnect-очистка, active-in-room (реальный Redis);
 - `./tools/chat test api tests/Integration/RealtimeTest.php` — авторизация
   каналов, presence payload, typing endpoint;
 - `./tools/chat web test chat` — приветствие, тихая активная комната, тост для
-  другой комнаты, молчание для своих и системных сообщений;
+  другой комнаты, молчание для своих и системных сообщений; формат
+  `formatLastSeen`, статус в шапке и в строке участника, список присутствующих;
 - `./tools/chat web test ui` — конфетти и вариант с выключенным движением;
 - `./tools/chat e2e realtime`, `./tools/chat smoke websocket`.

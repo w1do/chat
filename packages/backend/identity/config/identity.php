@@ -28,6 +28,13 @@ return [
         'images' => (int) env('PROFILE_IMAGE_PER_MINUTE', 20),
     ],
 
+    // Присутствие: «в сети», пока активность была не давнее окна; запись в
+    // базу троттлится, чтобы каждый запрос не превращался в UPDATE.
+    'presence' => [
+        'online_window_seconds' => (int) env('PRESENCE_ONLINE_WINDOW_SECONDS', 120),
+        'touch_throttle_seconds' => (int) env('PRESENCE_TOUCH_THROTTLE_SECONDS', 60),
+    ],
+
     'browser_token' => [
         'enabled' => (bool) env('AUTH_BROWSER_TOKEN_ENABLED', true),
         'cookie' => env('AUTH_BROWSER_TOKEN_COOKIE', '__Host-chat_browser_token'),

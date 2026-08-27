@@ -27,6 +27,8 @@ final class UserResource extends JsonResource
             'avatar_url' => $this->resource->avatarUrl,
             'avatar_large_url' => $this->resource->avatarLargeUrl,
             'wallpaper_url' => $this->resource->wallpaperUrl,
+            'is_online' => $this->resource->isOnline,
+            'last_seen_at' => $this->resource->lastSeenAt,
         ];
     }
 }

@@ -1042,6 +1042,13 @@ export interface components {
             name: string;
             /** @description Аватарка собеседника в мелком размере; null — рисуется буква имени. */
             avatar_url: string | null;
+            /** @description Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети». */
+            is_online: boolean;
+            /**
+             * Format: date-time
+             * @description Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи.
+             */
+            last_seen_at: string | null;
         };
         Invite: unknown;
         InviteAccepted: unknown;
@@ -1056,8 +1063,17 @@ export interface components {
             joined_at: string;
             /** @description Имя пользователя. */
             name: string | null;
+            /** @description Ник участника: по нему строится упоминание `@username` в тексте сообщения. null — у модели пользователя приложения ника нет. */
+            username: string | null;
             /** @description Текущая аватарка участника в мелком размере. null — аватарки нет, интерфейс рисует букву имени. Прежние аватарки здесь не перечисляются: набор видит только его владелец. */
             avatar_url: string | null;
+            /** @description Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети». */
+            is_online: boolean;
+            /**
+             * Format: date-time
+             * @description Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи.
+             */
+            last_seen_at: string | null;
         };
         MemberCandidate: {
             /** @description ULID пользователя. */
@@ -1086,7 +1102,12 @@ export interface components {
             /** @description null для удалённых сообщений — тело не раскрывается. */
             body: string | null;
             mentions: string[];
-            /** Format: date-time */
+            /** @description Сообщение правили после отправки: интерфейс показывает метку «(отредактировано)» рядом со временем. */
+            is_edited: boolean;
+            /**
+             * Format: date-time
+             * @description Момент последней правки; null — сообщение не редактировали.
+             */
             edited_at: string | null;
             deleted: boolean;
             /** Format: date-time */
@@ -1222,6 +1243,13 @@ export interface components {
             avatar_large_url: string | null;
             /** @description Личные обои переписки; видны только своему владельцу. */
             wallpaper_url: string | null;
+            /** @description Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети». */
+            is_online: boolean;
+            /**
+             * Format: date-time
+             * @description Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи.
+             */
+            last_seen_at: string | null;
         };
         UserEnvelope: {
             data: components["schemas"]["User"];

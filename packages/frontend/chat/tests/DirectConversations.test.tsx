@@ -34,7 +34,7 @@ const direct = (id: string, unread = 0): Room =>
     kind: 'direct',
     member_count: null,
     unread_count: unread,
-    counterpart: { id: 'u2', username: 'bob', name: 'Bob Builder', avatar_url: null },
+    counterpart: { id: 'u2', username: 'bob', name: 'Bob Builder', avatar_url: null, is_online: false, last_seen_at: null },
   });
 
 function wrapperFor(client: Record<string, unknown>) {

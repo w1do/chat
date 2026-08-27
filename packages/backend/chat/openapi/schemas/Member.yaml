@@ -1,5 +1,5 @@
 type: object
-required: [id, room_id, user_id, role, joined_at, name, avatar_url]
+required: [id, room_id, user_id, role, joined_at, name, username, avatar_url, is_online, last_seen_at]
 properties:
   id: { type: string, description: ULID записи членства. }
   room_id: { type: string }
@@ -7,9 +7,25 @@ properties:
   role: { type: string, enum: [owner, admin, member] }
   joined_at: { type: string, format: date-time }
   name: { type: [string, "null"], description: Имя пользователя. }
+  username:
+    type: [string, "null"]
+    description: >-
+      Ник участника: по нему строится упоминание `@username` в тексте
+      сообщения. null — у модели пользователя приложения ника нет.
   avatar_url:
     type: [string, "null"]
     description: >-
       Текущая аватарка участника в мелком размере. null — аватарки нет,
       интерфейс рисует букву имени. Прежние аватарки здесь не перечисляются:
       набор видит только его владелец.
+  is_online:
+    type: boolean
+    description: >-
+      Активность была не давнее окна присутствия (по умолчанию 120 секунд):
+      интерфейс показывает зелёный индикатор и «В сети».
+  last_seen_at:
+    type: [string, "null"]
+    format: date-time
+    description: >-
+      Момент последней активности; null — человек ещё ни разу не был замечен.
+      Запись троттлится, поэтому значение отстаёт не больше чем на окно записи.

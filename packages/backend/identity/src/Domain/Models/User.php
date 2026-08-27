@@ -16,6 +16,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Vendor\Identity\Application\Support\AvatarUrl;
 use Vendor\Identity\Database\Factories\UserFactory;
 use Vendor\SharedKernel\Contracts\Actor;
+use Vendor\SharedKernel\Contracts\Mentionable;
+use Vendor\SharedKernel\Contracts\Present;
 
 /**
  * Базовая модель пользователя.
@@ -29,13 +31,14 @@ use Vendor\SharedKernel\Contracts\Actor;
  * @property string $timezone
  * @property ?Carbon $email_verified_at
  * @property ?Carbon $password_set_at
+ * @property ?Carbon $last_seen_at
  * @property ?Carbon $created_at
  * @property string $password
  *                            Приложение наследует её в App\Models\User
  *                            и подставляет класс через config('identity.user_model') (STRUCTURE.md §2);
  *                            другие пакеты зависят только от контракта Actor.
  */
-class User extends Authenticatable implements Actor, HasMedia
+class User extends Authenticatable implements Actor, HasMedia, Mentionable, Present
 {
     use HasApiTokens;
 
@@ -72,6 +75,7 @@ class User extends Authenticatable implements Actor, HasMedia
     {
         return [
             'password_set_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
@@ -85,6 +89,28 @@ class User extends Authenticatable implements Actor, HasMedia
     public function displayName(): string
     {
         return (string) $this->name;
+    }
+
+    public function mentionHandle(): ?string
+    {
+        return $this->username;
+    }
+
+    public function lastSeenAt(): ?Carbon
+    {
+        return $this->last_seen_at;
+    }
+
+    /**
+     * «В сети» — активность в пределах окна: соединение рвётся без прощания,
+     * поэтому признак выводится из времени, а не из отдельного флага.
+     */
+    public function isOnline(): bool
+    {
+        $window = (int) config('identity.presence.online_window_seconds', 120);
+
+        return $this->last_seen_at !== null
+            && $this->last_seen_at->getTimestamp() >= now()->getTimestamp() - $window;
     }
 
     public function avatarUrl(): ?string

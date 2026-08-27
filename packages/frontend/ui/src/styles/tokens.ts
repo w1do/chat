@@ -60,6 +60,8 @@ export const DARK: ThemeTokens = {
 export const THEMES: Record<ThemeName, ThemeTokens> = { light: LIGHT, dark: DARK };
 
 export const RADIUS = { sm: 10, md: 14, bubble: 20, sheet: 28 } as const;
+/** Присутствие — один зелёный на всё приложение: точка у аватарки и в подписи. */
+export const ONLINE = '#35C08A';
 export const SPRING = 'cubic-bezier(.2,.9,.3,1)';
 
 export type TextSize = 'S' | 'M' | 'L';

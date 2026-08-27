@@ -22,6 +22,7 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
         reply_to_id: event.data.reply_to_id,
         body: event.data.body,
         mentions: [],
+        is_edited: false,
         edited_at: null,
         deleted: false,
         created_at: event.data.created_at,
@@ -41,8 +42,11 @@ export function applyRoomEvent(queryClient: QueryClient, event: RoomEvent): void
     }
 
     case 'message.updated.v1':
+      // Правка приходит уже применённой: метка «изменено» ставится вместе с
+      // новым текстом, без перезапроса истории.
       patchMessage(queryClient, event.room_id, event.data.id, {
         body: event.data.body,
+        is_edited: true,
         edited_at: event.data.edited_at,
       });
       break;

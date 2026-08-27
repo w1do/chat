@@ -26,6 +26,7 @@ final class MessageResource extends JsonResource
             'reply_to_id' => $this->resource->replyToId,
             'body' => $this->resource->body,
             'mentions' => $this->resource->mentions,
+            'is_edited' => $this->resource->isEdited,
             'edited_at' => $this->resource->editedAt,
             'deleted' => $this->resource->deleted,
             'created_at' => $this->resource->createdAt,

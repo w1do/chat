@@ -47,6 +47,7 @@ const initialPage: MessagePage = {
       reply_to_id: null,
       body: 'Existing',
       mentions: [],
+      is_edited: false,
       edited_at: null,
       deleted: false,
       created_at: '2026-08-24T11:00:00Z',
@@ -176,6 +177,26 @@ describe('useRealtimeRoom', () => {
       },
     });
     expect(cachedIds(queryClient)).toEqual(['m2', 'm1']);
+  });
+
+  it('marks a message edited live, without refetching the history', async () => {
+    const { queryClient, adapter } = setup();
+
+    adapter.roomHandler?.({
+      event: 'message.updated.v1',
+      version: 1,
+      room_id: 'r1',
+      occurred_at: 'x',
+      data: { id: 'm1', body: 'Исправлено', edited_at: '2026-08-24T12:01:00Z' },
+    });
+
+    await waitFor(() => {
+      const data = queryClient.getQueryData<{ pages: MessagePage[] }>(['chat', 'messages', 'r1']);
+      const message = data?.pages[0]?.data[0];
+      expect(message?.body).toBe('Исправлено');
+      expect(message?.is_edited).toBe(true);
+      expect(message?.edited_at).toBe('2026-08-24T12:01:00Z');
+    });
   });
 
   it('applies edits and deletes to cached messages', async () => {

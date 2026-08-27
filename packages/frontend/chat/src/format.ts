@@ -19,6 +19,43 @@ export function dayLabel(iso: string): string {
 }
 
 /**
+ * «Был(а) в сети» человеческим языком. Онлайн важнее времени: пока человек в
+ * сети, точный момент не нужен. Дальше — от «только что» к дате.
+ */
+export function formatLastSeen(
+  lastSeenAt: string | null | undefined,
+  options: { online?: boolean; now?: Date } = {},
+): string {
+  if (options.online) return 'В сети';
+  if (!lastSeenAt) return 'был(а) в сети давно';
+
+  const seen = new Date(lastSeenAt);
+  if (Number.isNaN(seen.getTime())) return 'был(а) в сети давно';
+
+  const now = options.now ?? new Date();
+  const diff = now.getTime() - seen.getTime();
+  const at = formatTime(lastSeenAt);
+
+  // Часы вперёд у собеседника — не повод писать «в будущем».
+  if (diff < MINUTE) return 'был(а) в сети только что';
+  if (diff < 60 * MINUTE) return `был(а) в сети ${Math.floor(diff / MINUTE)} мин назад`;
+
+  const yesterday = new Date(now.getTime() - 86_400_000);
+
+  if (seen.toDateString() === now.toDateString()) return `был(а) в сети сегодня в ${at}`;
+  if (seen.toDateString() === yesterday.toDateString()) return `был(а) в сети вчера в ${at}`;
+
+  const date = seen.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    // Прошлый год без года читается как «в этом году» — год нужен.
+    year: seen.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  });
+
+  return `был(а) в сети ${date} в ${at}`;
+}
+
+/**
  * «Печатает» человеческим языком: один — «печатает», двое и больше —
  * «печатают», длинный список сворачивается в «и ещё N».
  */

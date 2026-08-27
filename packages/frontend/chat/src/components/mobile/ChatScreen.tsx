@@ -11,8 +11,8 @@ import {
   type TextSize,
   type ThemeTokens,
 } from '@vendor/ui';
-import { Check, CheckCheck, ChevronLeft, EyeOff, Lock, Paperclip, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, CheckCheck, ChevronLeft, EyeOff, Lock, Paperclip, Pencil, RotateCcw, Search, Send, Smile, Sparkles, UserPlus } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   dayLabel,
   formatTime,
@@ -25,7 +25,8 @@ import {
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Attachment, Message, SendMessageInput } from '../../schemas/message';
 import type { PendingAttachment } from '../../hooks/useAttachmentUploads';
-import { MentionPicker } from '../MentionPicker';
+import { filterMentionCandidates, MentionPicker } from '../MentionPicker';
+import { PresenceBadge } from '../PresenceBadge';
 import { AttachmentGallery } from './AttachmentGallery';
 import { isImageAttachment } from './AttachmentTiles';
 import { ComposerAttachments } from './ComposerAttachments';
@@ -52,6 +53,8 @@ interface ChatScreenProps {
   typingUserIds: string[];
   /** Состояние WebSocket-соединения: обрыв виден пользователю. */
   connection: ConnectionState;
+  /** Кто сейчас в комнате по presence-каналу: свежее, чем метка из API. */
+  presentUserIds?: string[];
   /** Высота экранной клавиатуры — панель ввода поднимается над ней. */
   keyboard: number;
   isLoading: boolean;
@@ -63,6 +66,8 @@ interface ChatScreenProps {
   onBack: () => void;
   onLoadMore: () => void;
   onSend: (input: SendMessageInput) => Promise<unknown>;
+  /** Сохранение правки своего сообщения; нет — пункт «Редактировать» не показывается. */
+  onEditMessage?: (messageId: string, body: string) => Promise<unknown>;
   onTyping: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
@@ -98,6 +103,7 @@ export function ChatScreen({
   showTyping,
   typingUserIds,
   connection,
+  presentUserIds = [],
   keyboard,
   isLoading,
   error,
@@ -108,6 +114,7 @@ export function ChatScreen({
   onBack,
   onLoadMore,
   onSend,
+  onEditMessage,
   onTyping,
   onToggleReaction,
   onDeleteMessage,
@@ -133,13 +140,29 @@ export function ChatScreen({
   const [sendError, setSendError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  /** Правится сообщение: строка ввода занята его текстом, отправка — сохранением. */
+  const [editing, setEditing] = useState<Message | null>(null);
   const [mentions, setMentions] = useState<string[]>([]);
+  /** Позиция каретки: упоминание ищется до неё, а не в конце строки. */
+  const [caret, setCaret] = useState(0);
+  /** Куда поставить каретку после подстановки текста в поле ввода. */
+  const pendingCaret = useRef<number | null>(null);
+  /** Кандидат под клавиатурой в списке упоминаний. */
+  const [mentionIndex, setMentionIndex] = useState(0);
+  /** Список закрыт Escape — до следующей правки текста он не всплывает. */
+  const [mentionDismissed, setMentionDismissed] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [hideConfirm, setHideConfirm] = useState(false);
 
   // Диалог подписан собеседником и не имеет комнатных действий (spec).
   const isDirect = room.kind === 'direct';
+  // Присутствие: канал знает о собеседнике «прямо сейчас», API — с точностью
+  // до окна записи; вместе они не мигают при переподписке.
+  const counterpart = room.counterpart ?? null;
+  const counterpartOnline =
+    counterpart !== null && (presentUserIds.includes(counterpart.id) || counterpart.is_online);
+  const onlineCount = presentUserIds.filter((id) => id !== currentUserId).length;
   const label = roomLabel(room);
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   // Смещение пузыря во время свайпа: id сообщения → сдвиг в пикселях.
@@ -153,8 +176,12 @@ export function ChatScreen({
 
   const readyAttachmentIds = attachments.flatMap((item) => (item.attachment ? [item.attachment.id] : []));
   const uploadsBusy = attachments.some((item) => item.status === 'uploading');
-  // Отправлять есть что, когда есть текст или готовые файлы — и ничего не грузится.
-  const canSend = (draft.trim() !== '' || readyAttachmentIds.length > 0) && !uploadsBusy;
+  // Отправлять есть что, когда есть текст или готовые файлы — и ничего не
+  // грузится. У правки файлов нет: сохраняется только непустой текст.
+  const canSend =
+    editing !== null
+      ? draft.trim() !== ''
+      : (draft.trim() !== '' || readyAttachmentIds.length > 0) && !uploadsBusy;
 
   const openGallery = (message: Message, attachmentId: string) => {
     const images = message.attachments.filter(isImageAttachment);
@@ -169,6 +196,34 @@ export function ChatScreen({
     textarea.current?.focus();
   };
 
+  /**
+   * Правка идёт в той же строке ввода: текст подставляется, ответ и вложения
+   * уступают место — правится ровно одно сообщение.
+   */
+  const startEdit = (message: Message) => {
+    setEditing(message);
+    setReplyTo(null);
+    setSendError(null);
+    onDraftChange(message.body ?? '');
+    moveCaretTo((message.body ?? '').length);
+  };
+
+  /** Отмена правки: черновик очищается, сообщение остаётся прежним. */
+  const cancelEdit = () => {
+    setEditing(null);
+    setSendError(null);
+    onDraftChange('');
+  };
+
+  /**
+   * Каретка после подстановки: позиция запоминается и применяется сразу
+   * после отрисовки нового текста — иначе следующий символ уедет в конец.
+   */
+  const moveCaretTo = (position: number) => {
+    pendingCaret.current = position;
+    setCaret(position);
+  };
+
   /** Переход от цитаты к оригиналу: подсветка гаснет сама. */
   const jumpToMessage = (messageId: string) => {
     const target = scroller.current?.querySelector(`[data-message-id="${messageId}"]`);
@@ -176,6 +231,16 @@ export function ChatScreen({
     setHighlightedId(messageId);
     window.setTimeout(() => setHighlightedId((current) => (current === messageId ? null : current)), 1600);
   };
+
+  useLayoutEffect(() => {
+    const position = pendingCaret.current;
+    if (position === null) return;
+
+    pendingCaret.current = null;
+    const field = textarea.current;
+    field?.focus();
+    field?.setSelectionRange(position, position);
+  });
 
   const isMember = room.my_role !== null;
   const canWrite = isMember && room.archived_at === null;
@@ -188,6 +253,14 @@ export function ChatScreen({
   // несёт, и незачем — участники и так загружены.
   const avatars = useMemo(
     () => new Map(members.map((member) => [member.user_id, member.avatar_url])),
+    [members],
+  );
+  // Ники нужны ленте: по ним `@тег` в тексте узнаётся как упоминание человека.
+  const usernames = useMemo(
+    () =>
+      new Map(
+        members.flatMap((member) => (member.username === null ? [] : [[member.user_id, member.username] as const])),
+      ),
     [members],
   );
 
@@ -247,6 +320,24 @@ export function ChatScreen({
 
   const submit = async () => {
     const text = draft.trim();
+
+    // Правка идёт своим путём: у неё нет ни вложений, ни ответа.
+    if (editing !== null) {
+      if (text === '' || !onEditMessage) return;
+
+      setSendError(null);
+      try {
+        await onEditMessage(editing.id, text);
+        setEditing(null);
+        onDraftChange('');
+      } catch {
+        // Текст остаётся в поле — правку можно повторить.
+        setSendError('Не удалось сохранить правку. Попробуйте ещё раз.');
+      }
+
+      return;
+    }
+
     if (!canSend) return;
 
     setSendError(null);
@@ -272,7 +363,35 @@ export function ChatScreen({
   // «Печатает» живёт в шапке: в ленте оно дёргало прокрутку.
   const typingLine = showTyping ? typingSummary(typingNames) : null;
 
-  const mentionMatch = /@([\p{L}\w-]*)$/u.exec(draft);
+  // Упоминание набирается до каретки: `@` в середине строки тоже работает.
+  const caretAt = Math.min(caret, draft.length);
+  const mentionMatch = /@([\p{L}\w-]*)$/u.exec(draft.slice(0, caretAt));
+  const mentionFilter = mentionMatch?.[1] ?? '';
+  const mentionMatches = useMemo(
+    () => (mentionMatch === null ? [] : filterMentionCandidates(members, mentionFilter)),
+    [members, mentionMatch === null, mentionFilter],
+  );
+  // Список открыт, пока есть что показать и его не закрыли Escape.
+  const mentionOpen = mentionMatch !== null && !mentionDismissed && mentionMatches.length > 0 && canWrite;
+  const activeMention = mentionMatches[Math.min(mentionIndex, mentionMatches.length - 1)];
+
+  /**
+   * Вставка ника на место набранного `@…`: окружающий текст сохраняется, а
+   * каретка встаёт сразу после вставленного упоминания.
+   */
+  const insertMention = (member: Member) => {
+    if (mentionMatch === null) return;
+
+    const start = caretAt - mentionMatch[0].length;
+    const insertion = `@${member.username ?? member.name ?? member.user_id} `;
+    const next = draft.slice(0, start) + insertion + draft.slice(caretAt);
+    const position = start + insertion.length;
+
+    onDraftChange(next);
+    setMentions((current) => (current.includes(member.user_id) ? current : [...current, member.user_id]));
+    setMentionIndex(0);
+    moveCaretTo(position);
+  };
 
   /** Имя автора цитируемого сообщения — участник может быть уже не в комнате. */
   const replyAuthorName = (message: Message): string => {
@@ -282,6 +401,11 @@ export function ChatScreen({
 
     return namesById.get(original.author_id) ?? original.author_name ?? '';
   };
+
+  // Подпись комнаты одной строкой: тема или состав, плюс кто сейчас на связи.
+  const roomSubtitle =
+    (room.topic ?? `${room.member_count ?? 0} участников${room.my_role ? ` · вы ${ROLE_LABEL[room.my_role]}` : ''}`) +
+    (onlineCount > 0 ? ` · ${onlineCount} в сети` : '');
 
   let lastDay: string | null = null;
 
@@ -368,10 +492,19 @@ export function ChatScreen({
             </p>
           ) : (
             <p className="text-[12.5px] truncate" style={{ color: theme.muted }}>
-              {isDirect
-                ? `@${room.counterpart?.username ?? ''} · личная переписка`
-                : (room.topic ??
-                  `${room.member_count ?? 0} участников${room.my_role ? ` · вы ${ROLE_LABEL[room.my_role]}` : ''}`)}
+              {isDirect ? (
+                <span className="inline-flex items-center gap-1 min-w-0 align-middle">
+                  <span className="shrink-0">@{counterpart?.username ?? ''} ·</span>
+                  <PresenceBadge
+                    online={counterpartOnline}
+                    lastSeenAt={counterpart?.last_seen_at ?? null}
+                    theme={theme}
+                    fontSize={12.5}
+                  />
+                </span>
+              ) : (
+                roomSubtitle
+              )}
             </p>
           )}
         </button>
@@ -438,7 +571,22 @@ export function ChatScreen({
           </button>
         ) : null}
 
-        {replyTo && canWrite ? (
+        {editing && canWrite ? (
+          <div
+            role="status"
+            aria-label="Редактирование сообщения"
+            className="flex items-center gap-2 mb-2 px-3 py-1.5 text-[13px]"
+            style={{ background: theme.amberSoft, borderRadius: RADIUS.sm, color: theme.amberText }}
+          >
+            <Pencil size={13} className="shrink-0" aria-hidden="true" />
+            <span className="flex-1 min-w-0 truncate">Редактирование: {editing.body}</span>
+            <button type="button" aria-label="Отменить редактирование" onClick={cancelEdit} className="tap">
+              ✕
+            </button>
+          </div>
+        ) : null}
+
+        {replyTo && !editing && canWrite ? (
           <div
             role="status"
             aria-label="Ответ на сообщение"
@@ -455,7 +603,7 @@ export function ChatScreen({
           </div>
         ) : null}
 
-        {attachments.length > 0 && canWrite ? (
+        {attachments.length > 0 && canWrite && !editing ? (
           <ComposerAttachments
             items={attachments}
             theme={theme}
@@ -486,17 +634,16 @@ export function ChatScreen({
           </div>
         ) : null}
 
-        {mentionMatch && canWrite ? (
-          <div className="mb-2 px-1">
+        {mentionOpen ? (
+          <div className="mb-2 px-1 enter">
             <MentionPicker
-              members={members}
-              filter={mentionMatch[1] ?? ''}
-              onPick={(member) => {
-                onDraftChange(draft.replace(/@[\p{L}\w-]*$/u, `@${member.name ?? member.user_id} `));
-                setMentions((current) =>
-                  current.includes(member.user_id) ? current : [...current, member.user_id],
-                );
-              }}
+              matches={mentionMatches}
+              filter={mentionFilter}
+              activeIndex={Math.min(mentionIndex, mentionMatches.length - 1)}
+              theme={theme}
+              presentUserIds={presentUserIds}
+              onActivate={setMentionIndex}
+              onPick={insertMention}
             />
           </div>
         ) : null}
@@ -541,7 +688,7 @@ export function ChatScreen({
               transition: 'box-shadow .3s ease',
             }}
           >
-            {onPickFiles ? (
+            {onPickFiles && !editing ? (
               <>
                 <input
                   ref={fileInput}
@@ -578,16 +725,56 @@ export function ChatScreen({
               value={draft}
               onChange={(event) => {
                 onDraftChange(event.target.value);
+                setCaret(event.target.selectionStart ?? event.target.value.length);
+                // Текст изменился — список упоминаний снова вправе появиться.
+                setMentionDismissed(false);
+                setMentionIndex(0);
                 if (event.target.value.trim() !== '') onTyping();
               }}
+              onSelect={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
               onKeyDown={(event) => {
+                // Пока открыт список упоминаний, стрелки, Enter и Tab
+                // принадлежат ему: перенос строки и отправка ждут (design 3).
+                if (mentionOpen) {
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    const step = event.key === 'ArrowDown' ? 1 : -1;
+                    const count = mentionMatches.length;
+                    setMentionIndex((current) => (Math.min(current, count - 1) + step + count) % count);
+
+                    return;
+                  }
+
+                  if (event.key === 'Enter' || event.key === 'Tab') {
+                    event.preventDefault();
+                    if (activeMention) insertMention(activeMention);
+
+                    return;
+                  }
+
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setMentionDismissed(true);
+
+                    return;
+                  }
+                }
+
+                // Escape выходит из правки — как крестик на плашке.
+                if (event.key === 'Escape' && editing !== null) {
+                  event.preventDefault();
+                  cancelEdit();
+
+                  return;
+                }
+
                 if (event.key === 'Enter' && !event.shiftKey && sendOnEnter) {
                   event.preventDefault();
                   void submit();
                 }
               }}
               rows={1}
-              placeholder="Сообщение"
+              placeholder={editing ? 'Правка сообщения' : 'Сообщение'}
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               autoCapitalize="sentences"
               autoCorrect="on"
@@ -645,9 +832,9 @@ export function ChatScreen({
                 transition: `transform .26s ${SPRING}, opacity .2s ease`,
                 marginRight: canSend ? 0 : -42,
               }}
-              aria-label="Отправить"
+              aria-label={editing ? 'Сохранить правку' : 'Отправить'}
             >
-              <Send size={16} />
+              {editing ? <Check size={16} /> : <Send size={16} />}
             </button>
           </div>
         )}
@@ -775,6 +962,8 @@ export function ChatScreen({
                       theme={theme}
                       fontSize={fontSize}
                       highlighted={highlightedId === message.id}
+                      usernames={usernames}
+                      currentUserId={currentUserId}
                       onReply={startReply}
                       onQuickReaction={(target) => onToggleReaction(target.id, QUICK_REACTION)}
                       onOpenActions={setActionsFor}
@@ -804,6 +993,7 @@ export function ChatScreen({
         onClose={() => setActionsFor(null)}
         onReply={startReply}
         onReact={(message, emoji) => onToggleReaction(message.id, emoji)}
+        onEdit={onEditMessage ? startEdit : undefined}
         onDelete={(message) => onDeleteMessage(message.id)}
         onCopied={(ok) => onToast?.(ok ? 'Текст скопирован' : 'Не удалось скопировать текст')}
       />

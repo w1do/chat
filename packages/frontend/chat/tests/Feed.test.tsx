@@ -24,11 +24,11 @@ const room: Room = {
 };
 
 const members: Member[] = [
-  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Алексей', avatar_url: null },
-  { id: 'm2', room_id: 'r1', user_id: 'u2', role: 'member', joined_at: '', name: 'Андрей', avatar_url: null },
-  { id: 'm3', room_id: 'r1', user_id: 'u3', role: 'member', joined_at: '', name: 'Надя', avatar_url: null },
-  { id: 'm4', room_id: 'r1', user_id: 'u4', role: 'member', joined_at: '', name: 'Оля', avatar_url: null },
-  { id: 'm5', room_id: 'r1', user_id: 'me', role: 'member', joined_at: '', name: 'Я', avatar_url: null },
+  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Алексей', username: 'алексей', avatar_url: null, is_online: false, last_seen_at: null },
+  { id: 'm2', room_id: 'r1', user_id: 'u2', role: 'member', joined_at: '', name: 'Андрей', username: 'андрей', avatar_url: null, is_online: false, last_seen_at: null },
+  { id: 'm3', room_id: 'r1', user_id: 'u3', role: 'member', joined_at: '', name: 'Надя', username: 'надя', avatar_url: null, is_online: false, last_seen_at: null },
+  { id: 'm4', room_id: 'r1', user_id: 'u4', role: 'member', joined_at: '', name: 'Оля', username: 'оля', avatar_url: null, is_online: false, last_seen_at: null },
+  { id: 'm5', room_id: 'r1', user_id: 'me', role: 'member', joined_at: '', name: 'Я', username: 'я', avatar_url: null, is_online: false, last_seen_at: null },
 ];
 
 const message = (id: string, extra: Partial<Message> = {}): Message => ({
@@ -41,6 +41,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   reply_to_id: null,
   body: `Сообщение ${id}`,
   mentions: [],
+  is_edited: false,
   edited_at: null,
   deleted: false,
   created_at: new Date().toISOString(),

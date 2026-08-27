@@ -14,6 +14,9 @@ const member = (role: RoomRole, userId: string, name: string): Member => ({
   role,
   joined_at: '2026-08-24T10:00:00Z',
   name,
+  avatar_url: null,
+  is_online: false,
+  last_seen_at: null,
 });
 
 const owner = member('owner', 'u-owner', 'Ольга');

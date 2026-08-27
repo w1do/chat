@@ -21,7 +21,10 @@ final class MemberResource extends JsonResource
             'role' => $this->resource->role,
             'joined_at' => $this->resource->joinedAt,
             'name' => $this->resource->name,
+            'username' => $this->resource->username,
             'avatar_url' => $this->resource->avatarUrl,
+            'is_online' => $this->resource->isOnline,
+            'last_seen_at' => $this->resource->lastSeenAt,
         ];
     }
 }

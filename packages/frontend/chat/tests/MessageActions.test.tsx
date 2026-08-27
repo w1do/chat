@@ -15,6 +15,7 @@ const message: Message = {
   reply_to_id: null,
   body: 'рецепт борща',
   mentions: [],
+  is_edited: false,
   edited_at: null,
   deleted: false,
   created_at: '2026-08-25T12:00:00Z',
@@ -23,18 +24,23 @@ const message: Message = {
   payload: null,
 };
 
-function renderSheet(own = false, handlers: Record<string, ReturnType<typeof vi.fn>> = {}) {
+function renderSheet(
+  own = false,
+  handlers: Record<string, ReturnType<typeof vi.fn>> = {},
+  target: Message = message,
+) {
   const props = {
     onClose: vi.fn(),
     onReply: vi.fn(),
     onReact: vi.fn(),
+    onEdit: vi.fn(),
     onDelete: vi.fn(),
     onCopied: vi.fn(),
     ...handlers,
   };
 
   render(
-    <MessageActionsSheet message={message} authorName="Алиса" own={own} theme={LIGHT} {...(props as never)} />,
+    <MessageActionsSheet message={target} authorName="Алиса" own={own} theme={LIGHT} {...(props as never)} />,
   );
 
   return props;
@@ -80,5 +86,26 @@ describe('MessageActionsSheet', () => {
     expect(onClose).toHaveBeenCalled();
     expect(onReply).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('offers editing own text and hands the message over', async () => {
+    const { onEdit, onClose } = renderSheet(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    expect(onEdit).toHaveBeenCalledWith(message);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not offer editing someone else message', () => {
+    renderSheet(false);
+
+    expect(screen.queryByRole('button', { name: 'Редактировать' })).toBeNull();
+  });
+
+  it('does not offer editing a message without text', () => {
+    renderSheet(true, {}, { ...message, body: null });
+
+    expect(screen.queryByRole('button', { name: 'Редактировать' })).toBeNull();
   });
 });

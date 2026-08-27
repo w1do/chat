@@ -41,6 +41,7 @@ export function useSendMessage(roomId: string, authorId: string) {
         reply_to_id: input.reply_to_id ?? null,
         body: input.body ?? '',
         mentions: input.mentions ?? [],
+        is_edited: false,
         edited_at: null,
         deleted: false,
         created_at: new Date().toISOString(),

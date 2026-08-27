@@ -6,6 +6,10 @@ export const counterpartSchema = z.object({
   username: z.string(),
   name: z.string(),
   avatar_url: z.string().nullable(),
+  /** Активность была не давнее окна присутствия — «В сети». */
+  is_online: z.boolean(),
+  /** Момент последней активности; null — неизвестен. */
+  last_seen_at: z.string().nullable(),
 });
 
 export const roomSchema = z.object({
@@ -43,8 +47,14 @@ export const memberSchema = z.object({
   role: z.enum(['owner', 'admin', 'member']),
   joined_at: z.string(),
   name: z.string().nullable(),
+  /** Ник для упоминания `@username`; null — у пользователя ника нет. */
+  username: z.string().nullable(),
   /** Аватарка участника; null — рисуется буква имени. */
   avatar_url: z.string().nullable(),
+  /** Активность была не давнее окна присутствия — «В сети». */
+  is_online: z.boolean(),
+  /** Момент последней активности; null — неизвестен. */
+  last_seen_at: z.string().nullable(),
 });
 
 /** Кого можно позвать: ник и имя, плюс отметка «уже в комнате». */

@@ -1,5 +1,5 @@
 import { RADIUS, Sheet, type ThemeTokens } from '@vendor/ui';
-import { Copy, CornerUpLeft, Trash2 } from 'lucide-react';
+import { Copy, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
 import type { Message } from '../../schemas/message';
 import { EMOJI_GROUPS } from './EmojiPicker';
 
@@ -11,6 +11,8 @@ interface MessageActionsSheetProps {
   onClose: () => void;
   onReply: (message: Message) => void;
   onReact: (message: Message, emoji: string) => void;
+  /** Правка своего текста; отсутствует — пункта в меню нет. */
+  onEdit?: (message: Message) => void;
   onDelete: (message: Message) => void;
   onCopied: (ok: boolean) => void;
 }
@@ -30,6 +32,7 @@ export function MessageActionsSheet({
   onClose,
   onReply,
   onReact,
+  onEdit,
   onDelete,
   onCopied,
 }: MessageActionsSheetProps) {
@@ -93,6 +96,19 @@ export function MessageActionsSheet({
               }}
             />
             <ActionRow theme={theme} icon={<Copy size={18} />} label="Копировать текст" onClick={copy} />
+            {/* Правят только свой текст — и только пока он есть: у сообщения
+                из одних вложений править нечего. */}
+            {own && onEdit && message.body ? (
+              <ActionRow
+                theme={theme}
+                icon={<Pencil size={18} />}
+                label="Редактировать"
+                onClick={() => {
+                  onEdit(message);
+                  onClose();
+                }}
+              />
+            ) : null}
             {own ? (
               <ActionRow
                 theme={theme}

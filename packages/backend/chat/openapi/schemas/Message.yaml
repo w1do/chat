@@ -1,5 +1,5 @@
 type: object
-required: [id, room_id, kind, author_id, author_name, author_avatar_url, reply_to_id, body, mentions, edited_at, deleted, created_at, reactions, payload]
+required: [id, room_id, kind, author_id, author_name, author_avatar_url, reply_to_id, body, mentions, is_edited, edited_at, deleted, created_at, reactions, payload]
 properties:
   id: { type: string, description: ULID сообщения. }
   room_id: { type: string }
@@ -19,7 +19,15 @@ properties:
   mentions:
     type: array
     items: { type: string }
-  edited_at: { type: [string, "null"], format: date-time }
+  is_edited:
+    type: boolean
+    description: >-
+      Сообщение правили после отправки: интерфейс показывает метку
+      «(отредактировано)» рядом со временем.
+  edited_at:
+    type: [string, "null"]
+    format: date-time
+    description: Момент последней правки; null — сообщение не редактировали.
   deleted: { type: boolean }
   created_at: { type: string, format: date-time }
   reactions:

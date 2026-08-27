@@ -18,6 +18,7 @@ const hit = {
   reply_to_id: null,
   body: 'рецепт борща',
   mentions: [],
+  is_edited: false,
   edited_at: null,
   deleted: false,
   created_at: '2026-08-24T12:00:00Z',

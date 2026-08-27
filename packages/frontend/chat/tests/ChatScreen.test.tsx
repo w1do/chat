@@ -35,7 +35,7 @@ const directRoom = (extra: Partial<Room> = {}): Room =>
     my_role: 'member',
     member_count: null,
     kind: 'direct',
-    counterpart: { id: 'u-bob', username: 'bob', name: 'Bob Builder', avatar_url: null },
+    counterpart: { id: 'u-bob', username: 'bob', name: 'Bob Builder', avatar_url: null, is_online: false, last_seen_at: null },
     ...extra,
   });
 
@@ -49,6 +49,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   reply_to_id: null,
   body: `Message ${id}`,
   mentions: [],
+  is_edited: false,
   edited_at: null,
   deleted: false,
   created_at: '2026-08-24T12:00:00Z',
@@ -67,8 +68,8 @@ const systemMessage = (id: string, event: 'member.joined' | 'member.left', actor
   });
 
 const members: Member[] = [
-  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice', avatar_url: null },
-  { id: 'm2', room_id: 'r1', user_id: 'u-bob', role: 'member', joined_at: '', name: 'Bob', avatar_url: null },
+  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice', username: 'alice', avatar_url: null, is_online: false, last_seen_at: null },
+  { id: 'm2', room_id: 'r1', user_id: 'u-bob', role: 'member', joined_at: '', name: 'Bob', username: 'bob', avatar_url: null, is_online: false, last_seen_at: null },
 ];
 
 const handlers = {
@@ -218,10 +219,11 @@ describe('ChatScreen', () => {
 
     const field = screen.getByRole('textbox', { name: 'Сообщение' });
     await userEvent.type(field, 'Привет @Bo');
-    await userEvent.click(screen.getByRole('option', { name: 'Bob' }));
+    await userEvent.click(screen.getByRole('option', { name: /@bob/ }));
     await userEvent.type(field, '{Enter}');
 
-    expect(onSend).toHaveBeenCalledWith({ body: 'Привет @Bob', reply_to_id: null, mentions: ['u-bob'] });
+    // В текст уходит ник, а не отображаемое имя: по нему упоминание и читается.
+    expect(onSend).toHaveBeenCalledWith({ body: 'Привет @bob', reply_to_id: null, mentions: ['u-bob'] });
   });
 
   it('offers deletion in the menu for own messages only', async () => {
@@ -436,9 +438,10 @@ describe('ChatScreen', () => {
       />,
     );
 
-    // Шапка подписана именем собеседника и его ником.
+    // Шапка подписана именем собеседника, его ником и статусом присутствия.
     expect(screen.getByRole('heading', { name: 'Bob Builder' })).toBeInTheDocument();
-    expect(screen.getByText('@bob · личная переписка')).toBeInTheDocument();
+    expect(screen.getByText('@bob ·')).toBeInTheDocument();
+    expect(screen.getByText('был(а) в сети давно')).toBeInTheDocument();
 
     // Комнатных действий нет: ни переименования/участников, ни приглашения.
     expect(screen.queryByRole('button', { name: 'Пригласить' })).toBeNull();

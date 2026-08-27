@@ -17,5 +17,9 @@ final readonly class CounterpartData
         public string $name,
         /** Аватарка собеседника — она же «фотография» диалога; null — буква имени. */
         public ?string $avatarUrl = null,
+        /** Активность была не давнее окна присутствия. */
+        public bool $isOnline = false,
+        /** Момент последней активности собеседника; null — неизвестен. */
+        public ?string $lastSeenAt = null,
     ) {}
 }

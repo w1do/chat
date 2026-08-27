@@ -27,7 +27,10 @@ final readonly class ListMembersHandler
         return $members->map(fn (RoomMember $member): MemberData => MemberData::fromModel(
             $member,
             name: AuthorDirectory::name($authors, $member->user_id),
+            username: AuthorDirectory::username($authors, $member->user_id),
             avatarUrl: AuthorDirectory::avatar($authors, $member->user_id),
+            isOnline: AuthorDirectory::online($authors, $member->user_id),
+            lastSeenAt: AuthorDirectory::lastSeen($authors, $member->user_id),
         ))->all();
     }
 }

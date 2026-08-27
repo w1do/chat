@@ -5,6 +5,7 @@ import {
   useAttachmentUploads,
   useCreateRoom,
   useDeleteMessage,
+  useEditMessage,
   useHideConversation,
   useMembers,
   useMembershipActions,
@@ -338,13 +339,14 @@ function ActiveRoom({
   const send = useSendMessage(roomId, currentUserId);
   const uploads = useAttachmentUploads(roomId, onToast);
   const remove = useDeleteMessage(roomId);
+  const edit = useEditMessage(roomId);
   const react = useReactions(roomId);
   const typing = useTyping(roomId);
   const membership = useMembershipActions(roomId);
   const hide = useHideConversation();
 
   const isMember = room.data?.my_role != null;
-  const { typingUserIds, connection, joinGreeting, dismissGreeting, deleted, removed } = useRealtimeRoom(
+  const { typingUserIds, connection, presentMembers, joinGreeting, dismissGreeting, deleted, removed } = useRealtimeRoom(
     realtimeAdapter(),
     roomId,
     { enabled: isMember, currentUserId },
@@ -418,6 +420,7 @@ function ActiveRoom({
         showTyping={settings.showTyping}
         typingUserIds={typingUserIds}
         connection={connection}
+        presentUserIds={presentMembers.map((member) => member.id)}
         keyboard={keyboard}
         isLoading={messages.isLoading}
         error={messages.error ?? undefined}
@@ -467,6 +470,7 @@ function ActiveRoom({
         onTyping={typing.notifyTyping}
         onToggleReaction={(messageId, emoji) => react.mutate({ messageId, emoji })}
         onDeleteMessage={(messageId) => void remove.mutateAsync(messageId)}
+        onEditMessage={(messageId, body) => edit.mutateAsync({ messageId, body })}
         onJoin={async () => {
           await membership.join.mutateAsync();
           await room.refetch();

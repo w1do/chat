@@ -12,6 +12,7 @@ export { applyRoomEvent, resyncRoom } from './realtime/handlers';
 export type { PresenceEvent, RoomEvent } from './realtime/eventMap';
 export { ConnectionBanner } from './components/ConnectionBanner';
 export { PresenceDots } from './components/PresenceDots';
+export { PresenceBadge } from './components/PresenceBadge';
 export { TypingIndicator } from './components/TypingIndicator';
 export { useRealtimeRoom, type JoinGreeting } from './hooks/useRealtimeRoom';
 export { EmojiPicker, EMOJI_GROUPS } from './components/mobile/EmojiPicker';
@@ -44,7 +45,15 @@ export { RoomManagePanel } from './components/mobile/RoomManagePanel';
 export { RoomGlyph } from './components/RoomGlyph';
 export { InvitePanel, cleanNickname, MIN_NICKNAME_LENGTH } from './components/mobile/InvitePanel';
 export { MemberRow, canChangeRole, canRemoveMember } from './components/mobile/MemberRow';
-export { buildGroups, dayLabel, formatFileSize, formatTime, typingSummary, ROLE_LABEL } from './format';
+export {
+  buildGroups,
+  dayLabel,
+  formatFileSize,
+  formatLastSeen,
+  formatTime,
+  typingSummary,
+  ROLE_LABEL,
+} from './format';
 export { useDeleteMessage, useEditMessage, useMessages, useReactions, useSendMessage } from './hooks/useMessages';
 export {
   ATTACHMENT_MAX_FILES,
@@ -68,7 +77,7 @@ export {
   useRooms,
   useStartConversation,
 } from './hooks/useRooms';
-export { MentionPicker } from './components/MentionPicker';
+export { MentionPicker, filterMentionCandidates, MENTION_LIMIT } from './components/MentionPicker';
 export {
   attachmentSchema,
   messagePageSchema,

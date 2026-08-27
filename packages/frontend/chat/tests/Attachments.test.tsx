@@ -39,6 +39,7 @@ const message = (id: string, extra: Partial<Message> = {}): Message => ({
   reply_to_id: null,
   body: `Message ${id}`,
   mentions: [],
+  is_edited: false,
   edited_at: null,
   deleted: false,
   created_at: '2026-08-24T12:00:00Z',
@@ -84,7 +85,7 @@ const pending = (localId: string, extra: Partial<PendingAttachment> = {}): Pendi
 });
 
 const members: Member[] = [
-  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice', avatar_url: null },
+  { id: 'm1', room_id: 'r1', user_id: 'u1', role: 'owner', joined_at: '', name: 'Alice', username: 'alice', avatar_url: null, is_online: false, last_seen_at: null },
 ];
 
 const handlers = {

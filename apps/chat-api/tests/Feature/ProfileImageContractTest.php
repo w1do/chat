@@ -73,7 +73,9 @@ it('never lists someone else previous avatars', function (): void {
     $shown = collect($members)->firstWhere('user_id', $author->getKey());
 
     // Виден только текущий адрес: набор — личное дело владельца (design 3).
-    expect(array_keys($shown))->toBe(['id', 'room_id', 'user_id', 'role', 'joined_at', 'name', 'avatar_url']);
+    expect(array_keys($shown))->toBe([
+        'id', 'room_id', 'user_id', 'role', 'joined_at', 'name', 'username', 'avatar_url', 'is_online', 'last_seen_at',
+    ]);
 
     // У владельца набор из трёх, у смотрящего — свой, пустой.
     $this->actingAs($author)->getJson('/api/v1/me/avatars')->assertOk()->assertJsonCount(3, 'data');

@@ -15,8 +15,11 @@
     ownership     -> README «Чем это лучше», docs/security/threat-model.md
     interface     -> SUMMARY platform/app-shell, platform/desktop-layout, chat/visual-language
     rooms         -> SUMMARY chat/rooms-and-messages (verified)
-    messages      -> SUMMARY chat/rooms-and-messages, chat/message-interaction
-    realtime      -> SUMMARY chat/realtime-presence (verified)
+    messages      -> SUMMARY chat/rooms-and-messages, chat/message-interaction,
+                     docs/features/messaging.md (правка из интерфейса),
+                     docs/features/mentions.md (автодополнение и подсветка)
+    realtime      -> SUMMARY chat/realtime-presence (verified),
+                     docs/features/presence-typing.md (присутствие и «был(а) в сети»)
     invites       -> SUMMARY chat/invite-links, identity/guest-accounts
     media         -> SUMMARY chat/attachments (verified), identity/profile-images (verified)
     notifications -> SUMMARY notifications/offline-delivery (verified), notifications/web-push,
@@ -458,6 +461,54 @@
     color: var(--muted);
   }
   .msg__reactions { display: flex; gap: 6px; margin-top: 6px; }
+  .mention {
+    padding: 1px 5px;
+    border-radius: var(--radius-s);
+    background: rgba(255, 138, 36, 0.16);
+    color: var(--orange-soft);
+    font-weight: 600;
+  }
+  /* Пузырь, в котором тегнули читающего, помечен полосой у края. */
+  .msg__bubble--tagged { box-shadow: inset 3px 0 0 rgba(255, 138, 36, 0.72); }
+  .presence {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .presence::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  .presence { white-space: nowrap; }
+  .presence--away { color: var(--steel); }
+  .presence--away::before { background: var(--steel); }
+  /* Всплывающее меню упоминаний над строкой ввода. */
+  .mention-menu {
+    margin: 0 14px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-m);
+    background: rgba(255, 255, 255, 0.035);
+    overflow: hidden;
+  }
+  .mention-menu__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 11px;
+    font-size: 0.84rem;
+    /* На узком экране статус переносится под ник, а не растягивает панель. */
+    flex-wrap: wrap;
+  }
+  .mention-menu__row + .mention-menu__row { border-top: 1px solid var(--line); }
+  .mention-menu__row--active { background: rgba(255, 138, 36, 0.1); box-shadow: inset 3px 0 0 rgba(255, 138, 36, 0.72); }
+  .mention-menu__handle { font-family: var(--mono); font-weight: 700; }
+  .mention-menu__name { color: var(--muted); font-size: 0.78rem; }
   .reaction {
     font-family: var(--mono);
     font-size: 0.75rem;
@@ -764,15 +815,27 @@
           <p class="day">Вчера</p>
           <div class="msg" data-sequence="message" data-message-author="Марина" data-typing-text="Марина печатает…">
             <span class="msg__avatar">М</span>
-            <span class="msg__bubble"><span class="msg__name">Марина</span>Список покупок скину вечером<span class="msg__reactions"><span class="reaction" data-reaction-state="pending">👍 3</span><span class="reaction" data-reaction-state="pending">🔥 1</span></span></span>
+            <span class="msg__bubble msg__bubble--tagged"><span class="msg__name">Марина</span><span class="mention">@я</span> список покупок скину вечером<span class="msg__reactions"><span class="reaction" data-reaction-state="pending">👍 3</span><span class="reaction" data-reaction-state="pending">🔥 1</span></span></span>
           </div>
           <div class="msg msg--own" data-sequence="message" data-message-author="Я" data-typing-text="Вы печатаете…">
             <span class="msg__avatar">Я</span>
-            <span class="msg__bubble"><span class="msg__reply">Марина: Список покупок…</span>Добавь батарейки <span class="stat">(изменено)</span></span>
+            <span class="msg__bubble"><span class="msg__reply">Марина: Список покупок…</span>Добавь батарейки и хлеб <span class="stat">изменено · 20:41</span></span>
           </div>
           <div class="msg" data-sequence="message" data-message-author="Тимур" data-typing-text="Тимур печатает…"><span class="msg__avatar">Т</span><span class="msg__bubble muted">Сообщение удалено</span></div>
         </div>
-        <div class="composer"><span class="composer__field" data-sequence="typing" data-resting-text="Ответ Марине…">Ответ Марине…</span><span class="chip chip--violet">@</span></div>
+        <div class="mention-menu" aria-hidden="true">
+          <div class="mention-menu__row mention-menu__row--active">
+            <span class="msg__avatar">М</span>
+            <span><span class="mention-menu__handle">@марина</span><br><span class="mention-menu__name">Марина</span></span>
+            <span class="presence" style="margin-left:auto;">в сети</span>
+          </div>
+          <div class="mention-menu__row">
+            <span class="msg__avatar">Т</span>
+            <span><span class="mention-menu__handle">@тимур</span><br><span class="mention-menu__name">Тимур</span></span>
+            <span class="presence presence--away" style="margin-left:auto;">10 мин назад</span>
+          </div>
+        </div>
+        <div class="composer"><span class="composer__field" data-sequence="typing" data-resting-text="Спасибо, @мар">Спасибо, @мар</span><span class="chip chip--violet">↑ ↓ ⏎</span></div>
       </div>
       <div>
         <p class="eyebrow">сообщения</p>
@@ -780,8 +843,14 @@
         <p class="lede">Действия живут в жестах: свайп влево — ответить, двойное касание —
           «❤️», долгое нажатие или правый клик — меню. Всё то же доступно с клавиатуры.</p>
         <ul class="list">
-          <li>Правка в течение окна редактирования и мягкое удаление с сохранением ответов</li>
-          <li>Бесконечная история с курсорной пагинацией и счётчиками непрочитанного</li>
+          <li>Правка своего сообщения прямо в строке ввода: плашка с исходным текстом,
+            отмена по Escape, у всех участников текст обновляется сразу и получает
+            метку «изменено»</li>
+          <li>Ввод «@» открывает меню участников с аватаркой, статусом и ником;
+            стрелки выбирают, Enter или Tab вставляют, Escape закрывает</li>
+          <li>Упоминания в ленте — акцентные бейджи; сообщение, где тегнули вас,
+            помечено полосой</li>
+          <li>Мягкое удаление сохраняет ответы, история листается курсорной пагинацией</li>
           <li>Повторная отправка не создаёт дубль — запрос идемпотентен</li>
         </ul>
         <p class="muted">Звонков и сквозного шифрования в продукте нет.</p>
@@ -814,7 +883,7 @@
               <text x="262" y="100">PostgreSQL</text><text x="262" y="120" fill="#9aa3b4">commit</text>
               <text x="490" y="44">Reverb</text><text x="490" y="62" fill="#9aa3b4">message.created.v1</text>
               <text x="490" y="162">HTTP resync</text><text x="490" y="180" fill="#9aa3b4">после reconnect</text>
-              <text x="730" y="100">Браузеры</text><text x="730" y="120" fill="#9aa3b4">typing · presence</text>
+              <text x="730" y="100">Браузеры</text><text x="730" y="120" fill="#9aa3b4">typing · presence · last seen</text>
             </g>
             <g stroke-width="2" fill="none" data-flow="line">
               <path d="M182 103 H240" stroke="#4ee0ff"></path>
@@ -829,6 +898,7 @@
       <div class="grid grid--3" style="margin-top: var(--space-3);">
         <article class="card" data-anim="card"><h3>«Печатает…»</h3><p>Индикатор в шапке комнаты сворачивается, когда пишут несколько человек.</p></article>
         <article class="card" data-anim="card"><h3>Кто в комнате</h3><p>Реестр присутствия с TTL в Redis; новый участник встречается конфетти.</p></article>
+        <article class="card" data-anim="card"><h3>Был(а) в сети</h3><p><span class="presence">В сети</span> — пока человек что-то делает; иначе «был(а) в сети 10 мин назад» или «вчера в 19:15». Запись метки троттлится, обрыв связи гасит статус сам.</p></article>
         <article class="card" data-anim="card"><h3>Приватные каналы</h3><p>Подписку авторизует сервер, в событии — только разрешённые данные.</p></article>
       </div>
     </div>

@@ -18,6 +18,7 @@ export {
   DARK,
   LIGHT,
   MIN_INPUT_FONT,
+  ONLINE,
   RADIUS,
   SPRING,
   TEXT_SIZE_PX,

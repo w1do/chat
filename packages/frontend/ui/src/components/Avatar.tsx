@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { voiceHue, type ThemeTokens } from '../styles/tokens';
+import { ONLINE, voiceHue, type ThemeTokens } from '../styles/tokens';
 
 interface AvatarProps {
   /** Идентификатор задаёт постоянный оттенок голоса. */
@@ -69,7 +69,7 @@ export function Avatar({ userId, name, src, size = 44, theme, online }: AvatarPr
             width: 12,
             height: 12,
             borderRadius: 6,
-            background: '#35C08A',
+            background: ONLINE,
             boxShadow: `0 0 0 2.5px ${theme.bg}`,
           }}
         />

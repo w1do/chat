@@ -19,6 +19,7 @@ use Vendor\Chat\Domain\Models\Message;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageCreatedV1;
+use Vendor\Chat\Infrastructure\Broadcasting\MessageUpdatedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\TypingChangedV1;
 
 uses(RefreshDatabase::class);
@@ -172,6 +173,32 @@ it('broadcasts message.created.v1 after commit with envelope payload', function 
         return $event->broadcastAs() === 'message.created.v1'
             && $payload['room_id'] === $room->id
             && $payload['data']['body'] === 'Realtime hello'
+            && $event->broadcastOn()[0]->name === "private-room.{$room->id}";
+    });
+});
+
+it('broadcasts message.updated.v1 with the new text after an edit', function (): void {
+    Event::fake([MessageUpdatedV1::class]);
+
+    $room = Room::factory()->create();
+    $author = chatMember($room);
+    $message = Message::factory()->for($room)->create([
+        'author_id' => $author->getKey(),
+        'body' => 'Первый вариант',
+    ]);
+
+    $this->actingAs($author)
+        ->patchJson("/api/v1/messages/{$message->id}", ['body' => 'Исправленный вариант'])
+        ->assertOk();
+
+    Event::assertDispatched(MessageUpdatedV1::class, function (MessageUpdatedV1 $event) use ($room, $message): bool {
+        $payload = $event->broadcastWith();
+
+        return $event->broadcastAs() === 'message.updated.v1'
+            && $payload['room_id'] === $room->id
+            && $payload['data']['id'] === $message->id
+            && $payload['data']['body'] === 'Исправленный вариант'
+            && $payload['data']['edited_at'] !== ''
             && $event->broadcastOn()[0]->name === "private-room.{$room->id}";
     });
 });

@@ -17,6 +17,10 @@ interface MessageBubbleProps {
   theme: ThemeTokens;
   fontSize: number;
   highlighted: boolean;
+  /** Ники участников по идентификаторам — по ним узнаются теги в тексте. */
+  usernames?: ReadonlyMap<string, string>;
+  /** Читающий: его упоминание выделяет весь пузырь. */
+  currentUserId?: string;
   onReply: (message: Message) => void;
   onQuickReaction: (message: Message) => void;
   onOpenActions: (message: Message) => void;
@@ -44,6 +48,8 @@ export function MessageBubble({
   theme,
   fontSize,
   highlighted,
+  usernames,
+  currentUserId,
   onReply,
   onQuickReaction,
   onOpenActions,
@@ -53,6 +59,9 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const reactionCount = message.reactions.reduce((sum, reaction) => sum + reaction.count, 0);
   const deleted = message.deleted;
+  // Тегнули меня — пузырь получает акцентную рамку, чтобы не пролистать мимо.
+  const mentionsMe = !deleted && currentUserId !== undefined && message.mentions.includes(currentUserId);
+  const myUsername = currentUserId === undefined ? undefined : usernames?.get(currentUserId);
 
   // Смещение во время свайпа хранится локально: перерисовывается только этот
   // пузырь, а не вся лента.
@@ -107,7 +116,11 @@ export function MessageBubble({
           borderTopRightRadius: own && first ? 8 : RADIUS.bubble,
           marginBottom: reactionCount > 0 ? 12 : 0,
           opacity: deleted ? 0.6 : 1,
-          boxShadow: highlighted ? `0 0 0 2px ${theme.amber}` : 'none',
+          boxShadow: highlighted
+            ? `0 0 0 2px ${theme.amber}`
+            : mentionsMe
+              ? `inset 3px 0 0 ${theme.amber}`
+              : 'none',
           transform: offset < 0 ? `translateX(${offset}px)` : undefined,
           transition: offset === 0 ? 'transform .2s ease, box-shadow .4s ease' : 'box-shadow .4s ease',
           touchAction: 'pan-y',
@@ -171,7 +184,7 @@ export function MessageBubble({
               fontStyle: deleted ? 'italic' : 'normal',
             }}
           >
-            {deleted ? 'Сообщение удалено' : message.body}
+            {deleted ? 'Сообщение удалено' : renderMentions(message.body ?? '', own, theme, myUsername)}
           </p>
         ) : null}
 
@@ -180,7 +193,7 @@ export function MessageBubble({
             className="flex items-center gap-1 justify-end mt-0.5 text-[11px] tnum"
             style={{ color: own ? `${theme.ownText}99` : theme.faint }}
           >
-            {message.edited_at ? <em>изменено</em> : null}
+            {message.is_edited ? <em aria-label="сообщение отредактировано">изменено</em> : null}
             {formatTime(message.created_at)}
             {own ? (
               message.id.startsWith('optimistic-') ? (
@@ -214,5 +227,43 @@ export function MessageBubble({
         ) : null}
       </article>
     </div>
+  );
+}
+
+/** Разбор текста на упоминания: `@ник` становится акцентным бейджем. */
+const MENTION_PATTERN = /@([\p{L}\w-]+)/gu;
+
+function renderMentions(body: string, own: boolean, theme: ThemeTokens, myUsername?: string) {
+  const parts: Array<string | { key: string; username: string }> = [];
+  let last = 0;
+
+  for (const match of body.matchAll(MENTION_PATTERN)) {
+    const at = match.index ?? 0;
+    if (at > last) parts.push(body.slice(last, at));
+    parts.push({ key: `${at}`, username: match[1]! });
+    last = at + match[0].length;
+  }
+
+  if (parts.length === 0) return body;
+  if (last < body.length) parts.push(body.slice(last));
+
+  return parts.map((part, index) =>
+    typeof part === 'string' ? (
+      <span key={`t${index}`}>{part}</span>
+    ) : (
+      <mark
+        key={`m${part.key}`}
+        // Своё упоминание заметнее чужого: янтарный против мягкой подложки.
+        style={{
+          background: part.username === myUsername ? theme.amberSoft : own ? overlayOnOwn(theme) : theme.surfaceAlt,
+          color: part.username === myUsername ? theme.amberText : own ? theme.ownText : theme.text,
+          borderRadius: 6,
+          padding: '0 3px',
+          fontWeight: 600,
+        }}
+      >
+        @{part.username}
+      </mark>
+    ),
   );
 }

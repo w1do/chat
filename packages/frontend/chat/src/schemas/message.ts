@@ -33,6 +33,8 @@ export const messageSchema = z.object({
   reply_to_id: z.string().nullable(),
   body: z.string().nullable(),
   mentions: z.array(z.string()),
+  /** Сообщение правили после отправки — в ленте стоит метка. */
+  is_edited: z.boolean(),
   edited_at: z.string().nullable(),
   deleted: z.boolean(),
   created_at: z.string(),

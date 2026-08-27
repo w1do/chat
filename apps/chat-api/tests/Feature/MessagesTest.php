@@ -74,9 +74,15 @@ it('edits own recent messages and forbids editing after the window or by others'
     [$room, $author] = roomWithMember();
     $message = Message::factory()->for($room)->create(['author_id' => $author->getKey(), 'body' => 'v1']);
 
+    // До правки метки нет — она появляется вместе с временем изменения.
+    $this->actingAs($author)->getJson("/api/v1/messages/{$message->id}")
+        ->assertOk()
+        ->assertJsonPath('data.is_edited', false);
+
     $this->actingAs($author)->patchJson("/api/v1/messages/{$message->id}", ['body' => 'v2'])
         ->assertOk()
         ->assertJsonPath('data.body', 'v2')
+        ->assertJsonPath('data.is_edited', true)
         ->assertJsonPath('data.edited_at', fn ($v) => $v !== null);
 
     $other = User::factory()->create();

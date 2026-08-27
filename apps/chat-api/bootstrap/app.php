@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Vendor\Identity\Presentation\Http\Middleware\TouchLastSeen;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Выключатели администратора применяются к каждому запросу API.
         $middleware->appendToGroup('api', ApplyRuntimeSettings::class);
+
+        // Любое действие вошедшего человека обновляет «был(а) в сети»
+        // (spec chat/presence-and-last-seen); запись троттлится.
+        $middleware->appendToGroup('api', TouchLastSeen::class);
 
         // Reverse proxy стека (ADR-007) — явный allowlist через env.
         $middleware->trustProxies(at: array_values(array_filter(

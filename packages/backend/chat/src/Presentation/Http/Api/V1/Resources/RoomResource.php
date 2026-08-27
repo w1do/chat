@@ -34,6 +34,8 @@ final class RoomResource extends JsonResource
                 'username' => $this->resource->counterpart->username,
                 'name' => $this->resource->counterpart->name,
                 'avatar_url' => $this->resource->counterpart->avatarUrl,
+                'is_online' => $this->resource->counterpart->isOnline,
+                'last_seen_at' => $this->resource->counterpart->lastSeenAt,
             ],
         ];
     }

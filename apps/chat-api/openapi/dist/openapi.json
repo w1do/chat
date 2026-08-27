@@ -162,7 +162,9 @@
                     "id",
                     "username",
                     "name",
-                    "avatar_url"
+                    "avatar_url",
+                    "is_online",
+                    "last_seen_at"
                 ],
                 "properties": {
                     "id": {
@@ -183,6 +185,18 @@
                             "null"
                         ],
                         "description": "Аватарка собеседника в мелком размере; null — рисуется буква имени."
+                    },
+                    "is_online": {
+                        "type": "boolean",
+                        "description": "Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети»."
+                    },
+                    "last_seen_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи."
                     }
                 }
             },
@@ -260,7 +274,10 @@
                     "role",
                     "joined_at",
                     "name",
-                    "avatar_url"
+                    "username",
+                    "avatar_url",
+                    "is_online",
+                    "last_seen_at"
                 ],
                 "properties": {
                     "id": {
@@ -292,12 +309,31 @@
                         ],
                         "description": "Имя пользователя."
                     },
+                    "username": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Ник участника: по нему строится упоминание `@username` в тексте сообщения. null — у модели пользователя приложения ника нет."
+                    },
                     "avatar_url": {
                         "type": [
                             "string",
                             "null"
                         ],
                         "description": "Текущая аватарка участника в мелком размере. null — аватарки нет, интерфейс рисует букву имени. Прежние аватарки здесь не перечисляются: набор видит только его владелец."
+                    },
+                    "is_online": {
+                        "type": "boolean",
+                        "description": "Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети»."
+                    },
+                    "last_seen_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи."
                     }
                 }
             },
@@ -340,6 +376,7 @@
                     "reply_to_id",
                     "body",
                     "mentions",
+                    "is_edited",
                     "edited_at",
                     "deleted",
                     "created_at",
@@ -397,12 +434,17 @@
                             "type": "string"
                         }
                     },
+                    "is_edited": {
+                        "type": "boolean",
+                        "description": "Сообщение правили после отправки: интерфейс показывает метку «(отредактировано)» рядом со временем."
+                    },
                     "edited_at": {
                         "type": [
                             "string",
                             "null"
                         ],
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Момент последней правки; null — сообщение не редактировали."
                     },
                     "deleted": {
                         "type": "boolean"
@@ -805,7 +847,9 @@
                     "created_at",
                     "avatar_url",
                     "avatar_large_url",
-                    "wallpaper_url"
+                    "wallpaper_url",
+                    "is_online",
+                    "last_seen_at"
                 ],
                 "properties": {
                     "id": {
@@ -866,6 +910,18 @@
                             "null"
                         ],
                         "description": "Личные обои переписки; видны только своему владельцу."
+                    },
+                    "is_online": {
+                        "type": "boolean",
+                        "description": "Активность была не давнее окна присутствия (по умолчанию 120 секунд): интерфейс показывает зелёный индикатор и «В сети»."
+                    },
+                    "last_seen_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Момент последней активности; null — человек ещё ни разу не был замечен. Запись троттлится, поэтому значение отстаёт не больше чем на окно записи."
                     }
                 }
             },

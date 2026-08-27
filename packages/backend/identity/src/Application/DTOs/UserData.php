@@ -26,6 +26,10 @@ final readonly class UserData
         public ?string $avatarLargeUrl = null,
         /** Личные обои переписки; видны только владельцу. */
         public ?string $wallpaperUrl = null,
+        /** Активность была не давнее окна присутствия. */
+        public bool $isOnline = false,
+        /** Момент последней активности; null — человек ещё ни разу не был замечен. */
+        public ?string $lastSeenAt = null,
     ) {}
 
     public static function fromModel(User $user): self
@@ -43,6 +47,8 @@ final readonly class UserData
             avatarUrl: AvatarUrl::thumb($user),
             avatarLargeUrl: AvatarUrl::large($user),
             wallpaperUrl: AvatarUrl::wallpaper($user),
+            isOnline: $user->isOnline(),
+            lastSeenAt: $user->last_seen_at?->toIso8601String(),
         );
     }
 }

@@ -106,7 +106,7 @@ describe('RoomsScreen', () => {
     const onOpen = vi.fn();
     const dm: Room = room('d1', null, {
       kind: 'direct',
-      counterpart: { id: 'u2', username: 'bob', name: 'Bob Builder', avatar_url: null },
+      counterpart: { id: 'u2', username: 'bob', name: 'Bob Builder', avatar_url: null, is_online: false, last_seen_at: null },
       unread_count: 5,
       member_count: null,
     });

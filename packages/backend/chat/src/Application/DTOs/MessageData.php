@@ -24,6 +24,8 @@ final readonly class MessageData
         public ?string $replyToId,
         public ?string $body,
         public array $mentions,
+        /** Сообщение правили после отправки — рядом со временем стоит метка. */
+        public bool $isEdited,
         public ?string $editedAt,
         public bool $deleted,
         public string $createdAt,
@@ -49,6 +51,7 @@ final readonly class MessageData
             // Тело удалённого сообщения не раскрывается.
             body: $deleted ? null : $message->body,
             mentions: $deleted ? [] : ($message->mentions ?? []),
+            isEdited: $message->edited_at !== null,
             editedAt: $message->edited_at?->toIso8601String(),
             deleted: $deleted,
             createdAt: (string) $message->created_at?->toIso8601String(),

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Vendor\Chat\Application\Support;
 
+use DateTimeInterface;
 use Vendor\Chat\Application\DTOs\CounterpartData;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\SharedKernel\Contracts\Actor;
+use Vendor\SharedKernel\Contracts\Present;
 
 /**
  * Собеседники диалогов одним запросом на весь список: идентификаторы берутся
@@ -60,6 +62,12 @@ final class Counterparts
                 username: (string) $user->username,
                 name: $user instanceof Actor ? $user->displayName() : (string) $user->name,
                 avatarUrl: $user instanceof Actor ? $user->avatarUrl() : null,
+                // Статус собеседника подписывает шапку диалога («в сети»,
+                // «был(а) в сети …») — spec chat/presence-and-last-seen.
+                isOnline: $user instanceof Present && $user->isOnline(),
+                lastSeenAt: $user instanceof Present
+                    ? $user->lastSeenAt()?->format(DateTimeInterface::ATOM)
+                    : null,
             );
         }
 
