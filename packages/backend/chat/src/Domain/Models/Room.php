@@ -87,7 +87,7 @@ class Room extends Model implements HasMedia
 
         // Ещё не отправленные вложения висят на комнате (design 3): их
         // миниатюры готовятся той же конверсией, что и у сообщения.
-        $this->registerAttachmentPreviewConversion();
+        $this->registerAttachmentPreviewConversion($media);
     }
 
     public function photo(): ?Media

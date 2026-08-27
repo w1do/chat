@@ -5,6 +5,7 @@ import { SessionExpiredScreen } from '../pages/SessionExpiredScreen';
 import { apiClient } from './api';
 import { resumeRealtime, suspendRealtime } from './echo';
 import { silentRecoveryEnabled } from './runtime-config';
+import { clearImageCache, forgetImagesOfAnotherUser } from './service-worker';
 import {
   markSessionEstablished,
   sessionStatus,
@@ -30,9 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [leaving, setLeaving] = useState(false);
   const wasSuspended = useRef(false);
 
-  // Вход состоялся — дальше 401 означает именно истёкшую сессию.
+  // Вход состоялся — дальше 401 означает именно истёкшую сессию. Заодно
+  // сверяем, тот же ли это человек: на общем устройстве кеш изображений
+  // прежнего аккаунта не должен достаться следующему.
   useEffect(() => {
-    if (user) markSessionEstablished();
+    if (!user) return;
+    markSessionEstablished();
+    forgetImagesOfAnotherUser(user.id);
   }, [user]);
 
   // Тихое восстановление включается установкой и по умолчанию выключено:
@@ -69,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       wasSuspended.current = true;
       void queryClient.cancelQueries();
       suspendRealtime();
+      // Сессия истекла — изображения прежнего аккаунта не остаются на
+      // устройстве доступными, в том числе без сети (spec).
+      if (status === 'unauthorized') void clearImageCache();
 
       return;
     }
@@ -91,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     queryClient.clear();
     suspendRealtime();
+    await clearImageCache();
     // Полная перезагрузка страницы, а не переход роутером: так гарантированно
     // не остаётся ни устаревшего кэша, ни живого сокета.
     window.location.assign('/login');

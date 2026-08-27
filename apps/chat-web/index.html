@@ -2,10 +2,13 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <!-- interactive-widget: клавиатура уменьшает вьюпорт, а не прокручивает страницу -->
+    <!-- interactive-widget: клавиатура уменьшает вьюпорт, а не прокручивает страницу.
+         `maximum-scale`/`user-scalable` здесь намеренно нет: они запрещают не
+         жест, а само увеличение, и нарушают WCAG 2.2 AA (1.4.4). Жест
+         закрывают `touch-action` в стилях и подавление gesture-событий. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>Семейный чат</title>
     <meta name="theme-color" content="#14131a" />

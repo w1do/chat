@@ -45,6 +45,49 @@ export async function registerServiceWorker(
   return registration;
 }
 
+/** Имя кеша изображений: то же, что и в `public/sw.js`. */
+const IMAGE_CACHE = 'chat-images-v1';
+
+/**
+ * Полная очистка кеша изображений. Приказ отдаём worker'у — он владелец
+ * кеша; если worker не установлен (незащищённый контекст, отказ политики),
+ * удаляем кеш прямо из окна: `caches` доступен и здесь.
+ */
+export async function clearImageCache(): Promise<void> {
+  const controller = isServiceWorkerSupported() ? navigator.serviceWorker.controller : null;
+
+  if (controller) {
+    controller.postMessage('clear-images');
+
+    return;
+  }
+
+  try {
+    await globalThis.caches?.delete(IMAGE_CACHE);
+  } catch {
+    // Хранилище недоступно — чистить нечего, выход не должен на этом падать.
+  }
+}
+
+const LAST_USER_KEY = 'chat.last-user';
+
+/**
+ * Кто входил на этом устройстве в прошлый раз. Предохранитель к очистке при
+ * выходе: вход другим человеком без явного выхода тоже не должен оставлять
+ * ему чужие фотографии (design 5).
+ */
+export function forgetImagesOfAnotherUser(userId: string): void {
+  let previous: string | null = null;
+  try {
+    previous = localStorage.getItem(LAST_USER_KEY);
+    localStorage.setItem(LAST_USER_KEY, userId);
+  } catch {
+    // Приватный режим: память о прошлом входе не переживёт вкладку.
+  }
+
+  if (previous !== null && previous !== userId) void clearImageCache();
+}
+
 /** Уже зарегистрированный worker: нужен подписке на push. */
 export async function serviceWorkerReady(): Promise<ServiceWorkerRegistration | null> {
   if (!isServiceWorkerSupported()) return null;

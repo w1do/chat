@@ -1,7 +1,8 @@
 import { RADIUS, overlayOnOwn, type ThemeTokens } from '@vendor/ui';
-import { Download, FileText, ImageIcon } from 'lucide-react';
+import { Download, FileText, ImageIcon, ImageOff } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../../format';
+import { useAttachmentPreviews } from '../../hooks/useAttachmentPreviews';
 import type { Attachment } from '../../schemas/message';
 
 /** Сколько плиток видно до «Показать ещё» (spec chat/attachments). */
@@ -11,6 +12,8 @@ export const isImageAttachment = (attachment: Attachment): boolean =>
   attachment.mime_type.startsWith('image/');
 
 interface MessageAttachmentsProps {
+  /** Сообщение, которому принадлежат вложения: им догоняется миниатюра. */
+  messageId: string;
   attachments: Attachment[];
   own: boolean;
   theme: ThemeTokens;
@@ -22,11 +25,21 @@ interface MessageAttachmentsProps {
 /**
  * Вложения в сообщении: одно изображение — крупно, два-четыре — сеткой,
  * больше — четыре плитки и «Показать ещё». Плитки грузят миниатюры, а не
- * оригиналы; пока миниатюра готовится, стоит состояние ожидания.
+ * оригиналы; пока миниатюра готовится, стоит состояние ожидания, и оно
+ * сменяется изображением само — сообщение перечитывается догоняющим
+ * запросом, без перезагрузки приложения (spec chat/attachments).
  * Не-изображения — строкой с именем, размером и скачиванием.
  */
-export function MessageAttachments({ attachments, own, theme, fontSize, onOpenImage }: MessageAttachmentsProps) {
+export function MessageAttachments({
+  messageId,
+  attachments: given,
+  own,
+  theme,
+  fontSize,
+  onOpenImage,
+}: MessageAttachmentsProps) {
   const [expanded, setExpanded] = useState(false);
+  const { attachments, givenUp } = useAttachmentPreviews(messageId, given);
   const images = attachments.filter(isImageAttachment);
   const files = attachments.filter((attachment) => !isImageAttachment(attachment));
 
@@ -36,7 +49,7 @@ export function MessageAttachments({ attachments, own, theme, fontSize, onOpenIm
   return (
     <div className="flex flex-col gap-1" style={{ minWidth: images.length > 0 ? 200 : undefined }}>
       {images.length === 1 ? (
-        <ImageTile image={images[0]!} single theme={theme} onOpen={onOpenImage} />
+        <ImageTile image={images[0]!} single theme={theme} onOpen={onOpenImage} givenUp={givenUp} />
       ) : images.length > 1 ? (
         <div className="grid grid-cols-2 gap-1">
           {visibleImages.map((image, index) => (
@@ -45,6 +58,7 @@ export function MessageAttachments({ attachments, own, theme, fontSize, onOpenIm
               image={image}
               theme={theme}
               onOpen={onOpenImage}
+              givenUp={givenUp}
               more={!expanded && hiddenCount > 0 && index === VISIBLE_TILES - 1 ? hiddenCount : 0}
               onShowMore={() => setExpanded(true)}
             />
@@ -85,6 +99,7 @@ function ImageTile({
   image,
   theme,
   onOpen,
+  givenUp = false,
   single = false,
   more = 0,
   onShowMore,
@@ -92,6 +107,8 @@ function ImageTile({
   image: Attachment;
   theme: ThemeTokens;
   onOpen: (attachmentId: string) => void;
+  /** Догоняющие запросы исчерпаны: миниатюры не будет. */
+  givenUp?: boolean;
   single?: boolean;
   more?: number;
   onShowMore?: () => void;
@@ -111,6 +128,19 @@ function ImageTile({
         {image.thumb_url !== null ? (
           // Лента грузит миниатюру; оригинал — только в галерее (spec).
           <img src={image.thumb_url} alt={image.name} loading="lazy" className="w-full h-full object-cover" />
+        ) : givenUp ? (
+          // Честное объяснение вместо вечного ожидания: нажатие открывает
+          // оригинал, за миниатюрой больше не ходим (spec chat/attachments).
+          <span
+            data-testid="attachment-no-thumb"
+            role="status"
+            aria-label={`${image.name}: миниатюра недоступна, откроется оригинал`}
+            className="grid place-items-center content-center gap-1 w-full h-full px-1 text-center"
+            style={{ color: theme.faint }}
+          >
+            <ImageOff size={24} aria-hidden="true" />
+            <span className="text-[11px] leading-tight">Миниатюра недоступна</span>
+          </span>
         ) : (
           <span
             data-testid="attachment-waiting"

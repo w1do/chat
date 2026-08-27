@@ -118,6 +118,10 @@ export const messagesApi = {
       ((await client.post(`/rooms/${roomId}/messages`, { body: input, idempotencyKey })) as { data: unknown }).data,
     );
   },
+  /** Одно сообщение: им лента добирает миниатюру, приготовленную отложенно. */
+  async get(client: ApiClient, messageId: string): Promise<Message> {
+    return messageSchema.parse(((await client.get(`/messages/${messageId}`)) as { data: unknown }).data);
+  },
   async edit(client: ApiClient, messageId: string, body: string): Promise<Message> {
     return messageSchema.parse(
       ((await client.patch(`/messages/${messageId}`, { body: { body } })) as { data: unknown }).data,

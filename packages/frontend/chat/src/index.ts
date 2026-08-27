@@ -78,6 +78,11 @@ export {
 } from './hooks/useAttachmentUploads';
 export { AttachmentGallery } from './components/mobile/AttachmentGallery';
 export { MessageAttachments, isImageAttachment } from './components/mobile/AttachmentTiles';
+export {
+  useAttachmentPreviews,
+  PREVIEW_RETRY_DELAYS,
+  type AttachmentPreviews,
+} from './hooks/useAttachmentPreviews';
 export { ComposerAttachments } from './components/mobile/ComposerAttachments';
 export {
   useCreateRoom,

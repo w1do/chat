@@ -60,10 +60,17 @@ test('attachments travel to the second browser as tiles with a gallery', async (
   await expect(alice.getByLabel('Открыть изображение first.png')).toBeVisible({ timeout: 20_000 });
   await expect(alice.getByLabel('Скачать справка.pdf')).toBeVisible();
 
+  // Миниатюра готова уже к ответу на загрузку: в плитке изображение, а не
+  // состояние ожидания, и перезагрузка приложения для этого не нужна.
+  await expect(alice.getByLabel('Открыть изображение first.png').locator('img')).toBeVisible();
+  await expect(alice.getByTestId('attachment-waiting')).toHaveCount(0);
+
   // Второй браузер получает то же самое live, без перезагрузки.
   await expect(bob.getByLabel('Открыть изображение first.png')).toBeVisible({ timeout: 20_000 });
   await expect(bob.getByLabel('Открыть изображение second.png')).toBeVisible();
   await expect(bob.getByLabel('Скачать справка.pdf')).toBeVisible();
+  await expect(bob.getByLabel('Открыть изображение first.png').locator('img')).toBeVisible();
+  await expect(bob.getByTestId('attachment-waiting')).toHaveCount(0);
 
   // Bob открывает галерею с первой плитки и листает до второй.
   await bob.getByLabel('Открыть изображение first.png').click();

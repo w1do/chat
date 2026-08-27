@@ -18,6 +18,19 @@ vi.mock('../src/app/echo', () => ({
 const assign = vi.fn();
 const reload = vi.fn();
 
+/**
+ * Кеши окна. Service worker'а в jsdom нет, поэтому приложение чистит кеш
+ * изображений само — это вторая ветка `clearImageCache`.
+ */
+const deviceCaches = {
+  names: new Set<string>(),
+  delete: vi.fn(async (name: string) => deviceCaches.names.delete(name)),
+  reset() {
+    this.names = new Set(['chat-images-v1', 'chat-shell-v2']);
+    this.delete.mockClear();
+  },
+};
+
 function reply(status: number, body: unknown) {
   return {
     ok: status >= 200 && status < 300,
@@ -119,9 +132,11 @@ async function openApp(options: { recovery?: boolean } = {}): Promise<App> {
   assign.mockClear();
   reload.mockClear();
   server.reset();
+  deviceCaches.reset();
   silentRecovery = options.recovery ?? false;
 
   vi.stubGlobal('fetch', server.handler);
+  vi.stubGlobal('caches', deviceCaches);
   Object.defineProperty(window, 'location', {
     configurable: true,
     value: { origin: 'http://localhost:3000', pathname: '/', assign, reload },
@@ -197,6 +212,22 @@ describe('сессия истекла посреди работы', () => {
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/login'));
     expect(server.count('/auth/logout')).toBe(1);
+
+    // После выхода кеш изображений пуст: следующему человеку за этим
+    // устройством чужие фотографии не достаются (spec platform/image-cache).
+    expect(deviceCaches.names.has('chat-images-v1')).toBe(false);
+    // Оболочка остаётся — экран «нет связи» после выхода никуда не девается.
+    expect(deviceCaches.names.has('chat-shell-v2')).toBe(true);
+  });
+
+  it('очищает кеш изображений уже при переходе в «сессия истекла»', async () => {
+    const app = await openApp();
+
+    await expireDuringWork(app);
+
+    await waitFor(() => expect(deviceCaches.delete).toHaveBeenCalledWith('chat-images-v1'));
+    expect(deviceCaches.names.has('chat-images-v1')).toBe(false);
+    expect(app.session.sessionStatus()).toBe('unauthorized');
   });
 
   it('после повторного входа приложение работает как обычно', async () => {

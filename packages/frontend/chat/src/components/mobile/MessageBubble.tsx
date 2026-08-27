@@ -164,6 +164,7 @@ export function MessageBubble({
         {!deleted && message.attachments.length > 0 ? (
           <div className={message.body ? 'mb-1' : ''}>
             <MessageAttachments
+              messageId={message.id}
               attachments={message.attachments}
               own={own}
               theme={theme}

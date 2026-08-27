@@ -3,11 +3,12 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@te
 import userEvent from '@testing-library/user-event';
 import { LIGHT } from '@vendor/ui';
 import { useState, type ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '@vendor/api-client';
 import { ChatProvider } from '../src/adapters/ChatProvider';
 import { ChatScreen } from '../src/components/mobile/ChatScreen';
 import { MessageAttachments } from '../src/components/mobile/AttachmentTiles';
+import { PREVIEW_RETRY_DELAYS } from '../src/hooks/useAttachmentPreviews';
 import { useAttachmentUploads, type PendingAttachment } from '../src/hooks/useAttachmentUploads';
 import { applyRoomEvent } from '../src/realtime/handlers';
 import type { Attachment, Message, MessagePage } from '../src/schemas/message';
@@ -250,7 +251,14 @@ describe('useAttachmentUploads', () => {
 describe('вложения в сообщении', () => {
   const renderTiles = (attachments: Attachment[], onOpenImage = vi.fn()) => {
     render(
-      <MessageAttachments attachments={attachments} own={false} theme={LIGHT} fontSize={15} onOpenImage={onOpenImage} />,
+      <MessageAttachments
+        messageId="m1"
+        attachments={attachments}
+        own={false}
+        theme={LIGHT}
+        fontSize={15}
+        onOpenImage={onOpenImage}
+      />,
     );
 
     return onOpenImage;
@@ -360,6 +368,157 @@ describe('галерея', () => {
     fireEvent.touchEnd(dialog, { changedTouches: [{ clientX: 120 }] });
 
     expect(within(dialog).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a2');
+  });
+});
+
+// --- Догоняющий запрос миниатюры ----------------------------------------------
+
+describe('догоняющий запрос миниатюры', () => {
+  const withClient = (client: ApiClient) =>
+    ({ children }: { children: ReactNode }) => <ChatProvider client={client}>{children}</ChatProvider>;
+
+  /** Плитки одного сообщения под провайдером с поддельным клиентом. */
+  function renderCatchUp(client: ApiClient, attachments: Attachment[], messageId = 'm1') {
+    const Wrapper = withClient(client);
+
+    return render(
+      <Wrapper>
+        <MessageAttachments
+          messageId={messageId}
+          attachments={attachments}
+          own={false}
+          theme={LIGHT}
+          fontSize={15}
+          onOpenImage={vi.fn()}
+        />
+      </Wrapper>,
+    );
+  }
+
+  /** Проматывает паузы серии: каждая попытка отделена таймером. */
+  async function runAttempts(count: number) {
+    for (let attempt = 0; attempt < count; attempt++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PREVIEW_RETRY_DELAYS[attempt]!);
+      });
+    }
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('подменяет ожидание изображением, как только миниатюра появилась', async () => {
+    const get = vi.fn().mockResolvedValue({
+      data: { ...message('m1', { attachments: [image('a1')] }) },
+    });
+    renderCatchUp({ get } as unknown as ApiClient, [image('a1', { thumb_url: null })]);
+
+    expect(screen.getByTestId('attachment-waiting')).toBeInTheDocument();
+
+    await runAttempts(1);
+
+    // Перезагрузка приложения для этого не нужна: та же смонтированная плитка.
+    expect(screen.queryByTestId('attachment-waiting')).not.toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledWith('/messages/m1');
+  });
+
+  it('спрашивает раз на сообщение, а не на каждую плитку', async () => {
+    const get = vi.fn().mockResolvedValue({ data: message('m1', { attachments: [] }) });
+    renderCatchUp({ get } as unknown as ApiClient, [
+      image('a1', { thumb_url: null }),
+      image('a2', { thumb_url: null }),
+      image('a3', { thumb_url: null }),
+    ]);
+
+    await runAttempts(1);
+
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('после трёх попыток объясняет отказ и больше не спрашивает', async () => {
+    // Миниатюра так и не приготовилась: сервер отвечает без неё.
+    const get = vi.fn().mockResolvedValue({
+      data: message('m1', { attachments: [image('a1', { thumb_url: null })] }),
+    });
+    const { container } = renderCatchUp({ get } as unknown as ApiClient, [image('a1', { thumb_url: null })]);
+
+    await runAttempts(PREVIEW_RETRY_DELAYS.length);
+
+    expect(get).toHaveBeenCalledTimes(PREVIEW_RETRY_DELAYS.length);
+    const tile = screen.getByTestId('attachment-no-thumb');
+    expect(tile).toHaveAccessibleName('a1.jpg: миниатюра недоступна, откроется оригинал');
+    expect(tile).toHaveTextContent('Миниатюра недоступна');
+
+    // Плитка остаётся нажимаемой — открывается оригинал.
+    expect(screen.getByLabelText('Открыть изображение a1.jpg')).toBeEnabled();
+
+    // Новых обращений не уходит, сколько бы времени ни прошло.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(get).toHaveBeenCalledTimes(PREVIEW_RETRY_DELAYS.length);
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('не ходит за миниатюрой, когда все готовы', async () => {
+    const get = vi.fn();
+    renderCatchUp({ get } as unknown as ApiClient, [image('a1'), document('d1')]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('добирает миниатюру и у получателя события message.created.v1', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const page: MessagePage = { data: [message('m1')], meta: { next_cursor: null } };
+    queryClient.setQueryData(['chat', 'messages', 'r1'], { pages: [page], pageParams: [null] });
+
+    // Отправитель — другой человек: у получателя сообщение приходит событием,
+    // и миниатюра в нём ещё не готова.
+    applyRoomEvent(queryClient, {
+      event: 'message.created.v1',
+      version: 1,
+      room_id: 'r1',
+      occurred_at: '2026-08-24T12:00:05Z',
+      data: {
+        id: 'm2',
+        kind: 'text',
+        author: { id: 'u1', name: 'Alice' },
+        body: '',
+        payload: null,
+        reply_to_id: null,
+        created_at: '2026-08-24T12:00:04Z',
+        attachments: [image('a1', { thumb_url: null })],
+      },
+    });
+
+    const cached = queryClient.getQueryData<{ pages: MessagePage[] }>(['chat', 'messages', 'r1']);
+    const incoming = cached!.pages[0]!.data.find((item) => item.id === 'm2')!;
+    expect(incoming.attachments[0]!.thumb_url).toBeNull();
+
+    const get = vi.fn().mockResolvedValue({ data: message('m2', { attachments: [image('a1')] }) });
+    const client = { get } as unknown as ApiClient;
+
+    render(
+      <ChatProvider client={client}>
+        <QueryClientProvider client={queryClient}>
+          <Harness messages={cached!.pages[0]!.data} />
+        </QueryClientProvider>
+      </ChatProvider>,
+    );
+
+    expect(screen.getByTestId('attachment-waiting')).toBeInTheDocument();
+
+    await runAttempts(1);
+
+    expect(get).toHaveBeenCalledWith('/messages/m2');
+    expect(screen.queryByTestId('attachment-waiting')).not.toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
   });
 });
 

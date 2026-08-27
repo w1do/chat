@@ -44,12 +44,16 @@ import { realtimeAdapter } from '../app/echo';
 import { runtimeConfig } from '../app/runtime-config';
 import { applyTabCounter, raiseSystemNotification } from '../app/notifications';
 import { useNotificationFeed } from '@vendor/notifications';
+import { useImagePrewarm } from '../app/image-prewarm';
 import { useInstallPrompt } from '../app/install';
 import { createInvite } from '../app/invite';
 import { useSettings, type AppSettings } from '../app/settings';
 import { SettingsScreen } from './SettingsScreen';
 
 const SPRING = 'cubic-bezier(.2,.9,.3,1)';
+
+/** Сколько ближайших сообщений истории греем: дальше человек долистывает редко. */
+const PREWARM_MESSAGES = 30;
 
 /**
  * Мобильная оболочка: слой вкладок («Чаты» / «Настройки») и слой переписки,
@@ -91,10 +95,19 @@ export function ChatPage() {
     [],
   );
 
+  // Список переписок открыт — картинки комнат греются заранее, из уже
+  // полученных данных, без единого нового запроса к API (spec).
+  useImagePrewarm((rooms.data ?? []).map((room) => room.photo_url));
+
   const totalUnread = (rooms.data ?? []).reduce((sum, room) => sum + (room.unread_count ?? 0), 0);
 
   // Счётчик в заголовке вкладки повторяет бейджи списка.
   useEffect(() => applyTabCounter(totalUnread), [totalUnread]);
+
+  // Тема экранов берётся из локальных настроек, а фон документа под оболочкой
+  // красит `useTheme` — держим их в согласии, иначе снизу выглядывала бы
+  // полоса чужого цвета.
+  useEffect(() => setTheme(settings.theme), [settings.theme, setTheme]);
 
   const { permission, request: requestNotifications } = useNotificationPermission();
 
@@ -205,10 +218,7 @@ export function ChatPage() {
             <SettingsScreen
               theme={theme}
               settings={settings}
-              onChange={(key, value) => {
-                set(key, value);
-                if (key === 'theme') setTheme(value as AppSettings['theme']);
-              }}
+              onChange={(key, value) => set(key, value)}
               notificationPermission={permission}
               onRequestNotifications={async () => {
                 await requestNotifications();
@@ -377,6 +387,13 @@ function ActiveRoom({
 
   const flatMessages = messages.data?.pages.flatMap((page) => page.data) ?? [];
   const newestId = flatMessages[0]?.id;
+
+  // История загружена — миниатюры её сообщений подгружаются заранее: плитка
+  // ниже сгиба показывается сразу, как только до неё долистали.
+  useImagePrewarm(
+    flatMessages.slice(0, PREWARM_MESSAGES).flatMap((item) => item.attachments.map((file) => file.thumb_url)),
+  );
+
   const aiEnabled = runtimeConfig().ai.enabled === 'true';
 
   // Отметка прочтения: комната открыта и в ней есть сохранённые сообщения.

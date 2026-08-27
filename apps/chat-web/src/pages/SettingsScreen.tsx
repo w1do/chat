@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSystemStatus } from '../app/admin';
 import { usePushSubscription, type PushState } from '../app/push';
 import { passwordMinLength } from '../app/runtime-config';
+import { clearImageCache } from '../app/service-worker';
 import type { AppSettings } from '../app/settings';
 
 interface SettingsScreenProps {
@@ -241,6 +242,9 @@ export function SettingsScreen({
             title="Выйти"
             onClick={() => {
               logout.mutate();
+              // Изображения прежнего аккаунта не остаются на устройстве —
+              // ни в приложении, ни без сети (spec platform/image-cache).
+              void clearImageCache();
               onToast('Вы вышли из аккаунта');
             }}
             last

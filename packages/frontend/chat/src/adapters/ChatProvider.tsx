@@ -13,3 +13,11 @@ export function useChatClient(): ApiClient {
   if (!client) throw new Error('ChatProvider is missing above this component.');
   return client;
 }
+
+/**
+ * Клиент там, где он необязателен: показывающий компонент рисуется и без
+ * провайдера, а сам ходить в API начинает только когда приложение его дало.
+ */
+export function useOptionalChatClient(): ApiClient | null {
+  return useContext(ChatApiContext);
+}

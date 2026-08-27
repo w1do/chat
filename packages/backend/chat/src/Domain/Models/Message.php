@@ -88,7 +88,7 @@ class Message extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
-        $this->registerAttachmentPreviewConversion();
+        $this->registerAttachmentPreviewConversion($media);
     }
 
     /** @return MediaCollection<int, Media> */

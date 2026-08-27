@@ -202,25 +202,49 @@ it('does not let someone attach a foreign upload', function (): void {
 
 // --- 1.5: миниатюра в очереди ------------------------------------------------
 
-it('queues the preview conversion on the media queue and hides the thumb until ready', function (): void {
+it('prepares the preview during the upload itself for a file within the threshold', function (): void {
+    // Очередь подставная: если бы конверсия ушла в неё, миниатюры бы не было.
     Queue::fake();
     $room = Room::factory()->create();
     $user = User::factory()->create();
 
     $data = uploadAttachment($room, $user);
 
-    Queue::assertPushed(PerformConversionsJob::class, fn (PerformConversionsJob $job): bool => $job->queue === 'media');
-    // Пока конверсия не выполнена, адреса миниатюры нет — клиент показывает
-    // ожидание, а не сломанную картинку (spec chat/attachments).
-    expect($data->thumbUrl)->toBeNull();
+    $media = Media::query()->where('uuid', $data->id)->firstOrFail();
+
+    // Ответ на загрузку уже несёт адрес миниатюры — серой плитки в ленте нет.
+    expect($media->hasGeneratedConversion(Message::ATTACHMENT_PREVIEW))->toBeTrue()
+        ->and($data->thumbUrl)->not->toBeNull();
+    Queue::assertNotPushed(PerformConversionsJob::class);
+    Storage::disk('media')->assertExists($media->getPathRelativeToRoot(Message::ATTACHMENT_PREVIEW));
 });
 
-it('serves the thumb address once the conversion has run', function (): void {
+it('queues the preview conversion on the media queue for a file over the threshold', function (): void {
+    // Порог ниже размера снимка: тяжёлый файл не держит отправку (design 1).
+    config()->set('chat.attachments.preview_sync_max_kb', 1);
+    Queue::fake();
     $room = Room::factory()->create();
     $user = User::factory()->create();
 
-    // Синхронная очередь тестов: конверсия выполняется сразу.
-    $data = uploadAttachment($room, $user);
+    $data = uploadAttachment($room, $user, UploadedFile::fake()->image('big.jpg', 1600, 1200));
+
+    $media = Media::query()->where('uuid', $data->id)->firstOrFail();
+
+    expect($media->size)->toBeGreaterThan(1024)
+        ->and($media->hasGeneratedConversion(Message::ATTACHMENT_PREVIEW))->toBeFalse()
+        // Пока конверсия не выполнена, адреса миниатюры нет — клиент показывает
+        // ожидание, а не сломанную картинку (spec chat/attachments).
+        ->and($data->thumbUrl)->toBeNull();
+    Queue::assertPushed(PerformConversionsJob::class, fn (PerformConversionsJob $job): bool => $job->queue === 'media');
+});
+
+it('serves the thumb address once the deferred conversion has run', function (): void {
+    config()->set('chat.attachments.preview_sync_max_kb', 1);
+    $room = Room::factory()->create();
+    $user = User::factory()->create();
+
+    // Синхронная очередь тестов: отложенная конверсия выполняется сразу.
+    $data = uploadAttachment($room, $user, UploadedFile::fake()->image('big.jpg', 1600, 1200));
     $media = Media::query()->where('uuid', $data->id)->firstOrFail();
 
     $ready = AttachmentData::fromMedia($media);

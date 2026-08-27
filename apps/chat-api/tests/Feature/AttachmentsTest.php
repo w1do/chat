@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\Conversions\Jobs\PerformConversionsJob;
 use Vendor\Chat\Domain\Enums\RoomRole;
 use Vendor\Chat\Domain\Models\Room;
 use Vendor\Chat\Domain\Models\RoomMember;
@@ -50,6 +52,53 @@ it('lets a member upload an attachment and describes it', function (): void {
         ->and($data['url'])->toContain('/attachments/')
         ->and($data['width'])->toBe(640)
         ->and($data['height'])->toBe(480);
+});
+
+it('answers the upload of an ordinary photo with a thumb that already works', function (): void {
+    // Очередь подставная: конверсия обязана пройти прямо в запросе загрузки,
+    // иначе в ленте останется серая плитка (spec chat/attachments).
+    Queue::fake();
+    $room = Room::factory()->privateRoom()->create();
+    $member = attachmentRoomMember($room);
+
+    $data = uploadAs($member, $room);
+
+    expect($data['thumb_url'])->not->toBeNull();
+    Queue::assertNotPushed(PerformConversionsJob::class);
+
+    $thumb = $this->actingAs($member)->get($data['thumb_url'])->assertOk();
+    expect($thumb->headers->get('content-type'))->toBe('image/webp');
+});
+
+it('defers the thumb of a heavy image to the media queue and serves it once run', function (): void {
+    config()->set('chat.attachments.preview_sync_max_kb', 1);
+    $room = Room::factory()->privateRoom()->create();
+    $member = attachmentRoomMember($room);
+
+    Queue::fake();
+    $data = uploadAs($member, $room, UploadedFile::fake()->image('big.jpg', 1600, 1200));
+
+    // Тяжёлый файл не держит отправку: миниатюра готовится в очереди media.
+    expect($data['thumb_url'])->toBeNull();
+    Queue::assertPushed(PerformConversionsJob::class, fn (PerformConversionsJob $job): bool => $job->queue === 'media');
+
+    // Сообщение уходит и без готовой миниатюры.
+    $messageId = $this->actingAs($member)
+        ->postJson("/api/v1/rooms/{$room->id}/messages", ['attachments' => [$data['id']]])
+        ->assertCreated()
+        ->json('data.id');
+
+    $this->getJson("/api/v1/messages/{$messageId}")
+        ->assertOk()
+        ->assertJsonPath('data.attachments.0.thumb_url', null);
+
+    // Очередь прогоняем — тем же job'ом, что и Horizon.
+    Queue::pushed(PerformConversionsJob::class)->each(fn (PerformConversionsJob $job) => app()->call([$job, 'handle']));
+
+    $thumbUrl = $this->getJson("/api/v1/messages/{$messageId}")->assertOk()->json('data.attachments.0.thumb_url');
+
+    expect($thumbUrl)->not->toBeNull();
+    $this->get($thumbUrl)->assertOk();
 });
 
 it('forbids an outsider to upload into a private room', function (): void {

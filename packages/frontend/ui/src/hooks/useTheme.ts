@@ -24,6 +24,14 @@ export function useTheme(): { theme: ThemeTokens; name: ThemeName; setTheme: (na
     }
   }, [name]);
 
+  useEffect(() => {
+    // Оболочка стоит `position: fixed` поверх страницы: если её высота почему-
+    // либо меньше окна, снизу виден документ. Красим его цветом темы, чтобы
+    // там был фон приложения, а не посторонняя серая полоса. Само правило —
+    // `background: var(--app-bg)` в стилях приложения.
+    document.documentElement.style.setProperty('--app-bg', THEMES[name].bg);
+  }, [name]);
+
   const setTheme = useCallback((next: ThemeName) => setName(next), []);
 
   return { theme: THEMES[name], name, setTheme };

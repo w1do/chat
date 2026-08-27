@@ -487,13 +487,14 @@ PY
       # помощник (правка черновика и пересказ документа), уведомление о
       # пропущенном, поиск, управление комнатой,
       # состав комнаты (приглашение по нику и исключение), изображения
-      # профиля, вложения к сообщениям и мобильная раскладка панели ввода
-      # с приглашением.
+      # профиля, вложения к сообщениям, мобильная раскладка панели ввода
+      # с приглашением, а также запрет жестового масштабирования и возврат
+      # из фона.
       "$0" e2e-stack-up
       docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true \
         -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web \
         mcr.microsoft.com/playwright:v1.58.1-noble \
-        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/ai-file-summary.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts e2e/profile-images.spec.ts e2e/attachments.spec.ts e2e/direct-messages.spec.ts e2e/mobile-composer.spec.ts --reporter=line"
+        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/ai-file-summary.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts e2e/profile-images.spec.ts e2e/attachments.spec.ts e2e/direct-messages.spec.ts e2e/mobile-composer.spec.ts e2e/mobile-zoom.spec.ts --reporter=line"
       rc=$?
       "$0" e2e-stack-down
       exit $rc

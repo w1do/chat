@@ -12,7 +12,7 @@ export { Toast } from './components/Toast';
 export { Toggle } from './components/Toggle';
 export { useElementHeight } from './hooks/useElementHeight';
 export { useMediaQuery } from './hooks/useMediaQuery';
-export { useKeyboardInsets } from './hooks/useKeyboardInsets';
+export { useKeyboardInsets, type KeyboardInsets } from './hooks/useKeyboardInsets';
 export { useTheme } from './hooks/useTheme';
 export {
   DARK,
