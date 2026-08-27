@@ -12,6 +12,7 @@ declare global {
 }
 
 let adapter: RealtimeAdapter | null = null;
+let connection: Echo<'reverb'> | null = null;
 
 /**
  * Адрес WebSocket. По умолчанию — origin страницы: в self-hosted стеке
@@ -55,12 +56,30 @@ export function createRealtimeAdapter(config: RuntimeConfig): RealtimeAdapter | 
     },
   });
 
+  connection = echo as unknown as Echo<'reverb'>;
   adapter = new EchoAdapter(echo as never);
   return adapter;
 }
 
 export function realtimeAdapter(): RealtimeAdapter | null {
   return adapter;
+}
+
+/**
+ * Сессия истекла — сокет замолкает. Без этого Reverb бесконечно переспрашивает
+ * `/broadcasting/auth`, получает 401 и переподключается по кругу: в консоли
+ * шум, в интерфейсе мигание, на сервере лишняя нагрузка.
+ */
+export function suspendRealtime(): void {
+  connection?.disconnect();
+}
+
+/**
+ * Вход восстановлен: подключаемся заново. Подписки на комнаты и личный канал
+ * Echo восстанавливает сам — каналы он помнит между подключениями.
+ */
+export function resumeRealtime(): void {
+  connection?.connect();
 }
 
 function readCookie(name: string): string | null {

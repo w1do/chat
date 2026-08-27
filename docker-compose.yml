@@ -130,6 +130,9 @@ services:
       REVERB_SCHEME: ""
       REVERB_APP_KEY: ${REVERB_APP_KEY:-chatkey}
       AI_ENABLED: ${AI_ENABLED:-false}
+      # Тихое восстановление сессии выключено по умолчанию: истёкший вход
+      # человек подтверждает сам.
+      AUTH_SILENT_RECOVERY: ${AUTH_SILENT_RECOVERY:-false}
       # Требование к паролю в интерфейсе — то же, по которому проверяет сервер.
       PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-1}
       # Публичный ключ уезжает в SPA через /config.json.

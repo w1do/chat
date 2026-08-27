@@ -17,6 +17,8 @@ manager или файл `.env` с правами 0600.
 - **Push-уведомления**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
   (генерируются командой `php artisan chat:push-keys`; пусто — push выключены);
 - **AI**: `AI_ENABLED`, `AI_PROVIDER`, `AI_API_KEY` (этап 10);
+- **Сессия**: `AUTH_SILENT_RECOVERY` — одна тихая попытка восстановить
+  истёкшую сессию вместо экрана «Сессия истекла»; по умолчанию `false`;
 - **Хранилище**: `S3_*` (опционально, профиль `s3`).
 
 Runtime-конфигурация SPA рендерится entrypoint'ом web-контейнера в

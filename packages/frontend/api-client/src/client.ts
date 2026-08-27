@@ -17,6 +17,12 @@ export interface ApiClientOptions {
   csrfCookiePath?: string | null;
   /** Хук на 401 — например, редирект на страницу входа. */
   onUnauthenticated?: () => void;
+  /**
+   * Приложение сообщает, что сессия истекла и защищённые запросы отправлять
+   * бессмысленно. Такой запрос не уходит в сеть: иначе каждая перерисовка
+   * порождает новый 401, а с ним — повторы и мигание интерфейса.
+   */
+  sessionSuspended?: (path: string) => boolean;
   fetchFn?: typeof fetch;
 }
 
@@ -73,7 +79,22 @@ export class ApiClient {
     return this.request('DELETE', path, options);
   }
 
+  /** Принудительно обновить XSRF-cookie: нужна попытке восстановить сессию. */
+  refreshCsrfCookie(): Promise<void> {
+    return this.ensureCsrfCookie(true);
+  }
+
   async request(method: string, path: string, options: RequestOptions = {}, isRetry = false): Promise<unknown> {
+    // Сессия истекла: запрос обрывается здесь, до сети и до CSRF-handshake.
+    if (this.options.sessionSuspended?.(path)) {
+      throw new UnauthenticatedError(401, {
+        code: 'session_expired',
+        message: 'Session expired',
+        details: {},
+        trace_id: null,
+      });
+    }
+
     const isMutation = method !== 'GET' && method !== 'HEAD';
     if (isMutation) {
       await this.ensureCsrfCookie();

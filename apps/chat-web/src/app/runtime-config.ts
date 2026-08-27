@@ -11,6 +11,8 @@ export interface RuntimeConfig {
     appKey: string;
   };
   ai: { enabled: string };
+  /** Тихое восстановление сессии; по умолчанию выключено. */
+  auth?: { silentRecovery: string };
   /** Пустой ключ означает, что push на сервере не настроен. */
   push?: { publicKey: string };
   /** Требование к паролю приходит из установки — то же, по которому проверяет сервер. */
@@ -50,5 +52,20 @@ export function passwordMinLength(): number {
     // Форма входа не должна падать из-за одного числа: единица — то же
     // умолчание, по которому проверяет сервер.
     return 1;
+  }
+}
+
+/**
+ * Разрешена ли одна тихая попытка восстановить сессию перед экраном «Сессия
+ * истекла». Выключено по умолчанию: неверно настроенное восстановление прячет
+ * настоящий выход, поэтому включает его установка осознанно
+ * (`AUTH_SILENT_RECOVERY=true`).
+ */
+export function silentRecoveryEnabled(): boolean {
+  try {
+    return runtimeConfig().auth?.silentRecovery === 'true';
+  } catch {
+    // Конфигурация ещё не загружена — значит, и восстанавливать нечего.
+    return false;
   }
 }

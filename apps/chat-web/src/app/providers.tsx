@@ -4,6 +4,7 @@ import { IdentityProvider } from '@vendor/identity';
 import { NotificationsClientProvider } from '@vendor/notifications';
 import type { ReactNode } from 'react';
 import { apiClient } from './api';
+import { AuthProvider } from './auth';
 import { createQueryClient } from './query-client';
 
 const queryClient = createQueryClient();
@@ -14,9 +15,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <IdentityProvider client={apiClient()}>
-        <ChatProvider client={apiClient()}>
-          <NotificationsClientProvider value={apiClient()}>{children}</NotificationsClientProvider>
-        </ChatProvider>
+        <AuthProvider>
+          <ChatProvider client={apiClient()}>
+            <NotificationsClientProvider value={apiClient()}>{children}</NotificationsClientProvider>
+          </ChatProvider>
+        </AuthProvider>
       </IdentityProvider>
     </QueryClientProvider>
   );
