@@ -8,7 +8,7 @@ properties:
     type: string
   channel:
     type: string
-    enum: [database, mail]
+    enum: [database, mail, push]
   channel_label:
     type: string
   enabled:

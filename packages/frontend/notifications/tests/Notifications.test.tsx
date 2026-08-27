@@ -4,7 +4,7 @@ import { LIGHT } from '@vendor/ui';
 import { describe, expect, it, vi } from 'vitest';
 import { NotificationFeed } from '../src/components/NotificationFeed';
 import { PreferencesForm } from '../src/components/PreferencesForm';
-import type { Notification, NotificationPreference } from '../src/schemas/notification';
+import { preferenceSchema, type Notification, type NotificationPreference } from '../src/schemas/notification';
 
 const notification = (id: string, extra: Partial<Notification> = {}): Notification => ({
   id,
@@ -101,6 +101,21 @@ describe('NotificationFeed', () => {
   });
 });
 
+describe('preferenceSchema', () => {
+  it('accepts the push channel returned by the API', () => {
+    expect(
+      preferenceSchema.parse({
+        category: 'message',
+        category_label: 'Новые сообщения',
+        channel: 'push',
+        channel_label: 'На устройство',
+        enabled: true,
+        locked: false,
+      }).channel,
+    ).toBe('push');
+  });
+});
+
 describe('PreferencesForm', () => {
   it('toggles a channel through the API', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
@@ -165,5 +180,35 @@ describe('PreferencesForm', () => {
       />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Не удалось загрузить настройки');
+  });
+
+  it('retries loading and renders rows after success', async () => {
+    const onRetry = vi.fn();
+    const { rerender } = render(
+      <PreferencesForm
+        preferences={undefined}
+        isLoading={false}
+        error={new Error('x')}
+        theme={LIGHT}
+        onChange={vi.fn()}
+        onRetry={onRetry}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetry).toHaveBeenCalled();
+
+    rerender(
+      <PreferencesForm
+        preferences={[preference('message', 'mail', false)]}
+        isLoading={false}
+        theme={LIGHT}
+        onChange={vi.fn()}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByRole('switch', { name: 'Новые сообщения: На почту' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument();
   });
 });

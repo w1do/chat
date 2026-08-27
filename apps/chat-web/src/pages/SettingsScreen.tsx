@@ -371,6 +371,7 @@ export function SettingsScreen({
             error={preferences.error ?? undefined}
             theme={theme}
             onChange={(preference) => updatePreferences.mutateAsync([preference])}
+            onRetry={() => void preferences.refetch()}
           />
         </div>
       </Sheet>

@@ -8,7 +8,32 @@ import { loadRuntimeConfig } from './app/runtime-config';
 import { registerServiceWorker } from './app/service-worker';
 import './styles/index.css';
 
+/**
+ * Блокируем масштабирование жестами: meta viewport запрещает зум, но iOS Safari
+ * всё равно увеличивает контент по pinch и двойному тапу.
+ */
+function preventZoomGestures() {
+  const stop = (event: Event) => event.preventDefault();
+
+  for (const name of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(name, stop, { passive: false });
+  }
+
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    'touchend',
+    (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd < 350) event.preventDefault();
+      lastTouchEnd = now;
+    },
+    { passive: false },
+  );
+}
+
 async function bootstrap() {
+  preventZoomGestures();
+
   const config = await loadRuntimeConfig();
 
   // Service worker обслуживает push и экран без связи; приложение работает и

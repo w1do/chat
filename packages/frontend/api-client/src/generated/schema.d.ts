@@ -1123,7 +1123,7 @@ export interface components {
             category: "message" | "mention" | "room_invite" | "security";
             category_label: string;
             /** @enum {string} */
-            channel: "database" | "mail";
+            channel: "database" | "mail" | "push";
             channel_label: string;
             enabled: boolean;
             /** @description Обязательные уведомления в ленте отключить нельзя. */
@@ -2432,7 +2432,7 @@ export interface operations {
                         /** @enum {string} */
                         category: "message" | "mention" | "room_invite" | "security";
                         /** @enum {string} */
-                        channel: "database" | "mail";
+                        channel: "database" | "mail" | "push";
                         enabled: boolean;
                     }[];
                 };

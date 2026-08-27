@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const notificationCategorySchema = z.enum(['message', 'mention', 'room_invite', 'security']);
-export const notificationChannelSchema = z.enum(['database', 'mail']);
+export const notificationChannelSchema = z.enum(['database', 'mail', 'push']);
 
 export const notificationSchema = z.object({
   id: z.string(),

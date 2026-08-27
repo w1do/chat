@@ -8,10 +8,12 @@ interface PreferencesFormProps {
   error?: unknown;
   theme: ThemeTokens;
   onChange: (preference: { category: string; channel: string; enabled: boolean }) => Promise<unknown>;
+  /** Повторная загрузка настроек: приложение передаёт refetch запроса. */
+  onRetry?: () => void;
 }
 
 /** Настройки каналов: по одной строке на «категория × канал». */
-export function PreferencesForm({ preferences, isLoading, error, theme, onChange }: PreferencesFormProps) {
+export function PreferencesForm({ preferences, isLoading, error, theme, onChange, onRetry }: PreferencesFormProps) {
   const [failed, setFailed] = useState<string | null>(null);
 
   if (isLoading) {
@@ -24,9 +26,21 @@ export function PreferencesForm({ preferences, isLoading, error, theme, onChange
 
   if (error || !preferences) {
     return (
-      <p role="alert" className="px-4 py-6 text-[15px]" style={{ color: theme.danger }}>
-        Не удалось загрузить настройки уведомлений.
-      </p>
+      <div className="px-4 py-6">
+        <p role="alert" className="text-[15px]" style={{ color: theme.danger }}>
+          Не удалось загрузить настройки уведомлений.
+        </p>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="tap mt-3 px-3 py-2 text-[14px]"
+            style={{ borderRadius: 10, background: theme.surfaceAlt, color: theme.text }}
+          >
+            Повторить
+          </button>
+        ) : null}
+      </div>
     );
   }
 

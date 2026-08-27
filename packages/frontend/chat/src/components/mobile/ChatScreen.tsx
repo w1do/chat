@@ -210,6 +210,41 @@ export function ChatScreen({
     scrollToBottom(false);
   }, [keyboard, room.id]);
 
+  // Панель ввода растёт при наборе текста (textarea авто‑высота) и от вложений.
+  // Чтобы лента не «подпрыгивала» на каждый символ, компенсируем изменение
+  // высоты дельтой прокрутки, а к низу прижимаем только когда пользователь у края.
+  useEffect(() => {
+    const composer = composerRef.current;
+    const element = scroller.current;
+    if (!composer || !element || typeof ResizeObserver === 'undefined') return;
+
+    let height = composer.getBoundingClientRect().height;
+    let frame = 0;
+
+    const observer = new ResizeObserver(() => {
+      const next = composer.getBoundingClientRect().height;
+      const delta = next - height;
+      height = next;
+      if (delta === 0) return;
+
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const gap = element.scrollHeight - element.scrollTop - element.clientHeight;
+        // Малый порог «липкости к низу»: считаем положение до изменения высоты.
+        if (gap - delta < 24) element.scrollTop = element.scrollHeight;
+        else element.scrollTop += delta;
+      });
+    });
+
+    observer.observe(composer);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
+
   const submit = async () => {
     const text = draft.trim();
     if (!canSend) return;

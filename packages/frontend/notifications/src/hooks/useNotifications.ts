@@ -40,7 +40,15 @@ export function useMarkNotificationsRead() {
 export function useNotificationPreferences() {
   const client = useNotificationsClient();
 
-  return useQuery({ queryKey: PREFERENCES_KEY, queryFn: () => notificationsApi.preferences(client) });
+  // Настройки каналов открываются из шторки: переживаем разовые сетевые сбои
+  // повторами с backoff, ручная кнопка «Повторить» остаётся через refetch().
+  return useQuery({
+    queryKey: PREFERENCES_KEY,
+    queryFn: () => notificationsApi.preferences(client),
+    retry: 2,
+    retryDelay: (attempt) => 500 * 2 ** attempt,
+    staleTime: 30_000,
+  });
 }
 
 export function useUpdatePreferences() {

@@ -541,7 +541,8 @@
                         "type": "string",
                         "enum": [
                             "database",
-                            "mail"
+                            "mail",
+                            "push"
                         ]
                     },
                     "channel_label": {
@@ -2953,7 +2954,8 @@
                                                     "type": "string",
                                                     "enum": [
                                                         "database",
-                                                        "mail"
+                                                        "mail",
+                                                        "push"
                                                     ]
                                                 },
                                                 "enabled": {

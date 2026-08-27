@@ -18,6 +18,15 @@ body,
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  /* Только панорамирование: pinch не должен масштабировать интерфейс. */
+  touch-action: pan-x pan-y;
+}
+
+/* Двойной тап по картинке или сообщению тоже не увеличивает содержимое. */
+img,
+video,
+canvas {
+  touch-action: manipulation;
 }
 
 body {

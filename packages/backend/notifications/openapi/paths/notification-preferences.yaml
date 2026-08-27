@@ -39,7 +39,7 @@
                   required: [category, channel, enabled]
                   properties:
                     category: { type: string, enum: [message, mention, room_invite, security] }
-                    channel: { type: string, enum: [database, mail] }
+                    channel: { type: string, enum: [database, mail, push] }
                     enabled: { type: boolean }
     responses:
       '200':
