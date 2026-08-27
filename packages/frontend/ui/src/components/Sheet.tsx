@@ -13,10 +13,16 @@ interface SheetProps {
   theme: ThemeTokens;
   accent?: string;
   children: ReactNode;
+  /**
+   * Закреплённая панель действий под прокруткой: остаётся на месте, пока
+   * содержимое листа прокручивается. Нижний безопасный отступ переходит к
+   * ней — иначе он достался бы прокрутке, а кнопки легли бы на системную черту.
+   */
+  footer?: ReactNode;
 }
 
 /** Выезжающий лист: им сделаны и помощник, и все настройки. */
-export function Sheet({ open, title, subtitle, onClose, theme, accent, children }: SheetProps) {
+export function Sheet({ open, title, subtitle, onClose, theme, accent, children, footer }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
 
   // Содержимое живёт только у открытого листа (и ещё мгновение, пока он
@@ -110,25 +116,37 @@ export function Sheet({ open, title, subtitle, onClose, theme, accent, children 
               </p>
             ) : null}
           </div>
+          {/* Кружок остаётся 30 px, а нажимается 44×44 (WCAG 2.2 AA): лишнее
+              снимает отрицательное поле, поэтому раскладка не съезжает. */}
           <button
             type="button"
             onClick={onClose}
             aria-label="Закрыть"
-            className="tap shrink-0"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              background: theme.surfaceAlt,
-              color: theme.muted,
-              display: 'grid',
-              placeItems: 'center',
-            }}
+            className="tap shrink-0 grid place-items-center"
+            style={{ width: 44, height: 44, margin: -7, color: theme.muted }}
           >
-            <X size={16} />
+            <span
+              aria-hidden="true"
+              className="grid place-items-center"
+              style={{ width: 30, height: 30, borderRadius: 15, background: theme.surfaceAlt }}
+            >
+              <X size={16} />
+            </span>
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto scroll-area safe-bottom">{mounted ? children : null}</div>
+        <div className={`flex-1 min-h-0 overflow-y-auto scroll-area ${footer ? 'pb-2' : 'safe-bottom'}`}>
+          {mounted ? children : null}
+        </div>
+
+        {footer ? (
+          <div
+            data-testid="sheet-footer"
+            className="shrink-0 px-5 pt-3 safe-bottom"
+            style={{ background: theme.surface, borderTop: `1px solid ${theme.hairline}` }}
+          >
+            {mounted ? footer : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

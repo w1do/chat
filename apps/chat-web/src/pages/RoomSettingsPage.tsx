@@ -1,5 +1,6 @@
 import {
   InvitePanel,
+  InviteSheet,
   MemberRow,
   RoomManagePanel,
   useMembers,
@@ -8,7 +9,15 @@ import {
   useRoomActions,
 } from '@vendor/chat';
 import { useAuth } from '@vendor/identity';
-import { Group, Row, Screen, THEMES, type ThemeTokens } from '@vendor/ui';
+import {
+  Group,
+  Row,
+  Screen,
+  THEMES,
+  useKeyboardInsets,
+  useMediaQuery,
+  type ThemeTokens,
+} from '@vendor/ui';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,14 +54,42 @@ function Members({
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const { height, offsetTop } = useKeyboardInsets();
+  // Телефон: приглашение открывается листом почти во весь экран. На широком
+  // экране места хватает, и карточка остаётся в потоке страницы.
+  const compact = useMediaQuery('(max-width: 640px)');
 
   const myRole = room.data?.my_role ?? null;
   const canManage = myRole === 'owner' || myRole === 'admin';
 
+  const inviteByLink = () => {
+    setError(null);
+    createInvite(roomId, room.data?.name ?? '')
+      .then((result) => setNotice(result.copied ? 'Приглашение скопировано.' : `Ссылка: ${result.link}`))
+      .catch(() => setError('Не удалось создать ссылку-приглашение.'));
+  };
+
   return (
+    // Экран занимает ровно видимую область и компенсирует прокрутку, которую
+    // iOS Safari делает сам при открытии клавиатуры, — иначе поле поиска
+    // приглашения оказывается под клавиатурой, а шапка уезжает за край.
     // Страница неподвижна: прокручивается содержимое внутри Screen.
-    <div className="h-full w-full flex justify-center" style={{ background: theme.bg }}>
-      <main className="h-full w-full max-w-md" style={{ color: theme.text }}>
+    <div
+      className="w-full flex justify-center"
+      style={{
+        background: theme.bg,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: height ? `${height}px` : '100dvh',
+        transform: offsetTop ? `translateY(${offsetTop}px)` : undefined,
+        overflow: 'hidden',
+      }}
+    >
+      {/* relative — система координат для листа приглашения (absolute inset-0). */}
+      <main className="relative h-full w-full max-w-md overflow-hidden" style={{ color: theme.text }}>
         <Screen
           theme={theme}
           contentStyle={{ paddingTop: 8, paddingBottom: 24 }}
@@ -125,19 +162,24 @@ function Members({
           ) : null}
 
           {canManage && room.data ? (
-            <InvitePanel
-              roomId={roomId}
-              theme={theme}
-              onInvite={(userId) => actions.invite.mutateAsync(userId)}
-              onInviteByLink={() => {
-                setError(null);
-                createInvite(roomId, room.data?.name ?? '')
-                  .then((result) =>
-                    setNotice(result.copied ? 'Приглашение скопировано.' : `Ссылка: ${result.link}`),
-                  )
-                  .catch(() => setError('Не удалось создать ссылку-приглашение.'));
-              }}
-            />
+            compact ? (
+              <Group theme={theme}>
+                <Row
+                  theme={theme}
+                  title="Пригласить человека"
+                  hint="Поиск по нику или ссылка"
+                  last
+                  onClick={() => setInviteOpen(true)}
+                />
+              </Group>
+            ) : (
+              <InvitePanel
+                roomId={roomId}
+                theme={theme}
+                onInvite={(userId) => actions.invite.mutateAsync(userId)}
+                onInviteByLink={inviteByLink}
+              />
+            )
           ) : null}
 
           {myRole !== null && myRole !== 'owner' ? (
@@ -156,6 +198,17 @@ function Members({
             </Group>
           ) : null}
         </Screen>
+
+        {canManage && room.data && compact ? (
+          <InviteSheet
+            open={inviteOpen}
+            onClose={() => setInviteOpen(false)}
+            roomId={roomId}
+            theme={theme}
+            onInvite={(userId) => actions.invite.mutateAsync(userId)}
+            onInviteByLink={inviteByLink}
+          />
+        ) : null}
       </main>
     </div>
   );

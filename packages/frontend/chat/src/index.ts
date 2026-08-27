@@ -43,7 +43,7 @@ export { MagicSheet, MAGIC_ACTIONS, type MagicAction, type MagicPhase } from './
 export { RoomsScreen } from './components/mobile/RoomsScreen';
 export { RoomManagePanel } from './components/mobile/RoomManagePanel';
 export { RoomGlyph } from './components/RoomGlyph';
-export { InvitePanel, cleanNickname, MIN_NICKNAME_LENGTH } from './components/mobile/InvitePanel';
+export { InvitePanel, InviteSheet, cleanNickname, MIN_NICKNAME_LENGTH } from './components/mobile/InvitePanel';
 export { MemberRow, canChangeRole, canRemoveMember } from './components/mobile/MemberRow';
 export {
   buildGroups,

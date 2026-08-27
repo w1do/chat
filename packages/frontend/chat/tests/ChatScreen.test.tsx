@@ -154,6 +154,42 @@ describe('ChatScreen', () => {
     expect(screen.getByTestId('composer')).not.toHaveClass('safe-bottom');
   });
 
+  it('pins the composer to the bottom and never lets it exceed the viewport width', () => {
+    render(<Harness />);
+
+    const composer = screen.getByTestId('composer');
+    // Низ экрана — место панели ввода при любой прокрутке содержимого.
+    expect(composer).toHaveClass('sticky');
+    expect(composer).toHaveClass('bottom-0');
+    expect(composer).toHaveClass('max-w-full');
+
+    // Строка ввода сжимается вместе с экраном и обрезает всё лишнее: иначе
+    // собственная ширина textarea (она берётся из cols) распирает панель и
+    // кнопки уезжают за правый край телефона.
+    const row = screen.getByTestId('composer-row');
+    expect(row).toHaveClass('min-w-0');
+    expect(row).toHaveClass('max-w-full');
+    expect(row).toHaveClass('overflow-hidden');
+
+    const field = screen.getByRole('textbox', { name: 'Сообщение' });
+    expect(field).toHaveClass('flex-1');
+    expect(field).toHaveClass('min-w-0');
+  });
+
+  it('keeps emoji, assistant and send together when the draft is long', async () => {
+    render(<Harness />);
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Сообщение' }), 'очень длинный черновик '.repeat(6));
+
+    // Кнопки — одна нерастяжимая группа: ширину отдаёт поле, а не они.
+    const actions = screen.getByTestId('composer-actions');
+    expect(actions).toHaveClass('shrink-0');
+
+    for (const label of ['Эмодзи', 'Помощник с текстом', 'Отправить']) {
+      expect(within(actions).getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
   it('forbids system text selection on message bubbles', () => {
     render(<Harness messages={[message('m1')]} />);
 

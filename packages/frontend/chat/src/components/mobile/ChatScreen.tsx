@@ -550,8 +550,11 @@ export function ChatScreen({
         ref={composerRef}
         // Панель во всю ширину; при открытой клавиатуре стоит вплотную к ней,
         // при закрытой — отступает на нижнюю полосу видимой области.
+        // `sticky bottom-0` — страховка: панель остаётся у нижнего края и там,
+        // где она окажется внутри прокручиваемой области, а не закреплённым
+        // низом Screen. Ширину панель не превышает никогда: max-w-full.
         data-testid="composer"
-        className={`w-full px-2 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
+        className={`sticky bottom-0 w-full max-w-full px-2 pt-2 blur-chrome ${keyboard > 0 ? 'pb-2' : 'safe-bottom'}`}
         style={{ background: theme.chromeAlpha }}
       >
         {sendError ? (
@@ -680,7 +683,12 @@ export function ChatScreen({
           </div>
         ) : (
           <div
-            className="flex items-end gap-1.5 w-full p-1.5"
+            // Строка ввода не имеет права быть шире экрана: `min-w-0` снимает
+            // с гибких детей запрет сжиматься ниже их собственной ширины (у
+            // textarea она берётся из cols и на узком телефоне не помещается),
+            // а `overflow-hidden` не даёт ничему вылезти за скруглённый край.
+            data-testid="composer-row"
+            className="flex items-end gap-1.5 w-full min-w-0 max-w-full overflow-hidden p-1.5"
             style={{
               background: theme.surface,
               borderRadius: 22,
@@ -778,7 +786,7 @@ export function ChatScreen({
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               autoCapitalize="sentences"
               autoCorrect="on"
-              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none"
+              className="flex-1 min-w-0 resize-none bg-transparent px-3 py-2.5 outline-none field-focus"
               style={{
                 color: theme.text,
                 // Поле не ниже соседних кнопок: узкая полоска под палец неудобна.
@@ -789,53 +797,59 @@ export function ChatScreen({
               }}
             />
 
-            <button
-              type="button"
-              onClick={() => setEmojiOpen((open) => !open)}
-              aria-label="Эмодзи"
-              aria-expanded={emojiOpen}
-              className="tap grid place-items-center shrink-0"
-              style={{ width: 36, height: 36, borderRadius: 18, background: theme.surfaceAlt, color: theme.muted }}
-            >
-              <Smile size={18} />
-            </button>
+            {/* Эмодзи, помощник и отправка — одна нерастяжимая группа с общим
+                шагом: длинный текст отнимает ширину у поля, а не у кнопок. */}
+            <div data-testid="composer-actions" className="flex items-end gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEmojiOpen((open) => !open)}
+                aria-label="Эмодзи"
+                aria-expanded={emojiOpen}
+                className="tap grid place-items-center shrink-0"
+                style={{ width: 36, height: 36, borderRadius: 18, background: theme.surfaceAlt, color: theme.muted }}
+              >
+                <Smile size={18} />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => onMagic(draft)}
-              className="tap grid place-items-center shrink-0"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                background: aiEnabled ? theme.amberSoft : theme.surfaceAlt,
-                color: aiEnabled ? theme.amberText : theme.faint,
-              }}
-              aria-label="Помощник с текстом"
-            >
-              {aiEnabled ? <Sparkles size={18} /> : <Lock size={15} />}
-            </button>
+              <button
+                type="button"
+                onClick={() => onMagic(draft)}
+                className="tap grid place-items-center shrink-0"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  background: aiEnabled ? theme.amberSoft : theme.surfaceAlt,
+                  color: aiEnabled ? theme.amberText : theme.faint,
+                }}
+                aria-label="Помощник с текстом"
+              >
+                {aiEnabled ? <Sparkles size={18} /> : <Lock size={15} />}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => void submit()}
-              disabled={!canSend}
-              className="grid place-items-center shrink-0 tap"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                background: theme.text,
-                color: theme.bg,
-                transform: canSend ? 'scale(1)' : 'scale(.6)',
-                opacity: canSend ? 1 : 0,
-                transition: `transform .26s ${SPRING}, opacity .2s ease`,
-                marginRight: canSend ? 0 : -42,
-              }}
-              aria-label={editing ? 'Сохранить правку' : 'Отправить'}
-            >
-              {editing ? <Check size={16} /> : <Send size={16} />}
-            </button>
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={!canSend}
+                className="grid place-items-center shrink-0 tap"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  background: theme.text,
+                  color: theme.bg,
+                  transform: canSend ? 'scale(1)' : 'scale(.6)',
+                  opacity: canSend ? 1 : 0,
+                  // Отступ уезжает вместе с кнопкой: строка обрезана по краю,
+                  // и без плавного margin кнопка исчезала бы скачком.
+                  transition: `transform .26s ${SPRING}, opacity .2s ease, margin-right .26s ${SPRING}`,
+                  marginRight: canSend ? 0 : -42,
+                }}
+                aria-label={editing ? 'Сохранить правку' : 'Отправить'}
+              >
+                {editing ? <Check size={16} /> : <Send size={16} />}
+              </button>
+            </div>
           </div>
         )}
       </div>

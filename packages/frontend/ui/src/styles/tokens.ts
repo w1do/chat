@@ -1,5 +1,9 @@
 // Токены оформления мобильного интерфейса.
 // Цвет несёт одну мысль — чей голос; янтарный зарезервирован за помощником.
+//
+// Вторичный текст (`muted`) обязан читаться, а не намекать: он держит 4.5:1
+// (WCAG 2.2 AA) на всех трёх фонах темы — `bg`, `surface` и `surfaceAlt`.
+// Проверять надо по худшему из них: на `surfaceAlt` запаса меньше всего.
 
 export type ThemeName = 'light' | 'dark';
 
@@ -28,7 +32,7 @@ export const LIGHT: ThemeTokens = {
   surfaceAlt: '#EDEDF3',
   hairline: '#E4E4EC',
   text: '#14131A',
-  muted: '#86858F',
+  muted: '#6A6974',
   faint: '#B6B5BE',
   own: '#17161E',
   ownText: '#FFFFFF',
@@ -46,7 +50,7 @@ export const DARK: ThemeTokens = {
   surfaceAlt: '#20202A',
   hairline: '#282833',
   text: '#ECECF2',
-  muted: '#83828E',
+  muted: '#9695A1',
   faint: '#5C5B66',
   own: '#ECECF2',
   ownText: '#14131A',
