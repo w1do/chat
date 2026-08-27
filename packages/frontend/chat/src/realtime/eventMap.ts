@@ -58,6 +58,17 @@ export type TypingChangedV1 = Envelope<'typing.changed.v1', {
   is_typing: boolean;
 }>;
 
+/**
+ * Ход и результат пересказа документа — на приватном канале автора запроса.
+ * Сам черновик событием не передаётся: его читают отдельным GET.
+ */
+export type FileSummaryUpdatedV1 = Envelope<'ai.file_summary.updated.v1', {
+  id: string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'published';
+  progress: number;
+  error_code: 'provider_timeout' | 'provider_unavailable' | 'file_unreadable' | 'ai_disabled' | null;
+}>;
+
 export type RoomEvent =
   | MessageCreatedV1
   | MessageUpdatedV1
@@ -67,6 +78,9 @@ export type RoomEvent =
   | RoomDeletedV1;
 
 export type PresenceEvent = TypingChangedV1;
+
+/** События личного канала пользователя (`user.{id}`). */
+export type UserEvent = FileSummaryUpdatedV1;
 
 export const ROOM_EVENT_NAMES = [
   'message.created.v1',
@@ -78,3 +92,5 @@ export const ROOM_EVENT_NAMES = [
 ] as const;
 
 export const PRESENCE_EVENT_NAMES = ['typing.changed.v1'] as const;
+
+export const USER_EVENT_NAMES = ['ai.file_summary.updated.v1'] as const;

@@ -1,0 +1,12 @@
+{
+  "event": "ai.file_summary.updated.v1",
+  "version": 1,
+  "room_id": "01j8zc2v9q4t5w6x7y8z9abcde",
+  "occurred_at": "2026-08-27T12:00:00Z",
+  "data": {
+    "id": "01j8zc2v9q4t5w6x7y8z9abcdh",
+    "status": "succeeded",
+    "progress": 100,
+    "error_code": null
+  }
+}

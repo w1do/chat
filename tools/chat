@@ -43,6 +43,8 @@ Commands:
   smoke all               runtime + websocket + search (search — если поднят Typesense)
   e2e <spec> | e2e critical  Playwright: один сценарий или все критические
   e2e demo                smoke презентации demo.html (стек чата не нужен)
+                          CHAT_AI_ENABLED=true поднимает стек с включённым
+                          помощником (без ключа поставщик отвечает отказом)
 EOF
 }
 
@@ -482,7 +484,8 @@ PY
     fi
     if [[ "$sub" == "critical" ]]; then
       # Критические сценарии релиза: регистрация, переписка двоих, real-time,
-      # помощник, уведомление о пропущенном, поиск, управление комнатой,
+      # помощник (правка черновика и пересказ документа), уведомление о
+      # пропущенном, поиск, управление комнатой,
       # состав комнаты (приглашение по нику и исключение), изображения
       # профиля, вложения к сообщениям и мобильная раскладка панели ввода
       # с приглашением.
@@ -490,7 +493,7 @@ PY
       docker run --rm --network chat-dev_default -e E2E_BASE_URL=http://proxy -e CI=true \
         -v "$ROOT":/repo -v /home/dev/.local/share/pnpm/store/v3:/pnpm-store -w /repo/apps/chat-web \
         mcr.microsoft.com/playwright:v1.58.1-noble \
-        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts e2e/profile-images.spec.ts e2e/attachments.spec.ts e2e/direct-messages.spec.ts e2e/mobile-composer.spec.ts --reporter=line"
+        bash -c "corepack enable >/dev/null 2>&1; corepack prepare pnpm@9.12.3 --activate >/dev/null 2>&1; pnpm exec playwright test e2e/auth.spec.ts e2e/messaging.spec.ts e2e/realtime.spec.ts e2e/ai-revision.spec.ts e2e/ai-file-summary.spec.ts e2e/desktop.spec.ts e2e/invite.spec.ts e2e/room-management.spec.ts e2e/membership.spec.ts e2e/profile-images.spec.ts e2e/attachments.spec.ts e2e/direct-messages.spec.ts e2e/mobile-composer.spec.ts --reporter=line"
       rc=$?
       "$0" e2e-stack-down
       exit $rc
@@ -546,13 +549,13 @@ PY
     docker compose -f "$ROOT/infra/compose/compose.dev.yaml" up -d postgres redis typesense minio >/dev/null
     sleep 3
     APPKEY=$(cd "$API_DIR" && php artisan key:generate --show)
-    common="-e APP_KEY=$APPKEY -e APP_ENV=production -e APP_DEBUG=false -e OCTANE_SERVER=frankenphp       -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_DATABASE=chat -e DB_USERNAME=chat -e DB_PASSWORD=chat       -e REDIS_HOST=redis -e CACHE_STORE=redis -e SESSION_DRIVER=redis -e QUEUE_CONNECTION=redis       -e SESSION_SECURE_COOKIE=false -e SANCTUM_STATEFUL_DOMAINS=proxy,localhost:${CHAT_LOCAL_PORT:-8088},127.0.0.1:${CHAT_LOCAL_PORT:-8088} -e CORS_ALLOWED_ORIGINS=http://proxy,http://localhost:${CHAT_LOCAL_PORT:-8088}       -e BROADCAST_CONNECTION=reverb -e REVERB_APP_ID=1001 -e REVERB_APP_KEY=devkey -e REVERB_APP_SECRET=devsecret       -e REVERB_SERVER_HOST=reverb -e REVERB_SERVER_PORT=8080 -e REVERB_HOST=reverb -e REVERB_PORT=8080       -e REVERB_SCHEME=http -e REVERB_ALLOWED_ORIGINS=*       -e AUTH_REGISTER_PER_MINUTE=200 -e AUTH_LOGIN_PER_MINUTE=200       -e SEARCH_ENABLED=true -e TYPESENSE_HOST=typesense -e TYPESENSE_PORT=8108 -e TYPESENSE_API_KEY=dev-typesense-key       -e S3_ENDPOINT=http://minio:9000 -e S3_ACCESS_KEY_ID=dev -e S3_SECRET_ACCESS_KEY=dev-secret -e S3_BUCKET=chat"
+    common="-e APP_KEY=$APPKEY -e APP_ENV=production -e APP_DEBUG=false -e OCTANE_SERVER=frankenphp       -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_DATABASE=chat -e DB_USERNAME=chat -e DB_PASSWORD=chat       -e REDIS_HOST=redis -e CACHE_STORE=redis -e SESSION_DRIVER=redis -e QUEUE_CONNECTION=redis       -e SESSION_SECURE_COOKIE=false -e SANCTUM_STATEFUL_DOMAINS=proxy,localhost:${CHAT_LOCAL_PORT:-8088},127.0.0.1:${CHAT_LOCAL_PORT:-8088} -e CORS_ALLOWED_ORIGINS=http://proxy,http://localhost:${CHAT_LOCAL_PORT:-8088}       -e BROADCAST_CONNECTION=reverb -e REVERB_APP_ID=1001 -e REVERB_APP_KEY=devkey -e REVERB_APP_SECRET=devsecret       -e REVERB_SERVER_HOST=reverb -e REVERB_SERVER_PORT=8080 -e REVERB_HOST=reverb -e REVERB_PORT=8080       -e REVERB_SCHEME=http -e REVERB_ALLOWED_ORIGINS=*       -e AUTH_REGISTER_PER_MINUTE=200 -e AUTH_LOGIN_PER_MINUTE=200 -e AI_ENABLED=${CHAT_AI_ENABLED:-false}       -e SEARCH_ENABLED=true -e TYPESENSE_HOST=typesense -e TYPESENSE_PORT=8108 -e TYPESENSE_API_KEY=dev-typesense-key       -e S3_ENDPOINT=http://minio:9000 -e S3_ACCESS_KEY_ID=dev -e S3_SECRET_ACCESS_KEY=dev-secret -e S3_BUCKET=chat"
     docker rm -f e2e-api e2e-reverb e2e-worker e2e-web e2e-proxy >/dev/null 2>&1 || true
     docker run -d --name e2e-api --network chat-dev_default --network-alias api $common vendor/chat-api:0.1.0 >/dev/null
     docker run -d --name e2e-reverb --network chat-dev_default --network-alias reverb $common vendor/chat-api:0.1.0 php artisan reverb:start --host=0.0.0.0 --port=8080 >/dev/null
     # Broadcast'ы ставятся в очередь (QUEUE_CONNECTION=redis) — нужен worker.
-    docker run -d --name e2e-worker --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan queue:work --queue=default,search,notifications,notifications-bulk,notifications-critical,media --tries=1 >/dev/null
-    docker run -d --name e2e-web --network chat-dev_default --network-alias web       -e API_BASE_URL=/api/v1 -e REVERB_HOST="${CHAT_WS_HOST:-}" -e REVERB_PORT="${CHAT_WS_PORT:-}" -e REVERB_SCHEME="" -e REVERB_APP_KEY=devkey       -e AI_ENABLED=false -e APP_NAME="E2E Chat" vendor/chat-web:0.1.0 >/dev/null
+    docker run -d --name e2e-worker --network chat-dev_default $common vendor/chat-api:0.1.0 php artisan queue:work --queue=default,search,notifications,notifications-bulk,notifications-critical,media,ai --tries=1 >/dev/null
+    docker run -d --name e2e-web --network chat-dev_default --network-alias web       -e API_BASE_URL=/api/v1 -e REVERB_HOST="${CHAT_WS_HOST:-}" -e REVERB_PORT="${CHAT_WS_PORT:-}" -e REVERB_SCHEME="" -e REVERB_APP_KEY=devkey       -e AI_ENABLED="${CHAT_AI_ENABLED:-false}" -e APP_NAME="E2E Chat" vendor/chat-web:0.1.0 >/dev/null
     docker run -d --name e2e-proxy --network chat-dev_default --network-alias proxy \
       -p "${CHAT_LOCAL_PORT:-8088}:80" \
       -v "$ROOT/infra/docker/proxy/Caddyfile.smoke:/etc/caddy/Caddyfile:ro" caddy:2.10.0-alpine >/dev/null

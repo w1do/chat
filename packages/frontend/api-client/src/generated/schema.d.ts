@@ -68,6 +68,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/file-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Запросить пересказ документа, приложенного к сообщению
+         * @description Ответ с токеном `@ai` на сообщение с приложенным документом. Обработка асинхронная: возвращается операция, черновик приходит событием `ai.file_summary.updated.v1` и читается через GET. Пересказ виден только запросившему и не публикуется без подтверждения.
+         */
+        post: operations["requestFileSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/file-summaries/{fileSummary}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Состояние операции и готовый черновик пересказа
+         * @description Ресинхронизация после переподключения: клиент не зависит от того, застал ли он real-time событие. Черновик отдаётся только запросившему.
+         */
+        get: operations["showFileSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/file-summaries/{fileSummary}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Опубликовать пересказ в комнату от имени запросившего
+         * @description Единственный способ показать пересказ комнате. Сообщение обычное и авторство — у человека, а не у помощника.
+         */
+        post: operations["publishFileSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/message-revisions": {
         parameters: {
             query?: never;
@@ -1050,6 +1110,33 @@ export interface components {
              */
             last_seen_at: string | null;
         };
+        /** @description Операция пересказа документа. Текст черновика виден только запросившему и попадает в комнату лишь после подтверждения публикации. */
+        FileSummary: {
+            /** @description ULID операции. */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "processing" | "succeeded" | "failed" | "published";
+            room_id: string;
+            /** @description Сообщение, к которому приложен документ. */
+            message_id: string;
+            /** @description Безопасные метаданные документа; содержимое наружу не отдаётся. */
+            file: {
+                id: string;
+                name: string;
+                mime_type: string;
+                size: number;
+            };
+            /** @description Черновик пересказа (500–800 символов); null, пока не готов. */
+            summary: string | null;
+            /** @description Вступление перед пересказом; тем же текстом он уходит в комнату. */
+            lead_in: string;
+            /** @enum {string|null} */
+            error_code: "provider_timeout" | "provider_unavailable" | "file_unreadable" | "ai_disabled" | null;
+            /** @description Сообщение, которым пересказ опубликован в комнату. */
+            published_message_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
         Invite: unknown;
         InviteAccepted: unknown;
         Member: {
@@ -1453,6 +1540,123 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    requestFileSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Сообщение, на которое отвечает пользователь; у него должен быть один поддерживаемый документ. */
+                    message_id: string;
+                    /** @description Черновик ответа; обязан содержать токен-триггер `@ai`. */
+                    body: string;
+                    /** @description Повтор с тем же ключом возвращает ту же операцию и не запускает второе задание. */
+                    idempotency_key?: string | null;
+                    /**
+                     * @description Язык пересказа; неподдерживаемый заменяется английским.
+                     * @enum {string|null}
+                     */
+                    locale?: "ru" | "en" | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Повтор с тем же ключом идемпотентности — та же операция. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FileSummary"];
+                    };
+                };
+            };
+            /** @description Операция принята; пересказ готовится. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FileSummary"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    showFileSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileSummary: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Текущее состояние операции. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FileSummary"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    publishFileSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileSummary: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Пересказ опубликован; в ответе — идентификатор сообщения. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FileSummary"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Черновик ещё не готов, не удался или уже опубликован. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     reviseMessage: {

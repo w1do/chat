@@ -1,0 +1,41 @@
+type: object
+description: >-
+  Операция пересказа документа. Текст черновика виден только запросившему и
+  попадает в комнату лишь после подтверждения публикации.
+required: [id, status, room_id, message_id, file, summary, lead_in, error_code, published_message_id, created_at]
+properties:
+  id:
+    type: string
+    description: ULID операции.
+  status:
+    type: string
+    enum: [pending, processing, succeeded, failed, published]
+  room_id:
+    type: string
+  message_id:
+    type: string
+    description: Сообщение, к которому приложен документ.
+  file:
+    type: object
+    description: Безопасные метаданные документа; содержимое наружу не отдаётся.
+    required: [id, name, mime_type, size]
+    properties:
+      id: { type: string }
+      name: { type: string }
+      mime_type: { type: string }
+      size: { type: integer }
+  summary:
+    type: [string, "null"]
+    description: Черновик пересказа (500–800 символов); null, пока не готов.
+  lead_in:
+    type: string
+    description: Вступление перед пересказом; тем же текстом он уходит в комнату.
+  error_code:
+    type: [string, "null"]
+    enum: [provider_timeout, provider_unavailable, file_unreadable, ai_disabled, null]
+  published_message_id:
+    type: [string, "null"]
+    description: Сообщение, которым пересказ опубликован в комнату.
+  created_at:
+    type: string
+    format: date-time

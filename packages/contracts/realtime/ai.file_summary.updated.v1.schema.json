@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.chat.local/realtime/ai.file_summary.updated.v1.schema.json",
+  "title": "ai.file_summary.updated.v1",
+  "description": "Versioned real-time event payload for ai.file_summary.updated.v1. Delivered on the requester's private channel only. Carries progress and status; the draft text itself is read over HTTP so private content is not duplicated across transports.",
+  "type": "object",
+  "required": [
+    "event",
+    "version",
+    "room_id",
+    "occurred_at",
+    "data"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event": {
+      "const": "ai.file_summary.updated.v1"
+    },
+    "version": {
+      "const": 1
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "id",
+        "status",
+        "progress",
+        "error_code"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$",
+          "description": "Operation id; the draft is fetched with GET /ai/file-summaries/{id}."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "processing",
+            "succeeded",
+            "failed",
+            "published"
+          ]
+        },
+        "progress": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "provider_timeout",
+            "provider_unavailable",
+            "file_unreadable",
+            "ai_disabled",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

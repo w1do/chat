@@ -9,7 +9,7 @@ export type {
   RoomSubscription,
 } from './adapters/RealtimeAdapter';
 export { applyRoomEvent, resyncRoom } from './realtime/handlers';
-export type { PresenceEvent, RoomEvent } from './realtime/eventMap';
+export type { PresenceEvent, RoomEvent, UserEvent } from './realtime/eventMap';
 export { ConnectionBanner } from './components/ConnectionBanner';
 export { PresenceDots } from './components/PresenceDots';
 export { PresenceBadge } from './components/PresenceBadge';
@@ -25,6 +25,20 @@ export { SystemEntry, systemText } from './components/mobile/SystemEntry';
 export { splitTimeline, type TimelineEntry } from './format';
 export { useTyping } from './hooks/useTyping';
 export { useRevision, type RevisionPhase, type RevisionState } from './hooks/useRevision';
+export { useFileSummary, type FileSummaryPhase, type FileSummaryState } from './hooks/useFileSummary';
+export { FileSummarySheet } from './components/mobile/FileSummarySheet';
+export {
+  fileSummarySchema,
+  isSummarizableAttachment,
+  mentionsSummaryTrigger,
+  SUMMARY_EXTENSIONS,
+  SUMMARY_TRIGGER,
+  type FileSummary,
+  type FileSummaryError,
+  type FileSummaryRequest,
+  type FileSummaryStatus,
+  type SummaryFile,
+} from './schemas/fileSummary';
 export {
   revisionRequestSchema,
   revisionSchema,

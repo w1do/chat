@@ -1,0 +1,119 @@
+/ai/file-summaries:
+  post:
+    operationId: requestFileSummary
+    tags: [ai]
+    summary: Запросить пересказ документа, приложенного к сообщению
+    description: >-
+      Ответ с токеном `@ai` на сообщение с приложенным документом. Обработка
+      асинхронная: возвращается операция, черновик приходит событием
+      `ai.file_summary.updated.v1` и читается через GET. Пересказ виден только
+      запросившему и не публикуется без подтверждения.
+    security: [{ sanctumCookie: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message_id, body]
+            properties:
+              message_id:
+                type: string
+                description: Сообщение, на которое отвечает пользователь; у него должен быть один поддерживаемый документ.
+              body:
+                type: string
+                maxLength: 4000
+                description: Черновик ответа; обязан содержать токен-триггер `@ai`.
+              idempotency_key:
+                type: [string, "null"]
+                maxLength: 64
+                description: Повтор с тем же ключом возвращает ту же операцию и не запускает второе задание.
+              locale:
+                type: [string, "null"]
+                enum: [ru, en, null]
+                description: Язык пересказа; неподдерживаемый заменяется английским.
+    responses:
+      '202':
+        description: Операция принята; пересказ готовится.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/FileSummary' }
+      '200':
+        description: Повтор с тем же ключом идемпотентности — та же операция.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/FileSummary' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404': { $ref: '#/components/responses/NotFound' }
+      '422': { $ref: '#/components/responses/ValidationError' }
+      '429': { $ref: '#/components/responses/RateLimited' }
+      '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+/ai/file-summaries/{fileSummary}:
+  get:
+    operationId: showFileSummary
+    tags: [ai]
+    summary: Состояние операции и готовый черновик пересказа
+    description: >-
+      Ресинхронизация после переподключения: клиент не зависит от того, застал
+      ли он real-time событие. Черновик отдаётся только запросившему.
+    security: [{ sanctumCookie: [] }]
+    parameters:
+      - name: fileSummary
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Текущее состояние операции.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/FileSummary' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '404': { $ref: '#/components/responses/NotFound' }
+
+/ai/file-summaries/{fileSummary}/publish:
+  post:
+    operationId: publishFileSummary
+    tags: [ai]
+    summary: Опубликовать пересказ в комнату от имени запросившего
+    description: >-
+      Единственный способ показать пересказ комнате. Сообщение обычное и
+      авторство — у человека, а не у помощника.
+    security: [{ sanctumCookie: [] }]
+    parameters:
+      - name: fileSummary
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '201':
+        description: Пересказ опубликован; в ответе — идентификатор сообщения.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { $ref: '#/components/schemas/FileSummary' }
+      '401': { $ref: '#/components/responses/Unauthenticated' }
+      '403': { $ref: '#/components/responses/Forbidden' }
+      '404': { $ref: '#/components/responses/NotFound' }
+      '409':
+        description: Черновик ещё не готов, не удался или уже опубликован.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiError' }

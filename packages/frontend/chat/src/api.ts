@@ -197,11 +197,36 @@ export const searchApi = {
 // --- Помощник (AI) -----------------------------------------------------------
 
 import { revisionSchema, type Revision, type RevisionRequest } from './schemas/revision';
+import { fileSummarySchema, type FileSummary, type FileSummaryRequest } from './schemas/fileSummary';
 
 export const aiApi = {
   async revise(client: ApiClient, input: RevisionRequest, signal?: AbortSignal): Promise<Revision> {
     return revisionSchema.parse(
       ((await client.post('/ai/message-revisions', { body: input, signal })) as { data: unknown }).data,
+    );
+  },
+
+  /**
+   * Запуск пересказа документа: ответ приходит сразу, сам пересказ готовится
+   * в очереди и приезжает событием либо читается методом ниже.
+   */
+  async summarizeFile(client: ApiClient, input: FileSummaryRequest, signal?: AbortSignal): Promise<FileSummary> {
+    return fileSummarySchema.parse(
+      ((await client.post('/ai/file-summaries', { body: input, signal })) as { data: unknown }).data,
+    );
+  },
+
+  /** Состояние операции и готовый черновик: работает и без real-time. */
+  async fileSummary(client: ApiClient, id: string, signal?: AbortSignal): Promise<FileSummary> {
+    return fileSummarySchema.parse(
+      ((await client.get(`/ai/file-summaries/${id}`, { signal })) as { data: unknown }).data,
+    );
+  },
+
+  /** Публикация черновика в комнату от своего имени — только по подтверждению. */
+  async publishFileSummary(client: ApiClient, id: string): Promise<FileSummary> {
+    return fileSummarySchema.parse(
+      ((await client.post(`/ai/file-summaries/${id}/publish`)) as { data: unknown }).data,
     );
   },
 };

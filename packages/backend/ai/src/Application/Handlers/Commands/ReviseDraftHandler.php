@@ -76,7 +76,7 @@ final readonly class ReviseDraftHandler
         } catch (ProviderUnavailable $exception) {
             $failed = $this->recorder->record(
                 userId: $command->userId,
-                operation: $operation,
+                operation: $operation->value,
                 provider: $this->provider->name(),
                 status: $exception->timedOut ? RequestStatus::TimedOut : RequestStatus::Failed,
                 inputLength: $draft->length(),
@@ -98,7 +98,7 @@ final readonly class ReviseDraftHandler
 
         $record = $this->recorder->record(
             userId: $command->userId,
-            operation: $operation,
+            operation: $operation->value,
             provider: $this->provider->name(),
             status: RequestStatus::Succeeded,
             inputLength: $draft->length(),

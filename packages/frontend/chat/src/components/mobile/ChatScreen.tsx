@@ -25,6 +25,7 @@ import {
 import type { ConnectionState } from '../../adapters/RealtimeAdapter';
 import type { Attachment, Message, SendMessageInput } from '../../schemas/message';
 import type { PendingAttachment } from '../../hooks/useAttachmentUploads';
+import { isSummarizableAttachment, mentionsSummaryTrigger, SUMMARY_TRIGGER } from '../../schemas/fileSummary';
 import { filterMentionCandidates, MentionPicker } from '../MentionPicker';
 import { PresenceBadge } from '../PresenceBadge';
 import { AttachmentGallery } from './AttachmentGallery';
@@ -79,6 +80,14 @@ interface ChatScreenProps {
   onInvite?: () => void;
   /** Скрытие диалога у себя; есть только у личной переписки. */
   onHide?: () => Promise<unknown>;
+  /**
+   * Ответ с «@ai» на сообщение с документом: экран отдаёт запрос наружу
+   * вместо обычной отправки. Нет обработчика — пересказ недоступен и
+   * сообщение уходит как обычный ответ.
+   */
+  onSummarizeFile?: (input: { messageId: string; body: string; fileName: string }) => void;
+  /** Пересказ уже готовится: второй запрос не начинается. */
+  summaryBusy?: boolean;
   /** Черновик под управлением приложения: помощник его заменяет. */
   draft: string;
   onDraftChange: (text: string) => void;
@@ -124,6 +133,8 @@ export function ChatScreen({
   onOpenMembers,
   onInvite,
   onHide,
+  onSummarizeFile,
+  summaryBusy = false,
   draft,
   onDraftChange,
   attachments = [],
@@ -173,6 +184,22 @@ export function ChatScreen({
   const fileInput = useRef<HTMLInputElement>(null);
   // Открытая галерея: изображения одного сообщения и стартовая позиция.
   const [gallery, setGallery] = useState<{ images: Attachment[]; index: number } | null>(null);
+
+  /**
+   * Документ цитируемого сообщения, который помощник умеет пересказать:
+   * ровно один файл поддерживаемого вида (spec ai/file-summary).
+   */
+  const replyDocument =
+    replyTo !== null && replyTo.attachments.length === 1 && isSummarizableAttachment(replyTo.attachments[0]!)
+      ? replyTo.attachments[0]!
+      : null;
+  // Ответ с «@ai» на такой документ — это просьба к помощнику, а не реплика.
+  const summaryRequested =
+    aiEnabled &&
+    onSummarizeFile !== undefined &&
+    editing === null &&
+    replyDocument !== null &&
+    mentionsSummaryTrigger(draft);
 
   const readyAttachmentIds = attachments.flatMap((item) => (item.attachment ? [item.attachment.id] : []));
   const uploadsBusy = attachments.some((item) => item.status === 'uploading');
@@ -339,6 +366,20 @@ export function ChatScreen({
     }
 
     if (!canSend) return;
+
+    // Просьба к помощнику не публикуется в комнату: уходит запрос пересказа,
+    // а решение опубликовать принимает человек в листе с черновиком.
+    if (summaryRequested && replyDocument !== null && replyTo !== null) {
+      if (summaryBusy) return;
+
+      setSendError(null);
+      onSummarizeFile?.({ messageId: replyTo.id, body: text, fileName: replyDocument.name });
+      onDraftChange('');
+      setReplyTo(null);
+      setMentions([]);
+
+      return;
+    }
 
     setSendError(null);
     try {
@@ -603,6 +644,26 @@ export function ChatScreen({
             <button type="button" aria-label="Отменить ответ" onClick={() => setReplyTo(null)} className="tap">
               ✕
             </button>
+          </div>
+        ) : null}
+
+        {replyDocument !== null && aiEnabled && onSummarizeFile !== undefined && !editing && canWrite ? (
+          <div
+            role="status"
+            data-testid="summary-hint"
+            className="flex items-center gap-2 mb-2 px-3 py-1.5 text-[13px]"
+            style={{
+              background: summaryRequested ? theme.amberSoft : theme.surfaceAlt,
+              borderRadius: RADIUS.sm,
+              color: summaryRequested ? theme.amberText : theme.muted,
+            }}
+          >
+            <Sparkles size={13} className="shrink-0" aria-hidden="true" />
+            <span className="flex-1 min-w-0 truncate">
+              {summaryRequested
+                ? `Помощник перескажет «${replyDocument.name}» — пересказ увидите только вы`
+                : `Напишите ${SUMMARY_TRIGGER}, чтобы помощник пересказал «${replyDocument.name}»`}
+            </span>
           </div>
         ) : null}
 

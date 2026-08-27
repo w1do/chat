@@ -7,12 +7,22 @@ namespace Vendor\Ai;
 use Illuminate\Cache\RateLimiter as LaravelRateLimiter;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
+use Vendor\Ai\Domain\Contracts\FileSummaryProvider;
+use Vendor\Ai\Domain\Contracts\Metrics;
+use Vendor\Ai\Domain\Contracts\TextExtractor;
 use Vendor\Ai\Domain\Contracts\TextRevisionProvider;
+use Vendor\Ai\Infrastructure\Files\DocumentTextExtractor;
+use Vendor\Ai\Infrastructure\Observability\CacheMetrics;
 use Vendor\Ai\Infrastructure\Prompts\PromptLibrary;
+use Vendor\Ai\Infrastructure\Providers\NullFileSummaryProvider;
 use Vendor\Ai\Infrastructure\Providers\NullProvider;
+use Vendor\Ai\Infrastructure\Providers\PolzaFileSummaryProvider;
 use Vendor\Ai\Infrastructure\Providers\PolzaProvider;
 use Vendor\Ai\Infrastructure\Quota\RateLimiter;
+use Vendor\Ai\Infrastructure\Quota\SummaryQuota;
 use Vendor\Ai\Infrastructure\Resilience\CircuitBreaker;
 use Vendor\Ai\Infrastructure\Resilience\RetryPolicy;
 
@@ -50,6 +60,40 @@ final class AiServiceProvider extends ServiceProvider
             );
         });
 
+        // Пересказ документа: тот же поставщик, свой промпт и свой таймаут.
+        $this->app->bind(FileSummaryProvider::class, function ($app): FileSummaryProvider {
+            $config = $app['config'];
+
+            if ((string) $config->get('ai.provider', 'null') !== 'polza') {
+                return new NullFileSummaryProvider;
+            }
+
+            $settings = $config->get('ai.providers.polza');
+
+            if (empty($settings['api_key'])) {
+                return new NullFileSummaryProvider;
+            }
+
+            return new PolzaFileSummaryProvider(
+                http: $app->make(HttpFactory::class),
+                prompts: $app->make(PromptLibrary::class),
+                baseUrl: (string) $settings['base_url'],
+                apiKey: (string) $settings['api_key'],
+                model: (string) $settings['model'],
+                timeoutSeconds: (int) $config->get('ai.file_summary.timeout_seconds', 60),
+            );
+        });
+
+        $this->app->bind(TextExtractor::class, fn (): TextExtractor => new DocumentTextExtractor);
+
+        $this->app->bind(Metrics::class, fn ($app): Metrics => new CacheMetrics($app->make(Cache::class)));
+
+        $this->app->bind(SummaryQuota::class, fn ($app): SummaryQuota => new SummaryQuota(
+            limiter: $app->make(LaravelRateLimiter::class),
+            perUserHourly: (int) $app['config']->get('ai.file_summary.per_user_hourly', 20),
+            perInstallHourly: (int) $app['config']->get('ai.file_summary.per_install_hourly', 200),
+        ));
+
         $this->app->bind(RateLimiter::class, fn ($app): RateLimiter => new RateLimiter(
             limiter: $app->make(LaravelRateLimiter::class),
             perMinute: (int) $app['config']->get('ai.limits.per_user_minute', 6),
@@ -69,6 +113,8 @@ final class AiServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->assertConfigured();
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         if (config('ai.routes.enabled', true)) {
@@ -78,5 +124,31 @@ final class AiServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/ai.php' => config_path('ai.php'),
         ], 'ai-config');
+    }
+
+    /**
+     * Помощник включён, поставщик выбран, а ключа нет — это опечатка в
+     * окружении. В разработке об этом говорится сразу и вслух; на рабочей
+     * установке приложение не падает: помощник молчит, чат работает (§9).
+     */
+    private function assertConfigured(): void
+    {
+        $config = $this->app['config'];
+
+        if (! $config->get('ai.enabled', false) || (string) $config->get('ai.provider', 'null') !== 'polza') {
+            return;
+        }
+
+        if (! empty($config->get('ai.providers.polza.api_key'))) {
+            return;
+        }
+
+        $message = 'AI_ENABLED=true и AI_PROVIDER=polza, но AI_API_KEY пуст: помощник работать не будет.';
+
+        if ($this->app->environment('local')) {
+            throw new RuntimeException($message);
+        }
+
+        Log::warning('ai.misconfigured', ['reason' => $message]);
     }
 }

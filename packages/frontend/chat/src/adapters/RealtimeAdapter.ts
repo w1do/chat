@@ -1,6 +1,6 @@
 // Контракт real-time транспорта: конкретный Echo приходит от приложения (§4.2).
 
-import type { PresenceEvent, RoomEvent } from '../realtime/eventMap';
+import type { PresenceEvent, RoomEvent, UserEvent } from '../realtime/eventMap';
 
 export type ConnectionState = 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
 
@@ -24,5 +24,10 @@ export interface RealtimeAdapter {
       onLeaving?: (member: PresenceMember) => void;
     },
   ): RoomSubscription;
+  /**
+   * Личный канал пользователя: сюда приходит ход его собственных операций
+   * (пересказ документа). Необязателен — без него клиент опрашивает HTTP.
+   */
+  subscribeUser?(userId: string, onEvent: (event: UserEvent) => void): RoomSubscription;
   onConnectionChange(listener: (state: ConnectionState) => void): () => void;
 }

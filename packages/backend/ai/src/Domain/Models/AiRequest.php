@@ -8,15 +8,16 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Vendor\Ai\Domain\Enums\RequestStatus;
-use Vendor\Ai\Domain\Enums\RevisionOperation;
 
 /**
  * Аудит обращения к AI: операция, поставщик, модель, статус, расход.
+ * Одна таблица на все операции пакета — и правку черновика, и пересказ
+ * документа, — поэтому операция хранится строкой, а не одним enum.
  * Ни промпт, ни ответ, ни секреты здесь не хранятся (spec: privacy defaults).
  *
  * @property string $id
  * @property string $user_id
- * @property RevisionOperation $operation
+ * @property string $operation
  * @property string $provider
  * @property ?string $model
  * @property RequestStatus $status
@@ -51,7 +52,6 @@ class AiRequest extends Model
     protected function casts(): array
     {
         return [
-            'operation' => RevisionOperation::class,
             'status' => RequestStatus::class,
         ];
     }

@@ -8,6 +8,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
 use Vendor\Ai\AiServiceProvider;
+use Vendor\Ai\Domain\Contracts\Metrics;
+use Vendor\Ai\Domain\Contracts\SummaryPublisher;
+use Vendor\Ai\Domain\Contracts\SummarySource;
+use Vendor\Ai\Testing\FakeSummaryPublisher;
+use Vendor\Ai\Testing\FakeSummarySource;
+use Vendor\Ai\Testing\InMemoryMetrics;
 use Vendor\Identity\IdentityServiceProvider;
 
 abstract class TestCase extends TestbenchTestCase
@@ -32,5 +38,12 @@ abstract class TestCase extends TestbenchTestCase
         $app['config']->set('ai.enabled', true);
         $app['config']->set('ai.routes.middleware', ['web']);
         $app['config']->set('identity.routes.enabled', false);
+        $app['config']->set('queue.default', 'sync');
+
+        // Переписку и публикацию связывает приложение-композиция: в тестах
+        // пакета их место занимают фейки того же контракта (§4.1).
+        $app->singleton(SummarySource::class, fn (): FakeSummarySource => new FakeSummarySource);
+        $app->singleton(SummaryPublisher::class, fn (): FakeSummaryPublisher => new FakeSummaryPublisher);
+        $app->singleton(Metrics::class, fn (): InMemoryMetrics => new InMemoryMetrics);
     }
 }

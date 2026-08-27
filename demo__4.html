@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chat Self-Hosted — свой мессенджер на своём сервере</title>
-<meta name="description" content="Презентация self-hosted веб-чата: комнаты, сообщения в реальном времени, уведомления о пропущенном, поиск, помощник для черновика и установка одной командой.">
+<meta name="description" content="Презентация self-hosted веб-чата: комнаты, сообщения в реальном времени, уведомления о пропущенном, поиск, помощник для черновика и пересказ документов, установка одной командой.">
 <meta name="robots" content="noindex">
 <!--
   demo.html — автономный презентационный лендинг (статус: implemented, визуальная
@@ -1029,18 +1029,21 @@
   </section>
 
   <!-- 11. ai -->
-  <section id="ai" data-scene="ai" data-domain="ai/text-revisions" aria-labelledby="ai-title">
+  <section id="ai" data-scene="ai" data-domain="ai/text-revisions ai/file-summary" aria-labelledby="ai-title">
     <div class="shell grid grid--aside">
       <div>
         <p class="eyebrow">помощник</p>
-        <h2 id="ai-title">Помощник правит черновик</h2>
+        <h2 id="ai-title">Помощник правит черновик и пересказывает документы</h2>
         <p class="lede">Помощник предлагает вариант вашего черновика: исправить ошибки, сказать
-          понятнее, короче или мягче. Опубликовать может только человек — кнопкой «Принять».</p>
+          понятнее, короче или мягче. Опубликовать может только человек — кнопкой «Принять».
+          Ответьте <code>@ai</code> на сообщение с PDF, DOCX или TXT — и он прочитает файл,
+          вернув пересказ на 500–800 символов.</p>
         <ul class="list">
-          <li>Наружу уходит только текст черновика, без истории комнаты</li>
+          <li>Наружу уходит только текст черновика или документа, без истории комнаты</li>
+          <li>Пересказ видит только тот, кто его попросил; в чат он уходит по кнопке «Отправить»</li>
           <li>Провайдер, модель, таймаут и квоты задаются конфигурацией; есть отмена</li>
           <li>Выключен по умолчанию, администратор может выключить его в любой момент</li>
-          <li>Аудит фиксирует обращение без промпта и ответа</li>
+          <li>Аудит фиксирует обращение без промпта, документа и ответа</li>
         </ul>
         <p class="muted">Текст обрабатывает внешний AI-провайдер, который вы выбираете сами.</p>
       </div>
@@ -1050,6 +1053,9 @@
           <p class="terminal__code" style="padding: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-s);">- ну в общем приходите к 7 наверн</p>
           <p class="terminal__code" style="padding: 12px; border: 1px solid rgba(183,242,97,0.35); border-radius: var(--radius-s);">+ Приходите, пожалуйста, к семи вечера.</p>
           <div class="chips"><span class="chip chip--lime">Принять</span><span class="chip">Отклонить</span><span class="chip">Вернуть как было</span></div>
+          <div class="kv"><span>ответ на документ</span><span class="chip chip--cyan">@ai · dogovor.pdf</span></div>
+          <p class="terminal__code" style="padding: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-s);">Вот что: договор аренды на год, оплата до 5 числа, расторжение — за 30 дней…</p>
+          <div class="chips"><span class="chip chip--lime">Отправить</span><span class="chip">Не отправлять</span></div>
         </div>
       </div>
     </div>

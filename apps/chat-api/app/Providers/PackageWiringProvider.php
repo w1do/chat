@@ -7,6 +7,8 @@ namespace App\Providers;
 use App\Administration\ReadinessSystemProbe;
 use App\Administration\RecordsAiAudit;
 use App\Administration\RecordsRoomAudit;
+use App\Ai\ChatSummaryPublisher;
+use App\Ai\ChatSummarySource;
 use App\Models\User;
 use App\Notifications\NotifiesRoomActivity;
 use App\Notifications\PresenceActivityInspector;
@@ -20,6 +22,9 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Horizon\Horizon;
 use Spatie\Permission\PermissionRegistrar;
 use Vendor\Administration\Domain\Contracts\SystemProbe;
+use Vendor\Ai\Domain\Contracts\SummaryPublisher;
+use Vendor\Ai\Domain\Contracts\SummarySource;
+use Vendor\Ai\Domain\Events\FileSummaryRecorded;
 use Vendor\Ai\Domain\Events\RevisionRecorded;
 use Vendor\Chat\Domain\Events\MessageCreated;
 use Vendor\Chat\Domain\Events\RoomDeleted;
@@ -39,6 +44,11 @@ final class PackageWiringProvider extends ServiceProvider
 
         // Состояние зависимостей для админ-панели — та же readiness-проверка.
         $this->app->bind(SystemProbe::class, ReadinessSystemProbe::class);
+
+        // ai → chat: пересказ читает сообщение и публикует ответ только через
+        // контракты; прямой связи между пакетами нет (STRUCTURE.md §2).
+        $this->app->bind(SummarySource::class, ChatSummarySource::class);
+        $this->app->bind(SummaryPublisher::class, ChatSummaryPublisher::class);
     }
 
     public function boot(): void
@@ -56,6 +66,7 @@ final class PackageWiringProvider extends ServiceProvider
 
         // AI-обращения попадают в журнал аудита безопасными метаданными.
         Event::listen(RevisionRecorded::class, [RecordsAiAudit::class, 'onRevisionRecorded']);
+        Event::listen(FileSummaryRecorded::class, [RecordsAiAudit::class, 'onFileSummaryRecorded']);
 
         // Провайдеры пакетов резолвят Gate в своих boot (Gate::policy), поэтому
         // afterResolving-регистрация spatie может не сработать: включаем

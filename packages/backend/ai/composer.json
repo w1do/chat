@@ -5,10 +5,12 @@
     "type": "library",
     "license": "proprietary",
     "require": {
-        "php": "^8.4",
+        "illuminate/bus": "^13.0",
+        "illuminate/http": "^13.0",
+        "illuminate/queue": "^13.0",
         "illuminate/support": "^13.0",
-        "vendor/shared-kernel": "^0.1",
-        "illuminate/http": "^13.0"
+        "php": "^8.4",
+        "vendor/shared-kernel": "^0.1"
     },
     "require-dev": {
         "orchestra/testbench": "^11.0",

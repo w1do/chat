@@ -1,6 +1,6 @@
 import type Echo from 'laravel-echo';
-import type { PresenceEvent, RoomEvent } from '../realtime/eventMap';
-import { PRESENCE_EVENT_NAMES, ROOM_EVENT_NAMES } from '../realtime/eventMap';
+import type { PresenceEvent, RoomEvent, UserEvent } from '../realtime/eventMap';
+import { PRESENCE_EVENT_NAMES, ROOM_EVENT_NAMES, USER_EVENT_NAMES } from '../realtime/eventMap';
 import type {
   ConnectionState,
   PresenceMember,
@@ -40,6 +40,16 @@ export class EchoAdapter implements RealtimeAdapter {
     }
 
     return { unsubscribe: () => this.echo.leave(`room.${roomId}.presence`) };
+  }
+
+  subscribeUser(userId: string, onEvent: (event: UserEvent) => void): RoomSubscription {
+    const channel = this.echo.private(`user.${userId}`);
+    for (const name of USER_EVENT_NAMES) {
+      channel.listen(`.${name}`, (payload: UserEvent) => onEvent(payload));
+    }
+
+    // Канал общий с уведомлениями: отписка снимает только наши слушатели.
+    return { unsubscribe: () => USER_EVENT_NAMES.forEach((name) => channel.stopListening(`.${name}`)) };
   }
 
   onConnectionChange(listener: (state: ConnectionState) => void): () => void {

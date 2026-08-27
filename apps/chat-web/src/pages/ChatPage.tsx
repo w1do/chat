@@ -1,10 +1,12 @@
 import {
   ChatScreen,
+  FileSummarySheet,
   MagicSheet,
   RoomsScreen,
   useAttachmentUploads,
   useCreateRoom,
   useDeleteMessage,
+  useFileSummary,
   useEditMessage,
   useHideConversation,
   useMembers,
@@ -369,6 +371,9 @@ function ActiveRoom({
   const [magicOpen, setMagicOpen] = useState(false);
   const [magicPhase, setMagicPhase] = useState<MagicPhase>('menu');
   const revision = useRevision();
+  // Пересказ документа по ответу с «@ai»: ход операции приходит на личный
+  // канал, а состояние всегда подтверждается запросом (spec ai/file-summary).
+  const fileSummary = useFileSummary(realtimeAdapter(), currentUserId);
 
   const flatMessages = messages.data?.pages.flatMap((page) => page.data) ?? [];
   const newestId = flatMessages[0]?.id;
@@ -428,6 +433,7 @@ function ActiveRoom({
         aiEnabled={aiEnabled}
         undoText={undoText}
         magicBusy={magicOpen && revision.state.phase === 'loading'}
+        summaryBusy={fileSummary.state.phase === 'working'}
         draft={draft}
         onDraftChange={(text) => {
           setDraft(text);
@@ -497,6 +503,21 @@ function ActiveRoom({
           setDraft(undoText);
           setUndoText(null);
         }}
+        onSummarizeFile={(input) => {
+          typing.stopTyping();
+          void fileSummary.run(input);
+        }}
+      />
+
+      <FileSummarySheet
+        state={fileSummary.state}
+        theme={theme}
+        onPublish={() => {
+          void fileSummary.publish().then((published) => {
+            if (published) onToast('Пересказ отправлен в чат');
+          });
+        }}
+        onClose={fileSummary.dismiss}
       />
 
       <Confetti

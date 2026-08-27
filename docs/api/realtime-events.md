@@ -14,6 +14,7 @@
 | `reaction.changed.v1` | private room | message_id, user_id, emoji, action, count |
 | `room.member_changed.v1` | private room | user_id, action (`invited`/`joined`/`left`/`removed`/`role_changed`), role |
 | `typing.changed.v1` | presence room | user_id, is_typing |
+| `ai.file_summary.updated.v1` | private user | id, status, progress, error_code |
 
 Общий конверт: `event`, `version`, `room_id` (ULID), `occurred_at` (RFC 3339), `data`.
 
@@ -37,5 +38,11 @@
 | `presence-room.{roomId}.presence` | участник; payload — `{id, name}` |
 | `private-user.{userId}` | только сам пользователь |
 
+`ai.file_summary.updated.v1` идёт на личный канал автора запроса и несёт
+только ход операции: сам черновик пересказа читается запросом
+`GET /ai/file-summaries/{id}` и не размножается по транспортам
+(`docs/features/ai-file-summary.md`).
+
 Клиент не считает WebSocket источником истины: после reconnect выполняется
-HTTP-ресинхронизация (`resyncRoom` в `@vendor/chat`).
+HTTP-ресинхронизация (`resyncRoom` в `@vendor/chat`), а состояние операций
+помощника подтверждается запросом даже при полученном событии.

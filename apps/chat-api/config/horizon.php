@@ -256,6 +256,22 @@ return [
             'nice' => 0,
         ],
 
+        'supervisor-ai' => [
+            'connection' => 'redis',
+            // Пересказ документа ждёт внешнего поставщика десятки секунд:
+            // в общей группе он задерживал бы всё остальное.
+            'queue' => ['ai'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 192,
+            'tries' => 2,
+            'timeout' => 60,
+            'nice' => 5,
+        ],
+
         'supervisor-bulk' => [
             'connection' => 'redis',
             // Шумные рассылки и конверсии изображений не должны задерживать
@@ -279,6 +295,7 @@ return [
             'supervisor-default' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-notifications' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-bulk' => ['maxProcesses' => 2, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-ai' => ['maxProcesses' => 2, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
 
         'local' => [
@@ -286,6 +303,7 @@ return [
             'supervisor-default' => ['maxProcesses' => 2],
             'supervisor-notifications' => ['maxProcesses' => 2],
             'supervisor-bulk' => ['maxProcesses' => 1],
+            'supervisor-ai' => ['maxProcesses' => 1],
         ],
     ],
 

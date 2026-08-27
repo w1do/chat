@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Opis\JsonSchema\Validator;
+use Vendor\Ai\Domain\Enums\FileSummaryStatus;
+use Vendor\Ai\Infrastructure\Broadcasting\FileSummaryUpdatedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageCreatedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageDeletedV1;
 use Vendor\Chat\Infrastructure\Broadcasting\MessageUpdatedV1;
@@ -19,6 +21,7 @@ const REALTIME_EVENTS = [
     'room.member_changed.v1',
     'room.deleted.v1',
     'typing.changed.v1',
+    'ai.file_summary.updated.v1',
 ];
 
 function realtimeValidator(): Validator
@@ -55,6 +58,20 @@ it('validates the system-message fixture against the message.created schema', fu
         $result->hasError() ? json_encode($result->error()->message()) : '',
     )->and($payload->data->kind)->toBe('system')
         ->and($payload->data->payload->event)->toBe('member.joined');
+});
+
+it('keeps the summary draft itself out of the real-time payload', function (): void {
+    $payload = (new FileSummaryUpdatedV1(
+        userId: '01j8zc2v9q4t5w6x7y8z9abcdf',
+        roomId: '01j8zc2v9q4t5w6x7y8z9abcde',
+        summaryId: '01j8zc2v9q4t5w6x7y8z9abcdh',
+        status: FileSummaryStatus::Succeeded,
+        errorCode: null,
+        occurredAt: '2026-08-27T12:00:00Z',
+    ))->broadcastWith();
+
+    expect(array_keys($payload['data']))->toBe(['id', 'status', 'progress', 'error_code'])
+        ->and($payload['data']['progress'])->toBe(100);
 });
 
 it('rejects payloads with undeclared fields', function (): void {
@@ -131,6 +148,24 @@ it('produces broadcast payloads that validate against the contract schemas', fun
             'user_id' => $userId,
             'is_typing' => true,
         ], $now),
+        // Пересказ документа уходит на приватный канал автора запроса; в
+        // payload только ход и код отказа — черновик читается по HTTP.
+        new FileSummaryUpdatedV1(
+            userId: $userId,
+            roomId: $roomId,
+            summaryId: '01j8zc2v9q4t5w6x7y8z9abcdh',
+            status: FileSummaryStatus::Succeeded,
+            errorCode: null,
+            occurredAt: $now,
+        ),
+        new FileSummaryUpdatedV1(
+            userId: $userId,
+            roomId: $roomId,
+            summaryId: '01j8zc2v9q4t5w6x7y8z9abcdh',
+            status: FileSummaryStatus::Failed,
+            errorCode: 'provider_timeout',
+            occurredAt: $now,
+        ),
     ];
 
     foreach ($events as $event) {
