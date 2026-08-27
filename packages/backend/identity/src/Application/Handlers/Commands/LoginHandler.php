@@ -9,7 +9,9 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Config\Repository;
 use Vendor\Identity\Application\Commands\LoginCommand;
+use Vendor\Identity\Application\DTOs\AuthenticatedUserData;
 use Vendor\Identity\Application\DTOs\UserData;
+use Vendor\Identity\Application\Support\BrowserTokenLifecycle;
 use Vendor\Identity\Domain\Models\User;
 
 final readonly class LoginHandler
@@ -17,10 +19,11 @@ final readonly class LoginHandler
     public function __construct(
         private AuthFactory $auth,
         private Repository $config,
+        private BrowserTokenLifecycle $browserTokens,
     ) {}
 
     /** @throws AuthenticationException при неверных учётных данных */
-    public function handle(LoginCommand $command): UserData
+    public function handle(LoginCommand $command): AuthenticatedUserData
     {
         $guard = $this->guard();
 
@@ -34,7 +37,10 @@ final readonly class LoginHandler
         /** @var User $user */
         $user = $guard->user();
 
-        return UserData::fromModel($user);
+        return new AuthenticatedUserData(
+            user: UserData::fromModel($user),
+            browserTokenCookie: $this->browserTokens->issue($user, $command->remember),
+        );
     }
 
     private function guard(): StatefulGuard

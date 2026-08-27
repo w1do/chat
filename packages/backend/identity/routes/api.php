@@ -9,6 +9,7 @@ use Vendor\Identity\Presentation\Http\Api\V1\Controllers\MeController;
 use Vendor\Identity\Presentation\Http\Api\V1\Controllers\ProfileController;
 use Vendor\Identity\Presentation\Http\Api\V1\Controllers\ProfileImageFileController;
 use Vendor\Identity\Presentation\Http\Api\V1\Controllers\WallpaperController;
+use Vendor\Identity\Presentation\Http\Middleware\UseBrowserTokenCookie;
 
 Route::prefix(config('identity.routes.prefix', 'api/v1'))
     ->middleware(config('identity.routes.middleware', ['api']))
@@ -20,14 +21,14 @@ Route::prefix(config('identity.routes.prefix', 'api/v1'))
             Route::post('/login', [AuthController::class, 'login'])
                 ->middleware('throttle:identity-login')->name('login');
             Route::post('/logout', [AuthController::class, 'logout'])
-                ->middleware('auth:sanctum')->name('logout');
+                ->middleware(UseBrowserTokenCookie::class)->name('logout');
             Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
                 ->middleware('throttle:identity-password-reset')->name('forgot-password');
             Route::post('/reset-password', [AuthController::class, 'resetPassword'])
                 ->middleware('throttle:identity-password-reset')->name('reset-password');
         });
 
-        Route::middleware('auth:sanctum')->group(function (): void {
+        Route::middleware(UseBrowserTokenCookie::class)->group(function (): void {
             Route::get('/me', [MeController::class, 'show'])->name('me');
             Route::patch('/me/profile', [ProfileController::class, 'update'])->name('profile.update');
             Route::patch('/me/email', [ProfileController::class, 'updateEmail'])

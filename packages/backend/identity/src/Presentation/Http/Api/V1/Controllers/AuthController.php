@@ -7,16 +7,19 @@ namespace Vendor\Identity\Presentation\Http\Api\V1\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Cookie;
 use Vendor\Identity\Application\Commands\LoginCommand;
 use Vendor\Identity\Application\Commands\LogoutCommand;
 use Vendor\Identity\Application\Commands\RegisterUserCommand;
 use Vendor\Identity\Application\Commands\RequestPasswordResetCommand;
 use Vendor\Identity\Application\Commands\ResetPasswordCommand;
+use Vendor\Identity\Application\DTOs\AuthenticatedUserData;
 use Vendor\Identity\Application\Handlers\Commands\LoginHandler;
 use Vendor\Identity\Application\Handlers\Commands\LogoutHandler;
 use Vendor\Identity\Application\Handlers\Commands\RegisterUserHandler;
 use Vendor\Identity\Application\Handlers\Commands\RequestPasswordResetHandler;
 use Vendor\Identity\Application\Handlers\Commands\ResetPasswordHandler;
+use Vendor\Identity\Application\Support\BrowserTokenConfig;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\ForgotPasswordRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\LoginRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\RegisterRequest;
@@ -29,7 +32,7 @@ final class AuthController
     {
         $validated = $request->validated();
 
-        $user = $handler->handle(new RegisterUserCommand(
+        $result = $handler->handle(new RegisterUserCommand(
             username: $validated['login'],
             password: $validated['password'],
             name: $validated['name'] ?? null,
@@ -39,14 +42,17 @@ final class AuthController
             $request->session()->regenerate();
         }
 
-        return UserResource::make($user)->response()->setStatusCode(201);
+        return $this->withBrowserTokenCookie(
+            UserResource::make($result->user)->response()->setStatusCode(201),
+            $result,
+        );
     }
 
-    public function login(LoginRequest $request, LoginHandler $handler): UserResource
+    public function login(LoginRequest $request, LoginHandler $handler): JsonResponse
     {
         $validated = $request->validated();
 
-        $user = $handler->handle(new LoginCommand(
+        $result = $handler->handle(new LoginCommand(
             username: $validated['login'],
             password: $validated['password'],
             remember: (bool) ($validated['remember'] ?? false),
@@ -56,19 +62,29 @@ final class AuthController
             $request->session()->regenerate();
         }
 
-        return UserResource::make($user);
+        return $this->withBrowserTokenCookie(UserResource::make($result->user)->response(), $result);
     }
 
-    public function logout(Request $request, LogoutHandler $handler): Response
+    public function logout(Request $request, LogoutHandler $handler, BrowserTokenConfig $browserTokenConfig): Response
     {
-        $handler->handle(new LogoutCommand);
+        $handler->handle(new LogoutCommand(currentAccessTokenId: $request->user()?->currentAccessToken()?->getKey()));
 
         if ($request->hasSession()) {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
 
-        return response()->noContent();
+        $response = response()->noContent();
+        $response->headers->clearCookie(
+            name: $browserTokenConfig->cookieName(),
+            path: $browserTokenConfig->path(),
+            domain: $browserTokenConfig->domain(),
+            secure: $browserTokenConfig->secure(),
+            httpOnly: true,
+            sameSite: $browserTokenConfig->sameSite(),
+        );
+
+        return $response;
     }
 
     public function forgotPassword(ForgotPasswordRequest $request, RequestPasswordResetHandler $handler): JsonResponse
@@ -90,5 +106,27 @@ final class AuthController
         ));
 
         return response()->noContent();
+    }
+
+    private function withBrowserTokenCookie(JsonResponse $response, AuthenticatedUserData $result): JsonResponse
+    {
+        if ($result->browserTokenCookie === null) {
+            return $response;
+        }
+
+        $cookie = $result->browserTokenCookie;
+        $response->headers->setCookie(new Cookie(
+            name: $cookie->name,
+            value: $cookie->plainTextToken,
+            expire: $cookie->expiresAt,
+            path: $cookie->path,
+            domain: $cookie->domain,
+            secure: $cookie->secure,
+            httpOnly: true,
+            raw: false,
+            sameSite: $cookie->sameSite,
+        ));
+
+        return $response;
     }
 }

@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Laravel\Sanctum\PersonalAccessToken;
 use Vendor\Identity\Domain\Models\User;
 
 it('registers with a login only and starts a session', function (): void {
@@ -55,6 +57,33 @@ it('logs in with login and password', function (): void {
     ])->assertOk()->assertJsonPath('data.id', $user->externalId());
 
     $this->assertAuthenticatedAs($user);
+});
+
+it('restores the logged-in user from browser cookies after the Laravel session is lost', function (): void {
+    $user = User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+
+    $login = $this->postJson('/api/v1/auth/login', [
+        'login' => 'alice',
+        'password' => 'correct-horse-battery',
+    ])->assertOk();
+
+    $browserToken = collect($login->headers->getCookies())
+        ->first(fn ($cookie) => $cookie->getName() === config('identity.browser_token.cookie'));
+
+    expect($browserToken)->not->toBeNull();
+    expect(PersonalAccessToken::findToken($browserToken->getValue()))->not->toBeNull();
+
+    Auth::guard('web')->logout();
+    $this->assertGuest();
+
+    $this->call(
+        method: 'GET',
+        uri: '/api/v1/me',
+        cookies: [$browserToken->getName() => $browserToken->getValue()],
+        server: ['HTTP_ACCEPT' => 'application/json'],
+    )
+        ->assertOk()
+        ->assertJsonPath('data.id', $user->externalId());
 });
 
 it('rejects invalid credentials without revealing whether the login exists', function (): void {

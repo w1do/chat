@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vendor\Identity;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +23,7 @@ final class IdentityServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         $this->configureRateLimiters();
+        EncryptCookies::except((string) config('identity.browser_token.cookie', '__Host-chat_browser_token'));
 
         // Провайдер пользователей auth использует настроенный класс приложения
         // либо базовую модель пакета.

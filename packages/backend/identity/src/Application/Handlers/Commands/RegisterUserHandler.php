@@ -8,7 +8,9 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Config\Repository;
 use Vendor\Identity\Application\Commands\RegisterUserCommand;
+use Vendor\Identity\Application\DTOs\AuthenticatedUserData;
 use Vendor\Identity\Application\DTOs\UserData;
+use Vendor\Identity\Application\Support\BrowserTokenLifecycle;
 use Vendor\Identity\Domain\Models\User;
 use Vendor\Identity\Infrastructure\Auth\UserModel;
 
@@ -18,9 +20,10 @@ final readonly class RegisterUserHandler
         private UserModel $userModel,
         private AuthFactory $auth,
         private Repository $config,
+        private BrowserTokenLifecycle $browserTokens,
     ) {}
 
-    public function handle(RegisterUserCommand $command): UserData
+    public function handle(RegisterUserCommand $command): AuthenticatedUserData
     {
         /** @var User $user */
         $user = $this->userModel->query()->create([
@@ -41,6 +44,9 @@ final readonly class RegisterUserHandler
         $guard = $this->auth->guard($this->config->get('identity.guard', 'web'));
         $guard->login($user);
 
-        return UserData::fromModel($user);
+        return new AuthenticatedUserData(
+            user: UserData::fromModel($user),
+            browserTokenCookie: $this->browserTokens->issue($user, false),
+        );
     }
 }

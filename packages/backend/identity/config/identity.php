@@ -28,6 +28,18 @@ return [
         'images' => (int) env('PROFILE_IMAGE_PER_MINUTE', 20),
     ],
 
+    'browser_token' => [
+        'enabled' => (bool) env('AUTH_BROWSER_TOKEN_ENABLED', true),
+        'cookie' => env('AUTH_BROWSER_TOKEN_COOKIE', '__Host-chat_browser_token'),
+        'ability' => env('AUTH_BROWSER_TOKEN_ABILITY', 'browser'),
+        'ttl_minutes' => (int) env('AUTH_BROWSER_TOKEN_TTL_MINUTES', 1440),
+        'remember_ttl_minutes' => (int) env('AUTH_BROWSER_TOKEN_REMEMBER_TTL_MINUTES', 43200),
+        'secure' => (bool) env('AUTH_BROWSER_TOKEN_SECURE', env('APP_ENV') === 'production'),
+        'same_site' => env('AUTH_BROWSER_TOKEN_SAME_SITE', 'lax'),
+        'path' => '/',
+        'domain' => env('AUTH_BROWSER_TOKEN_DOMAIN'),
+    ],
+
     // Изображения профиля: аватарки и обои (ADR-011). Хранятся только
     // подготовленными в webp — исходник в бакет не попадает.
     'images' => [
