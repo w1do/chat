@@ -44,7 +44,7 @@ test('two users talk, search history and see what was missed', async ({ browser 
 
   // Поиск по истории: с поднятым Typesense находит, без него честно говорит,
   // что недоступен (SEARCH_ENABLED выключен по умолчанию).
-  await alice.getByRole('button', { name: 'Поиск по комнате' }).click();
+  await alice.getByRole('button', { name: 'Поиск по переписке' }).click();
   await alice.getByLabel('Что ищем').fill('борща');
   await expect(
     alice.getByText(/рецепт борща|Поиск сейчас недоступен|Ничего не нашлось/).first(),

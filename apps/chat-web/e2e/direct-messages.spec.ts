@@ -34,8 +34,9 @@ test('two people talk privately, hide the dialog and get it back', async ({ brow
   await expect(candidate).toBeVisible({ timeout: 15_000 });
   await candidate.click();
 
-  // Шапка диалога подписана собеседником, комнатных действий в ней нет.
-  await expect(alice.locator('header').getByText(`@${login('Bob')} · личная переписка`)).toBeVisible({
+  // Шапка диалога подписана ником собеседника (дальше в подписи — его
+  // присутствие), комнатных действий в ней нет.
+  await expect(alice.locator('header').getByText(`@${login('Bob')} ·`)).toBeVisible({
     timeout: 15_000,
   });
   await expect(alice.getByRole('button', { name: 'Пригласить' })).toHaveCount(0);
