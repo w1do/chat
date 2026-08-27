@@ -5,6 +5,7 @@ import {
   useAttachmentUploads,
   useCreateRoom,
   useDeleteMessage,
+  useHideConversation,
   useMembers,
   useMembershipActions,
   useIncomingMessages,
@@ -340,6 +341,7 @@ function ActiveRoom({
   const react = useReactions(roomId);
   const typing = useTyping(roomId);
   const membership = useMembershipActions(roomId);
+  const hide = useHideConversation();
 
   const isMember = room.data?.my_role != null;
   const { typingUserIds, connection, joinGreeting, dismissGreeting, deleted, removed } = useRealtimeRoom(
@@ -445,6 +447,15 @@ function ActiveRoom({
             onToast('Не удалось создать приглашение');
           }
         }}
+        onHide={
+          room.data.kind === 'direct'
+            ? async () => {
+                await hide.mutateAsync(roomId);
+                onToast('Диалог скрыт — вернётся с новым сообщением');
+                onBack();
+              }
+            : undefined
+        }
         onLoadMore={() => void messages.fetchNextPage()}
         onSend={async (input) => {
           typing.stopTyping();

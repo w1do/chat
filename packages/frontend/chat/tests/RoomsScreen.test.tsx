@@ -28,6 +28,7 @@ const handlers = {
   onRetry: vi.fn(),
   onProfile: vi.fn(),
   onCreateRoom: vi.fn().mockResolvedValue(undefined),
+  onStartConversation: vi.fn().mockResolvedValue(undefined),
 };
 
 const base = {
@@ -133,5 +134,9 @@ describe('RoomsScreen', () => {
         .getByRole('button', { name: /Bob Builder/ })
         .querySelector('[aria-label="Непрочитанных: 5"]')
     ).toBeTruthy();
+
+    // Список — ровно то, что пришло от сервера: чужих диалогов в нём нет.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByText(/Carol/)).toBeNull();
   });
 });

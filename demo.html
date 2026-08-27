@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Self-Hosted — свой мессенджер на своём сервере</title>
+<meta name="description" content="Презентация self-hosted веб-чата: комнаты, сообщения в реальном времени, уведомления о пропущенном, поиск, помощник для черновика и установка одной командой.">
+<meta name="robots" content="noindex">
+<!--
+  demo.html — автономный презентационный лендинг (статус: implemented, визуальная
+  приёмка выполняется вручную перед записью).
+
+  Сверено 2026-08-27 по SUMMARY.md, README.md и docs/features/*.
+  Карта утверждений (claim -> источник):
+    ownership     -> README «Чем это лучше», docs/security/threat-model.md
+    interface     -> SUMMARY platform/app-shell, platform/desktop-layout, chat/visual-language
+    rooms         -> SUMMARY chat/rooms-and-messages (verified)
+    messages      -> SUMMARY chat/rooms-and-messages, chat/message-interaction
+    realtime      -> SUMMARY chat/realtime-presence (verified)
+    invites       -> SUMMARY chat/invite-links, identity/guest-accounts
+    media         -> SUMMARY chat/attachments (verified), identity/profile-images (verified)
+    notifications -> SUMMARY notifications/offline-delivery (verified), notifications/web-push,
+                     platform/installable-app
+    search        -> SUMMARY search/message-search (verified), docs/operations/search-reindex.md
+    ai            -> SUMMARY ai/text-revisions (verified), docs/features/ai-text-revision.md
+    control       -> SUMMARY administration/system-controls
+    architecture  -> README «Технологии», STRUCTURE.md, docs/decisions/*
+    install       -> README «На своём VPS без панели» (команда скопирована дословно)
+
+  Не показываем как доступное: личная переписка (E2E ещё не выполнялся),
+  нативные клиенты, звонки, сквозное шифрование, федерация.
+
+  Правило сопровождения: новая или заметно изменённая пользовательская функция
+  обновляет соответствующую сцену этого файла в том же изменении (AGENTS.md /
+  CLAUDE.md, раздел «Definition of Done»).
+
+  Данные во всех mockup-панелях вымышленные. Страница не обращается к API чата,
+  WebSocket и аналитике; внешними остаются только закреплённые версии GSAP,
+  ScrollTrigger и Motion.
+-->
+<style>
+  :root {
+    --canvas: #080806;
+    --canvas-soft: #11110e;
+    --panel: rgba(20, 20, 17, 0.96);
+    --panel-solid: #171713;
+    --line: rgba(181, 177, 163, 0.16);
+    --line-strong: rgba(181, 177, 163, 0.34);
+    --text: #f5f1e8;
+    --muted: #a29f96;
+    --orange: #ff8a24;
+    --orange-soft: #ffb15f;
+    --green: #72d88b;
+    --steel: #8f968f;
+    /* Legacy utility names map to the semantic redesign palette. */
+    --cyan: var(--orange);
+    --violet: var(--steel);
+    --lime: var(--green);
+    --radius-s: 2px;
+    --radius-m: 4px;
+    --radius-l: 6px;
+    --space-1: 6px;
+    --space-2: 12px;
+    --space-3: 20px;
+    --space-4: 32px;
+    --space-5: 56px;
+    --space-6: 96px;
+    --display: "Inter Tight", "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", ui-monospace, "Menlo", "Consolas", monospace;
+    --shadow: 0 28px 80px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 138, 36, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px) 0 0 / 72px 72px,
+      var(--canvas);
+    color: var(--text);
+    font-family: var(--display);
+    font-size: clamp(15px, 0.55vw + 13px, 17px);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::before {
+    background-image: linear-gradient(115deg, transparent 0 48%, rgba(255, 138, 36, 0.025) 48% 48.15%, transparent 48.15%);
+    opacity: 0.55;
+  }
+
+  body::after {
+    background:
+      radial-gradient(circle at 8% -8%, rgba(255, 138, 36, 0.16), transparent 30%),
+      radial-gradient(circle at 90% 8%, rgba(114, 216, 139, 0.09), transparent 28%);
+    opacity: 0.82;
+  }
+
+  .ambient-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .ambient-message {
+    position: absolute;
+    max-width: 22ch;
+    padding: 8px 11px;
+    border: 1px solid rgba(255, 138, 36, 0.16);
+    background: rgba(20, 20, 17, 0.5);
+    color: rgba(245, 241, 232, 0.18);
+    font: 0.7rem/1.4 var(--mono);
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .ambient-message[data-side="left"] { left: clamp(8px, 2vw, 32px); }
+  .ambient-message[data-side="right"] { right: clamp(8px, 2vw, 32px); }
+
+  section[data-scene-state="running"] .panel {
+    border-color: rgba(255, 138, 36, 0.42);
+  }
+  section[data-scene-state="complete"]::before { color: rgba(114, 216, 139, 0.58); }
+  [data-sequence-state="pending"] {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  [data-sequence-state="arrived"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  [data-sequence="message"] {
+    transition: opacity 420ms ease, transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  [data-reaction-state="pending"] {
+    opacity: 0;
+    transform: translateY(6px) scale(0.86);
+  }
+  [data-reaction-state="set"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: rgba(114, 216, 139, 0.62);
+    background: rgba(114, 216, 139, 0.12);
+  }
+
+  a { color: var(--orange-soft); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  :focus-visible {
+    outline: 2px solid var(--orange);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: var(--space-3);
+    top: -60px;
+    z-index: 30;
+    padding: 10px 16px;
+    background: var(--panel-solid);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    color: var(--text);
+    transition: top 0.15s ease;
+  }
+  .skip-link:focus { top: var(--space-3); }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    width: min(1180px, 100% - 2 * var(--space-3));
+    margin: 0 auto;
+  }
+
+  /* ── Навигация ─────────────────────────────────────────────── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+    background: rgba(8, 8, 6, 0.9);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .topbar__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .brand__mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 2px;
+    background: linear-gradient(140deg, var(--orange) 0 46%, transparent 47% 55%, var(--green) 56%);
+    clip-path: polygon(0 0, 100% 0, 100% 72%, 72% 72%, 72% 100%, 54% 72%, 0 72%);
+    box-shadow: 0 0 22px rgba(255, 138, 36, 0.28);
+  }
+
+  .nav {
+    display: flex;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-right: auto;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+
+  .nav a {
+    padding: 6px 9px;
+    border-radius: 3px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+  .nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); text-decoration: none; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--line-strong);
+    background: rgba(255, 138, 36, 0.06);
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn--primary {
+    border-color: rgba(255, 138, 36, 0.62);
+    background: linear-gradient(120deg, rgba(255, 138, 36, 0.3), rgba(255, 138, 36, 0.16));
+    color: var(--text);
+  }
+  .btn:hover { text-decoration: none; }
+
+  /* ── Секции ────────────────────────────────────────────────── */
+  section {
+    position: relative;
+    overflow: hidden;
+    min-height: min(860px, 92vh);
+    padding: clamp(88px, 10vw, 150px) 0;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 72px;
+  }
+  section::before {
+    content: "// " attr(data-scene);
+    position: absolute;
+    top: 28px;
+    left: max(var(--space-3), calc((100vw - 1180px) / 2));
+    color: rgba(255, 138, 36, 0.5);
+    font: 0.68rem/1 var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  section:nth-of-type(even) {
+    background: linear-gradient(106deg, rgba(255, 138, 36, 0.045), transparent 38%);
+  }
+  section:nth-of-type(3n) {
+    background: linear-gradient(254deg, rgba(114, 216, 139, 0.035), transparent 42%);
+  }
+  section:first-of-type { border-top: 0; }
+
+  #hero { padding-top: var(--space-5); }
+  #hero { min-height: calc(100vh - 58px); }
+  #hero > .shell { min-height: min(76vh, 720px); align-content: center; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin: 0 0 var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before { content: ""; width: 34px; height: 1px; background: currentColor; }
+
+  h1, h2, h3 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 var(--space-2);
+  }
+  h1 { font-size: clamp(2.65rem, 5.5vw, 5.5rem); font-weight: 760; max-width: 11ch; }
+  h2 { font-size: clamp(2rem, 3.7vw, 3.8rem); font-weight: 720; max-width: 18ch; }
+  h3 { font-size: 1.05rem; font-weight: 640; letter-spacing: -0.01em; }
+
+  .lede { color: var(--muted); font-size: clamp(1rem, 1vw + 0.7rem, 1.2rem); max-width: 62ch; margin: 0 0 var(--space-3); }
+  p { margin: 0 0 var(--space-2); }
+  .muted { color: var(--muted); }
+
+  #ownership > .shell > .eyebrow,
+  #realtime > .shell > .eyebrow,
+  #architecture > .shell > .eyebrow { justify-content: center; }
+  #ownership > .shell > h2,
+  #realtime > .shell > h2,
+  #architecture > .shell > h2,
+  #ownership > .shell > .lede,
+  #realtime > .shell > .lede,
+  #architecture > .shell > .lede {
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+  }
+
+  .grid { display: grid; gap: var(--space-3); }
+  .grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid--split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--space-4); }
+  .grid--aside { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); align-items: center; gap: var(--space-4); }
+
+  .card {
+    padding: var(--space-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-m);
+    background: linear-gradient(145deg, rgba(35, 34, 29, 0.96), rgba(17, 17, 14, 0.96));
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
+    text-align: center;
+  }
+  .card h3 { margin-bottom: 6px; }
+  .card p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 5px 11px;
+    border-radius: 4px;
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    background: rgba(255, 138, 36, 0.05);
+  }
+  .chip--cyan { color: var(--orange-soft); border-color: rgba(255, 138, 36, 0.48); }
+  .chip--violet { color: var(--steel); border-color: rgba(143, 150, 143, 0.42); }
+  .chip--lime { color: var(--green); border-color: rgba(114, 216, 139, 0.45); }
+
+  .list { margin: 0; padding-left: 1.1em; color: var(--muted); }
+  .list li { margin-bottom: 6px; }
+
+  /* ── Панели-макеты ─────────────────────────────────────────── */
+  .panel {
+    position: relative;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-l);
+    background: linear-gradient(155deg, rgba(27, 27, 23, 0.99), rgba(12, 12, 10, 0.99));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel::after {
+    content: "";
+    position: absolute;
+    width: 48px;
+    height: 2px;
+    right: 14px;
+    bottom: 10px;
+    background: linear-gradient(90deg, transparent, var(--cyan));
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .grid--aside > .panel { transform: rotate(-0.35deg); }
+  .grid--aside > .panel + div,
+  .grid--aside > div + .panel { position: relative; z-index: 2; }
+
+  .panel__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); }
+  .dot--cyan { background: var(--cyan); }
+  .dot--lime { background: var(--lime); }
+  .dot--violet { background: var(--violet); }
+
+  .panel__body { padding: var(--space-3); display: grid; gap: 12px; }
+
+  .file-tile {
+    min-height: 92px;
+    display: grid;
+    place-items: center;
+    gap: 5px;
+    padding: 12px 8px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: rgba(255, 255, 255, 0.025);
+    font: 700 0.72rem/1 var(--mono);
+    letter-spacing: 0.06em;
+  }
+  .file-tile svg { width: 38px; height: 38px; }
+  .file-tile--pdf { color: #ff6b5f; background: linear-gradient(145deg, rgba(255, 107, 95, 0.12), rgba(255, 255, 255, 0.02)); }
+  .file-tile--docs { color: #6da8ff; background: linear-gradient(145deg, rgba(109, 168, 255, 0.12), rgba(255, 255, 255, 0.02)); }
+  .file-tile--img { color: var(--green); background: linear-gradient(145deg, rgba(114, 216, 139, 0.12), rgba(255, 255, 255, 0.02)); }
+
+  .msg { display: flex; gap: 10px; align-items: flex-end; }
+  .msg--own { flex-direction: row-reverse; }
+  .msg__avatar {
+    width: 30px; height: 30px; flex: 0 0 30px;
+    border-radius: 50%;
+    background: linear-gradient(140deg, rgba(255, 138, 36, 0.88), rgba(114, 216, 139, 0.62));
+    font-size: 0.72rem;
+    display: grid;
+    place-items: center;
+    color: #06070a;
+    font-weight: 700;
+  }
+  .msg__bubble {
+    max-width: 32ch;
+    padding: 9px 13px;
+    border-radius: var(--radius-m);
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--line);
+    font-size: 0.92rem;
+  }
+  .msg--own .msg__bubble { background: rgba(255, 138, 36, 0.11); border-color: rgba(255, 138, 36, 0.28); }
+  .msg__name { display: block; font-size: 0.74rem; color: var(--muted); margin-bottom: 3px; }
+  .msg__reply {
+    display: block;
+    border-left: 2px solid var(--violet);
+    padding-left: 8px;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .msg__reactions { display: flex; gap: 6px; margin-top: 6px; }
+  .reaction {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    transition: opacity 320ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1), border-color 320ms ease, background 320ms ease;
+    padding: 2px 8px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--line-strong);
+    background: rgba(114, 216, 139, 0.06);
+  }
+  .day {
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .composer__field {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s);
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .stat { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+  .kv { display: flex; justify-content: space-between; gap: var(--space-2); font-family: var(--mono); font-size: 0.82rem; }
+  .kv span:last-child { color: var(--text); }
+
+  .figure { width: 100%; height: auto; display: block; }
+  .figure [data-flow="line"] path {
+    stroke-dasharray: 8 10;
+    animation: flow-line 1s linear infinite;
+  }
+
+  @keyframes flow-line {
+    to { stroke-dashoffset: -18; }
+  }
+
+  /* ── Терминал ──────────────────────────────────────────────── */
+  .terminal { font-family: var(--mono); }
+  .terminal__code {
+    margin: 0;
+    padding: var(--space-3);
+    font-family: var(--mono);
+    font-size: clamp(0.72rem, 0.75vw + 0.5rem, 0.9rem);
+    line-height: 1.75;
+    color: var(--lime);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .terminal__out {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-3);
+    list-style: none;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: grid;
+    gap: 6px;
+  }
+  .terminal__out li::before { content: "› "; color: var(--cyan); }
+  .terminal__out li[data-line-state="pending"] { opacity: 0.24; }
+  .terminal__out li[data-line-state="visible"] { opacity: 1; }
+  .terminal__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    padding: 0 var(--space-3) var(--space-3);
+  }
+  .copy-status { font-family: var(--mono); font-size: 0.8rem; color: var(--lime); }
+
+  /* ── Финал ─────────────────────────────────────────────────── */
+  .cta-box {
+    text-align: center;
+    padding: var(--space-5) var(--space-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-l);
+    background: linear-gradient(120deg, rgba(255, 138, 36, 0.12), transparent 34%), linear-gradient(300deg, rgba(114, 216, 139, 0.08), transparent 38%), rgba(20, 20, 17, 0.96);
+  }
+  .cta-box h2 { margin-right: auto; margin-left: auto; }
+  .cta-actions { display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap; margin-top: var(--space-3); }
+
+  footer {
+    padding: var(--space-4) 0 var(--space-5);
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .glow {
+    position: absolute;
+    inset: auto;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.13;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .glow--cyan { background: var(--cyan); top: -160px; left: -120px; }
+  .glow--violet { background: var(--violet); top: 40%; right: -180px; }
+
+  /* ── Адаптив ───────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .grid--2, .grid--3, .grid--split, .grid--aside { grid-template-columns: minmax(0, 1fr); }
+    section { min-height: 0; padding: 88px 0 72px; }
+    .glow { display: none; }
+    .topbar__inner { flex-wrap: wrap; }
+    .nav { order: 3; width: 100%; }
+    .grid--aside > .panel { transform: none; }
+    h1 { font-size: clamp(2.55rem, 14vw, 4.2rem); }
+    .ambient-message { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .ambient-layer { display: none; }
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#hero">Перейти к содержанию</a>
+<div class="ambient-layer" id="ambient-layer" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="shell topbar__inner">
+    <span class="brand"><span class="brand__mark" aria-hidden="true"></span>Chat Self-Hosted</span>
+    <nav class="nav" aria-label="Разделы презентации">
+      <a href="#ownership">Владение</a>
+      <a href="#rooms">Комнаты</a>
+      <a href="#messages">Сообщения</a>
+      <a href="#realtime">Real-time</a>
+      <a href="#notifications">Уведомления</a>
+      <a href="#search">Поиск</a>
+      <a href="#ai">Помощник</a>
+      <a href="#architecture">Архитектура</a>
+      <a href="#install">Установка</a>
+    </nav>
+    <a class="btn btn--primary" href="#install">Развернуть у себя</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1. hero -->
+  <section id="hero" data-scene="hero" data-domain="product/overview" aria-labelledby="hero-title">
+    <span class="glow glow--cyan" aria-hidden="true"></span>
+    <div class="shell grid grid--split">
+      <div data-anim="stack">
+        <p class="eyebrow">self-hosted messenger</p>
+        <h1 id="hero-title">Свой мессенджер.<br>В один клик.</h1>
+        <p class="lede">Self-hosted веб-чат для семьи и команды: одна документированная команда
+          поднимает ваш экземпляр на VPS. Он открывается в браузере на телефоне и компьютере,
+          а переписка остаётся на вашем сервере.</p>
+        <ul class="chips">
+          <li class="chip chip--cyan">Комнаты и роли</li>
+          <li class="chip chip--violet">Сообщения в реальном времени</li>
+          <li class="chip chip--lime">Уведомления о пропущенном</li>
+          <li class="chip">Поиск и помощник — по желанию</li>
+        </ul>
+        <div class="cta-actions" style="justify-content: flex-start;">
+          <a class="btn btn--primary" href="#install">Команда установки</a>
+          <a class="btn" href="#interface">Посмотреть интерфейс</a>
+        </div>
+      </div>
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span class="dot dot--violet"></span><span class="dot"></span><span>#семья — 4 участника</span></div>
+        <div class="panel__body">
+          <p class="day">Сегодня</p>
+          <div class="msg" data-sequence="message">
+            <span class="msg__avatar">М</span>
+            <span class="msg__bubble"><span class="msg__name">Марина</span>Билеты взяли, выезжаем в семь<span class="msg__reactions"><span class="reaction">❤️ 2</span></span></span>
+          </div>
+          <div class="msg msg--own" data-sequence="message">
+            <span class="msg__avatar">Я</span>
+            <span class="msg__bubble"><span class="msg__reply">Марина: Билеты взяли…</span>Отлично, встречу на вокзале</span>
+          </div>
+          <div class="msg" data-sequence="message">
+            <span class="msg__avatar">Т</span>
+            <span class="msg__bubble"><span class="msg__name">Тимур</span>@Марина захвати термос</span>
+          </div>
+        </div>
+        <div class="composer"><span class="composer__field" data-sequence="typing" data-text="Марина печатает…">Марина печатает…</span><span class="chip chip--cyan">online 3</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ownership -->
+  <section id="ownership" data-scene="ownership" data-domain="product/ownership" aria-labelledby="ownership-title">
+    <div class="shell">
+      <p class="eyebrow">владение данными</p>
+      <h2 id="ownership-title">Переписка — на вашем сервере</h2>
+      <p class="lede">Никакого внешнего control plane и телеметрии: приложение работает
+        автономно, а резервная копия — обычный <code>pg_dump</code>.</p>
+      <div class="grid grid--3">
+        <article class="card" data-anim="card">
+          <h3>PostgreSQL у вас</h3>
+          <p>Сообщения, участники и файлы живут в вашей базе и вашем объектном хранилище.</p>
+        </article>
+        <article class="card" data-anim="card">
+          <h3>Без обязательных третьих сторон</h3>
+          <p>Помощник выключен по умолчанию; включив его, вы сами выбираете провайдера.</p>
+        </article>
+        <article class="card" data-anim="card">
+          <h3>Открытый код и честные статусы</h3>
+          <p>Тесты, документация и статус каждой функции лежат в репозитории.</p>
+        </article>
+      </div>
+      <p class="muted" style="margin-top: var(--space-3);">Честная граница: сквозного
+        шифрования нет — администратор сервера технически может прочитать переписку. Это
+        заявленное ограничение, а не недоработка формулировки.</p>
+    </div>
+  </section>
+
+  <!-- 3. interface -->
+  <section id="interface" data-scene="interface" data-domain="platform/app-shell" aria-labelledby="interface-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">интерфейс</p>
+        <h2 id="interface-title">Удобно на любом экране</h2>
+        <p class="lede">Оболочка владеет экраном: страница не отскакивает, панель ввода видна
+          целиком, клавиатура не уводит переписку вниз. От 1024 px — две колонки.</p>
+        <ul class="list">
+          <li>Светлая и тёмная тема, размер текста</li>
+          <li>Полная работа с клавиатуры и видимый фокус</li>
+          <li>Установка на телефон и компьютер как приложение</li>
+        </ul>
+      </div>
+      <div class="grid grid--2" aria-hidden="true">
+        <div class="panel" data-anim="panel">
+          <div class="panel__bar"><span class="dot dot--cyan"></span><span>Чаты</span></div>
+          <div class="panel__body">
+            <div class="kv"><span>#семья</span><span>3</span></div>
+            <div class="kv"><span>#дача</span><span>—</span></div>
+            <div class="kv"><span>#работа</span><span>12</span></div>
+            <div class="kv"><span>Настройки</span><span>›</span></div>
+          </div>
+        </div>
+        <div class="panel" data-anim="panel">
+          <div class="panel__bar"><span class="dot dot--violet"></span><span>#дача</span></div>
+          <div class="panel__body">
+            <div class="msg"><span class="msg__avatar">Л</span><span class="msg__bubble">Полил всё, к выходным приеду</span></div>
+            <div class="msg msg--own"><span class="msg__avatar">Я</span><span class="msg__bubble">Спасибо!</span></div>
+          </div>
+          <div class="composer"><span class="composer__field">Сообщение</span><span class="chip">↩</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. rooms -->
+  <section id="rooms" data-scene="rooms" data-domain="chat/rooms-and-messages" aria-labelledby="rooms-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">комнаты и роли</p>
+        <h2 id="rooms-title">Комнаты с понятными правами</h2>
+        <p class="lede">У комнаты один владелец. Он правит название и описание, архивирует
+          или удаляет комнату; админ помогает с участниками; участник просто общается.</p>
+        <ul class="list">
+          <li>Приглашение по нику из списка подходящих пользователей</li>
+          <li>Исключение участника: владелец — любого кроме себя, админ — только участника</li>
+          <li>Выход из комнаты и системная запись об этом прямо в истории</li>
+        </ul>
+      </div>
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--lime"></span><span>#работа → участники</span></div>
+        <div class="panel__body">
+          <div class="kv"><span>Ирина</span><span class="chip chip--lime">владелец</span></div>
+          <div class="kv"><span>Павел</span><span class="chip chip--cyan">админ</span></div>
+          <div class="kv"><span>Тимур</span><span class="chip">участник</span></div>
+          <div class="kv"><span>Гость (по ссылке)</span><span class="chip">участник</span></div>
+          <p class="stat">приватная комната · 4 участника · создана 12 августа</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. messages -->
+  <section id="messages" data-scene="messages" data-domain="chat/message-interaction" aria-labelledby="messages-title">
+    <div class="shell grid grid--aside">
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span>#семья</span></div>
+        <div class="panel__body">
+          <p class="day">Вчера</p>
+          <div class="msg" data-sequence="message" data-message-author="Марина" data-typing-text="Марина печатает…">
+            <span class="msg__avatar">М</span>
+            <span class="msg__bubble"><span class="msg__name">Марина</span>Список покупок скину вечером<span class="msg__reactions"><span class="reaction" data-reaction-state="pending">👍 3</span><span class="reaction" data-reaction-state="pending">🔥 1</span></span></span>
+          </div>
+          <div class="msg msg--own" data-sequence="message" data-message-author="Я" data-typing-text="Вы печатаете…">
+            <span class="msg__avatar">Я</span>
+            <span class="msg__bubble"><span class="msg__reply">Марина: Список покупок…</span>Добавь батарейки <span class="stat">(изменено)</span></span>
+          </div>
+          <div class="msg" data-sequence="message" data-message-author="Тимур" data-typing-text="Тимур печатает…"><span class="msg__avatar">Т</span><span class="msg__bubble muted">Сообщение удалено</span></div>
+        </div>
+        <div class="composer"><span class="composer__field" data-sequence="typing" data-resting-text="Ответ Марине…">Ответ Марине…</span><span class="chip chip--violet">@</span></div>
+      </div>
+      <div>
+        <p class="eyebrow">сообщения</p>
+        <h2 id="messages-title">Ответы, реакции и упоминания</h2>
+        <p class="lede">Действия живут в жестах: свайп влево — ответить, двойное касание —
+          «❤️», долгое нажатие или правый клик — меню. Всё то же доступно с клавиатуры.</p>
+        <ul class="list">
+          <li>Правка в течение окна редактирования и мягкое удаление с сохранением ответов</li>
+          <li>Бесконечная история с курсорной пагинацией и счётчиками непрочитанного</li>
+          <li>Повторная отправка не создаёт дубль — запрос идемпотентен</li>
+        </ul>
+        <p class="muted">Звонков и сквозного шифрования в продукте нет.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. realtime -->
+  <section id="realtime" data-scene="realtime" data-domain="chat/realtime-presence" aria-labelledby="realtime-title">
+    <span class="glow glow--violet" aria-hidden="true"></span>
+    <div class="shell">
+      <p class="eyebrow">real-time</p>
+      <h2 id="realtime-title">WebSocket доставляет. HTTP восстанавливает.</h2>
+      <p class="lede">События идут через собственный сервер Reverb после фиксации транзакции.
+        Если связь оборвалась, история досинхронизируется по HTTP — источник истины остаётся
+        на сервере, а не в сокете.</p>
+      <div class="panel" data-anim="panel">
+        <div class="panel__bar"><span class="dot dot--lime"></span><span>поток доставки</span></div>
+        <div class="panel__body">
+          <svg class="figure" viewBox="0 0 900 210" role="img" aria-label="Схема: сообщение сохраняется в PostgreSQL, событие уходит через Reverb в браузеры, после обрыва связи история восстанавливается запросом по HTTP">
+            <g fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1.5">
+              <rect x="12" y="70" width="170" height="66" rx="4"></rect>
+              <rect x="240" y="70" width="170" height="66" rx="4"></rect>
+              <rect x="468" y="14" width="180" height="60" rx="4"></rect>
+              <rect x="468" y="132" width="180" height="60" rx="4"></rect>
+              <rect x="708" y="70" width="180" height="66" rx="4"></rect>
+            </g>
+            <g fill="#f2f4f8" font-family="ui-monospace, monospace" font-size="14">
+              <text x="34" y="100">Отправка</text><text x="34" y="120" fill="#9aa3b4">POST /messages</text>
+              <text x="262" y="100">PostgreSQL</text><text x="262" y="120" fill="#9aa3b4">commit</text>
+              <text x="490" y="44">Reverb</text><text x="490" y="62" fill="#9aa3b4">message.created.v1</text>
+              <text x="490" y="162">HTTP resync</text><text x="490" y="180" fill="#9aa3b4">после reconnect</text>
+              <text x="730" y="100">Браузеры</text><text x="730" y="120" fill="#9aa3b4">typing · presence</text>
+            </g>
+            <g stroke-width="2" fill="none" data-flow="line">
+              <path d="M182 103 H240" stroke="#4ee0ff"></path>
+              <path d="M410 103 C440 103 440 44 468 44" stroke="#4ee0ff"></path>
+              <path d="M410 103 C440 103 440 162 468 162" stroke="#a98bff"></path>
+              <path d="M648 44 C678 44 678 103 708 103" stroke="#4ee0ff"></path>
+              <path d="M648 162 C678 162 678 103 708 103" stroke="#a98bff"></path>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="grid grid--3" style="margin-top: var(--space-3);">
+        <article class="card" data-anim="card"><h3>«Печатает…»</h3><p>Индикатор в шапке комнаты сворачивается, когда пишут несколько человек.</p></article>
+        <article class="card" data-anim="card"><h3>Кто в комнате</h3><p>Реестр присутствия с TTL в Redis; новый участник встречается конфетти.</p></article>
+        <article class="card" data-anim="card"><h3>Приватные каналы</h3><p>Подписку авторизует сервер, в событии — только разрешённые данные.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. invites -->
+  <section id="invites" data-scene="invites" data-domain="chat/invite-links" aria-labelledby="invites-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">приглашения</p>
+        <h2 id="invites-title">Инвайтинг по ссылке</h2>
+        <p class="lede">Приглашение создаёт участник комнаты. Ссылка многоразовая, живёт семь
+          дней и отзывается в один клик; в базе хранится только хэш токена.</p>
+        <ul class="list">
+          <li>Гость называет имя, логин и пароль генерируются за него</li>
+          <li>Подсказка в настройках напоминает задать свой пароль</li>
+          <li>Частота выдачи ссылок ограничена</li>
+        </ul>
+      </div>
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--violet"></span><span>приглашение в #дача</span></div>
+        <div class="panel__body">
+          <p class="terminal__code" style="padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-s);">https://chat.example.test/invite/demo-token-не-настоящий</p>
+          <div class="kv"><span>действует до</span><span>через 7 дней</span></div>
+          <div class="kv"><span>переходов</span><span>2</span></div>
+          <div class="chips"><span class="chip chip--lime">отозвать</span><span class="chip">скопировать</span></div>
+          <p class="stat">данные вымышленные, запрос не отправляется</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. media -->
+  <section id="media" data-scene="media" data-domain="chat/attachments" aria-labelledby="media-title">
+    <div class="shell grid grid--aside">
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span>вложения</span></div>
+        <div class="panel__body">
+          <div class="grid grid--3" style="gap: 8px;">
+            <span class="file-tile file-tile--pdf">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 4h17l8 8v32H12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M29 4v9h8M17 30c7-1 12-5 14-10M20 18c2 8 6 13 12 15M17 34c3-7 7-10 14-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              PDF
+            </span>
+            <span class="file-tile file-tile--docs">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 4h17l8 8v32H12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M29 4v9h8M18 21h13M18 27h13M18 33h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              DOCS
+            </span>
+            <span class="file-tile file-tile--img">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="19" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="m9 36 10-10 7 7 5-5 8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              IMG
+            </span>
+          </div>
+          <div class="kv"><span>смета.pdf</span><span>312 КБ</span></div>
+          <p class="stat">выдаёт приложение из закрытого бакета по праву чтения</p>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">файлы и оформление</p>
+        <h2 id="media-title">Файлы, галерея и обои</h2>
+        <p class="lede">Файлы загружаются в границах комнаты: белый список типов, пределы
+          размера и количества, запрет исполняемого. Публичных ссылок нет — файл отдаёт
+          приложение тому, кто вправе прочитать сообщение.</p>
+        <ul class="list">
+          <li>Плитки: один файл крупно, 2–4 сеткой, дальше «Показать ещё»</li>
+          <li>Галерея со свайпом и управлением с клавиатуры</li>
+          <li>Аватарка профиля с набором прежних, фотография комнаты, свои обои</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. notifications -->
+  <section id="notifications" data-scene="notifications" data-domain="notifications/offline-delivery" aria-labelledby="notifications-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">уведомления</p>
+        <h2 id="notifications-title">Только когда вас нет в комнате</h2>
+        <p class="lede">Источник истины — реестр присутствия: если вы сейчас читаете комнату,
+          уведомление не придёт. Шумная беседа сворачивается в одну запись со счётчиком.</p>
+        <ul class="list">
+          <li>Каналы — лента и почта — настраивает сам пользователь</li>
+          <li>Web Push доставляет при закрытом приложении, если заданы ключи VAPID</li>
+          <li>Приложение ставится на телефон и компьютер, есть экран «Нет связи»</li>
+        </ul>
+        <p class="muted">Это веб-push через подписку браузера, а не нативный клиент.</p>
+      </div>
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--lime"></span><span>лента уведомлений</span></div>
+        <div class="panel__body">
+          <div class="card" data-anim="card"><h3>#работа · 12 новых</h3><p>Павел, Ирина и ещё двое — сгруппировано</p></div>
+          <div class="card" data-anim="card"><h3>#семья</h3><p>Вас упомянули: «@Тимур захвати термос»</p></div>
+          <div class="kv"><span>лента</span><span class="chip chip--lime">вкл</span></div>
+          <div class="kv"><span>почта</span><span class="chip">выкл</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. search -->
+  <section id="search" data-scene="search" data-domain="search/message-search" aria-labelledby="search-title">
+    <div class="shell grid grid--aside">
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span>поиск по истории</span></div>
+        <div class="panel__body">
+          <p class="composer__field" style="font-family: var(--mono);">термос</p>
+          <div class="card" data-anim="card"><h3>#семья · Тимур</h3><p>«@Марина захвати <b>термос</b>»</p></div>
+          <div class="card" data-anim="card"><h3>#дача · Лена</h3><p>«<b>Термос</b> оставила на веранде»</p></div>
+          <p class="stat">права проверяются по PostgreSQL, а не по индексу</p>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">поиск</p>
+        <h2 id="search-title">Поиск по вашим комнатам</h2>
+        <p class="lede">Индекс на Typesense хранит безопасные поля и обновляется после фиксации
+          транзакции, а доступ к найденному подтверждается запросом в PostgreSQL.</p>
+        <ul class="list">
+          <li>Выключен по умолчанию — включается, когда действительно нужен</li>
+          <li>Недоступность поиска отвечает документированной деградацией, чат продолжает работать</li>
+          <li>Индекс перестраивается командой <code>chat:search-reindex</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. ai -->
+  <section id="ai" data-scene="ai" data-domain="ai/text-revisions" aria-labelledby="ai-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">помощник</p>
+        <h2 id="ai-title">Помощник правит черновик</h2>
+        <p class="lede">Помощник предлагает вариант вашего черновика: исправить ошибки, сказать
+          понятнее, короче или мягче. Опубликовать может только человек — кнопкой «Принять».</p>
+        <ul class="list">
+          <li>Наружу уходит только текст черновика, без истории комнаты</li>
+          <li>Провайдер, модель, таймаут и квоты задаются конфигурацией; есть отмена</li>
+          <li>Выключен по умолчанию, администратор может выключить его в любой момент</li>
+          <li>Аудит фиксирует обращение без промпта и ответа</li>
+        </ul>
+        <p class="muted">Текст обрабатывает внешний AI-провайдер, который вы выбираете сами.</p>
+      </div>
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--violet"></span><span>черновик → предложение</span></div>
+        <div class="panel__body">
+          <p class="terminal__code" style="padding: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-s);">- ну в общем приходите к 7 наверн</p>
+          <p class="terminal__code" style="padding: 12px; border: 1px solid rgba(183,242,97,0.35); border-radius: var(--radius-s);">+ Приходите, пожалуйста, к семи вечера.</p>
+          <div class="chips"><span class="chip chip--lime">Принять</span><span class="chip">Отклонить</span><span class="chip">Вернуть как было</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. control -->
+  <section id="control" data-scene="control" data-domain="administration/system-controls" aria-labelledby="control-title">
+    <div class="shell grid grid--aside">
+      <div class="panel" data-anim="panel" aria-hidden="true">
+        <div class="panel__bar"><span class="dot dot--lime"></span><span>/admin — состояние</span></div>
+        <div class="panel__body">
+          <div class="kv"><span>api · очереди · websocket</span><span class="chip chip--lime">ok</span></div>
+          <div class="kv"><span>поиск</span><span class="chip">выключен</span></div>
+          <div class="kv"><span>помощник</span><span class="chip chip--cyan">включён</span></div>
+          <div class="kv"><span>журнал</span><span>секреты и приватный текст скрыты</span></div>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">администрирование</p>
+        <h2 id="control-title">Всё необходимое оператору</h2>
+        <p class="lede">Состояние сервисов, выключатель помощника и журнал значимых действий.
+          Права проверяются на сервере, роль администратора выдаётся консольной командой.</p>
+        <ul class="list">
+          <li>Готовность зависимостей — отдельная проверка без утечки деталей</li>
+          <li>Пароль пользователю оператор может задать из консоли</li>
+          <li>Никакой аналитики и телеметрии наружу</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13. architecture -->
+  <section id="architecture" data-scene="architecture" data-domain="platform/architecture" aria-labelledby="architecture-title">
+    <div class="shell">
+      <p class="eyebrow">архитектура</p>
+      <h2 id="architecture-title">Один контур без микросервисов</h2>
+      <p class="lede">Модульный монолит: Laravel-пакеты за композиционным корнем, React-пакеты
+        в приложении, восемь сервисов Docker Compose. Kubernetes не нужен.</p>
+      <div class="panel" data-anim="panel">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span>контур установки</span></div>
+        <div class="panel__body">
+          <svg class="figure" viewBox="0 0 900 240" role="img" aria-label="Схема контура: браузер и установленное приложение обращаются к сервису web, он проксирует API на Laravel Octane и WebSocket на Reverb, за ними PostgreSQL, Redis, объектное хранилище и необязательный Typesense">
+            <g fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1.5">
+              <rect x="14" y="86" width="150" height="64" rx="4"></rect>
+              <rect x="220" y="86" width="150" height="64" rx="4"></rect>
+              <rect x="430" y="16" width="170" height="60" rx="4"></rect>
+              <rect x="430" y="160" width="170" height="60" rx="4"></rect>
+              <rect x="660" y="10" width="226" height="46" rx="3"></rect>
+              <rect x="660" y="66" width="226" height="46" rx="3"></rect>
+              <rect x="660" y="122" width="226" height="46" rx="3"></rect>
+              <rect x="660" y="178" width="226" height="46" rx="3"></rect>
+            </g>
+            <g fill="#f2f4f8" font-family="ui-monospace, monospace" font-size="14">
+              <text x="34" y="112">Браузер / PWA</text><text x="34" y="132" fill="#9aa3b4">React 19</text>
+              <text x="240" y="112">web</text><text x="240" y="132" fill="#9aa3b4">reverse proxy</text>
+              <text x="452" y="42">api</text><text x="452" y="60" fill="#9aa3b4">Laravel + Octane</text>
+              <text x="452" y="186">reverb</text><text x="452" y="204" fill="#9aa3b4">WebSocket</text>
+              <text x="680" y="38">PostgreSQL</text>
+              <text x="680" y="94">Redis · очереди Horizon</text>
+              <text x="680" y="150">S3-совместимое хранилище</text>
+              <text x="680" y="206" fill="#9aa3b4">Typesense — по желанию</text>
+            </g>
+            <g stroke-width="2" fill="none" data-flow="line">
+              <path d="M164 118 H220" stroke="#4ee0ff"></path>
+              <path d="M370 118 C400 118 400 46 430 46" stroke="#4ee0ff"></path>
+              <path d="M370 118 C400 118 400 190 430 190" stroke="#a98bff"></path>
+              <path d="M600 46 C630 46 630 33 660 33" stroke="#4ee0ff"></path>
+              <path d="M600 46 C630 46 630 89 660 89" stroke="#4ee0ff"></path>
+              <path d="M600 46 C630 46 630 145 660 145" stroke="#4ee0ff"></path>
+              <path d="M600 46 C630 46 630 201 660 201" stroke="#b7f261"></path>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <ul class="chips">
+        <li class="chip chip--cyan">PHP 8.4 · Laravel</li>
+        <li class="chip chip--violet">React 19 · TypeScript strict</li>
+        <li class="chip">PostgreSQL · Redis · Reverb</li>
+        <li class="chip chip--lime">OpenAPI 3.1 как источник истины</li>
+      </ul>
+      <p class="muted" style="margin-top: var(--space-2);">Минимум для стека — 2 vCPU и 2 ГБ
+        памяти; поиск и помощник отключаются, если не нужны.</p>
+    </div>
+  </section>
+
+  <!-- 14. install -->
+  <section id="install" data-scene="install" data-domain="operations/self-hosted-runtime" aria-labelledby="install-title">
+    <div class="shell grid grid--aside">
+      <div>
+        <p class="eyebrow">установка</p>
+        <h2 id="install-title">Одна команда на чистом VPS</h2>
+        <p class="lede">Стек сам сгенерирует ключ приложения, применит миграции, создаст
+          поисковый индекс и поднимет сервисы. Дальше — открыть адрес, зарегистрироваться
+          первым и создать комнату.</p>
+        <ul class="list">
+          <li>Обновление — <code>git pull &amp;&amp; docker compose up -d --build</code></li>
+          <li>Резервная копия — обычный <code>pg_dump</code></li>
+          <li>За панелью с Traefik второй compose-файл не нужен</li>
+        </ul>
+        <p class="muted">Это демонстрационная страница: команда только копируется, здесь ничего
+          не выполняется.</p>
+      </div>
+      <div class="panel terminal" data-anim="panel">
+        <div class="panel__bar"><span class="dot dot--cyan"></span><span class="dot dot--violet"></span><span class="dot dot--lime"></span><span>root@vps:~</span></div>
+        <pre class="terminal__code" id="install-command" data-command="git clone https://github.com/w1do/chat.git &amp;&amp; cd chat
+docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --build">git clone https://github.com/w1do/chat.git &amp;&amp; cd chat
+docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --build</pre>
+        <ul class="terminal__out" id="install-output" aria-hidden="true">
+          <li data-line="1">Создаём изолированную сеть chat_default</li>
+          <li data-line="2">Собираем API и веб-интерфейс … готово</li>
+          <li data-line="3">Применяем миграции … готово</li>
+          <li data-line="4">Запускаем PostgreSQL, Redis, API, worker, scheduler, Reverb и Typesense</li>
+          <li data-line="5">Готовность: успешно — открывайте адрес в браузере</li>
+        </ul>
+        <div class="terminal__actions">
+          <button class="btn btn--primary" type="button" id="copy-command" aria-describedby="copy-status">Скопировать команду</button>
+          <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15. cta -->
+  <section id="cta" data-scene="cta" data-domain="product/overview" aria-labelledby="cta-title">
+    <div class="shell">
+      <div class="cta-box" data-anim="panel">
+        <p class="eyebrow" style="justify-content: center;">открытый код</p>
+        <h2 id="cta-title">Один клик до своего мессенджера</h2>
+        <p class="lede" style="margin: 0 auto var(--space-3);">Код, тесты, документация и честные
+          статусы функций открыты. Возьмите репозиторий, выполните документированную команду
+          и оставьте переписку на своём сервере.</p>
+        <div class="cta-actions">
+          <a class="btn btn--primary" href="#install">К команде установки</a>
+          <a class="btn" href="#" data-cta-link="developerContact">Связаться с разработчиком</a>
+          <a class="btn" href="#" data-cta-link="communityGroup">Вступить в группу</a>
+        </div>
+        <p class="copy-status" id="cta-status" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="shell">
+    <p>Демонстрационная страница проекта Chat Self-Hosted. Все переписки, имена, ссылки и
+      вывод терминала на этой странице вымышленные.</p>
+    <p class="stat">Сверено с состоянием репозитория 2026-08-27 · без аналитики и обращений к API</p>
+  </div>
+</footer>
+
+<!-- Анимационные библиотеки: закреплённые версии, без «latest» и без плагинов вне обзора. -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/motion@11.11.17/dist/motion.js" defer></script>
+<script>
+(function () {
+  "use strict";
+
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* Настройте обе HTTPS-ссылки здесь; пустые значения остаются безопасными placeholder. */
+  window.DEMO_CTA_LINKS = window.DEMO_CTA_LINKS || {
+    developerContact: "",
+    communityGroup: ""
+  };
+
+  var SCENES = {
+    hero: "conversation", ownership: "evidence", interface: "viewport",
+    rooms: "permissions", messages: "gestures", realtime: "signal",
+    invites: "token", media: "gallery", notifications: "stack",
+    search: "query", ai: "revision", control: "audit",
+    architecture: "flow", install: "terminal", cta: "conversion"
+  };
+  var sceneTimers = [];
+
+  function later(callback, delay) {
+    var timer = window.setTimeout(function () {
+      var index = sceneTimers.indexOf(timer);
+      if (index !== -1) sceneTimers.splice(index, 1);
+      callback();
+    }, delay);
+    sceneTimers.push(timer);
+    return timer;
+  }
+
+  function finishSequence(section) {
+    section.querySelectorAll('[data-sequence="message"]').forEach(function (message) {
+      message.setAttribute("data-sequence-state", "arrived");
+    });
+    var typing = section.querySelector('[data-sequence="typing"]');
+    if (typing) typing.textContent = typing.getAttribute("data-resting-text") || typing.getAttribute("data-text") || typing.textContent;
+    section.querySelectorAll(".reaction").forEach(function (reaction) {
+      reaction.setAttribute("data-reaction-state", "set");
+    });
+    section.setAttribute("data-scene-state", "complete");
+  }
+
+  function runConversation(section) {
+    var typing = section.querySelector('[data-sequence="typing"]');
+    var messages = Array.prototype.slice.call(section.querySelectorAll('[data-sequence="message"]'));
+    var reaction = section.querySelector(".reaction");
+    messages.forEach(function (message) { message.setAttribute("data-sequence-state", "pending"); });
+    if (!typing) {
+      finishSequence(section);
+      return;
+    }
+
+    var text = typing.getAttribute("data-text") || typing.textContent;
+    typing.textContent = "";
+    Array.prototype.forEach.call(text, function (character, index) {
+      later(function () { typing.textContent += character; }, 32 * index + (index % 4) * 11);
+    });
+    var typingDuration = 32 * text.length + 160;
+    messages.forEach(function (message, index) {
+      later(function () { message.setAttribute("data-sequence-state", "arrived"); }, typingDuration + index * 170);
+    });
+    later(function () {
+      if (reaction) reaction.setAttribute("data-reaction-state", "set");
+      section.setAttribute("data-scene-state", "complete");
+    }, typingDuration + messages.length * 170 + 120);
+  }
+
+  function runMessageThread(section) {
+    var typing = section.querySelector('[data-sequence="typing"]');
+    var messages = Array.prototype.slice.call(section.querySelectorAll('[data-sequence="message"]'));
+    var reactions = Array.prototype.slice.call(section.querySelectorAll(".reaction"));
+    if (!typing || !messages.length) {
+      finishSequence(section);
+      return;
+    }
+
+    messages.forEach(function (message) { message.setAttribute("data-sequence-state", "pending"); });
+    reactions.forEach(function (reaction) { reaction.setAttribute("data-reaction-state", "pending"); });
+    messages.forEach(function (message, index) {
+      var start = index * 1050;
+      later(function () {
+        typing.textContent = message.getAttribute("data-typing-text") || (message.getAttribute("data-message-author") || "Кто-то") + " печатает…";
+      }, start);
+      later(function () {
+        message.setAttribute("data-sequence-state", "arrived");
+      }, start + 680);
+    });
+    var messagesDone = messages.length * 1050;
+    reactions.forEach(function (reaction, index) {
+      later(function () { reaction.setAttribute("data-reaction-state", "set"); }, messagesDone + index * 180);
+    });
+    later(function () {
+      typing.textContent = typing.getAttribute("data-resting-text") || "Сообщение";
+      section.setAttribute("data-scene-state", "complete");
+    }, messagesDone + reactions.length * 180 + 220);
+  }
+
+  function runTerminal(section) {
+    var commandNode = document.getElementById("install-command");
+    var output = document.getElementById("install-output");
+    if (!commandNode || !output) {
+      section.setAttribute("data-scene-state", "complete");
+      return;
+    }
+    var command = commandNode.getAttribute("data-command") || commandNode.textContent;
+    var rows = Array.prototype.slice.call(output.children);
+    commandNode.textContent = "";
+    rows.forEach(function (row) { row.setAttribute("data-line-state", "pending"); });
+    Array.prototype.forEach.call(command, function (character, index) {
+      later(function () { commandNode.textContent += character; }, 22 * index);
+    });
+    var commandDuration = 22 * command.length + 180;
+    rows.forEach(function (row, index) {
+      later(function () { row.setAttribute("data-line-state", "visible"); }, commandDuration + index * 260);
+    });
+    later(function () { section.setAttribute("data-scene-state", "complete"); }, commandDuration + rows.length * 260);
+  }
+
+  function runScene(section) {
+    if (section.getAttribute("data-scene-state") !== "idle") return;
+    section.setAttribute("data-scene-state", "running");
+    if (section.id === "hero") {
+      runConversation(section);
+      return;
+    }
+    if (section.id === "messages") {
+      runMessageThread(section);
+      return;
+    }
+    if (section.id === "install") {
+      runTerminal(section);
+      return;
+    }
+    var indicator = section.querySelector(".panel__bar, .eyebrow");
+    if (indicator && typeof indicator.animate === "function") {
+      var sceneIndex = Object.keys(SCENES).indexOf(section.id);
+      indicator.animate([
+        { letterSpacing: "0em", filter: "brightness(1)" },
+        { letterSpacing: (0.01 + (sceneIndex % 4) * 0.01) + "em", filter: "brightness(1.35)" },
+        { letterSpacing: "0em", filter: "brightness(1)" }
+      ], { duration: 360 + sceneIndex * 18, easing: "ease-out" });
+    }
+    later(function () { section.setAttribute("data-scene-state", "complete"); }, 420);
+  }
+
+  function initScenes() {
+    var sections = Array.prototype.slice.call(document.querySelectorAll("main section[data-scene]"));
+    sections.forEach(function (section) {
+      section.setAttribute("data-scene-effect", SCENES[section.id] || "reveal");
+      section.setAttribute("data-scene-state", reduced ? "complete" : "idle");
+      if (reduced) finishSequence(section);
+    });
+    if (reduced) return;
+    if (!("IntersectionObserver" in window)) {
+      sections.forEach(runScene);
+      return;
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        runScene(entry.target);
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.28 });
+    sections.forEach(function (section) { observer.observe(section); });
+  }
+
+  function initAmbient() {
+    var layer = document.getElementById("ambient-layer");
+    if (!layer || reduced) return;
+    var content = ["#семья · уже едем", "✓ сервер отвечает", "❤️ 2", "@Тимур · термос", "печатает…", "#работа · +3"];
+    var pool = content.map(function (text, index) {
+      var node = document.createElement("span");
+      node.className = "ambient-message";
+      node.textContent = text;
+      node.setAttribute("data-side", index % 2 ? "right" : "left");
+      node.setAttribute("data-ambient-slot", String(index));
+      node.style.top = (12 + index * 14) + "%";
+      layer.appendChild(node);
+      return node;
+    });
+    var cursor = 0;
+    function showNext() {
+      var node = pool[cursor % pool.length];
+      cursor += 1;
+      node.style.transition = "opacity 700ms ease, transform 900ms ease";
+      node.style.transform = "translateY(-8px)";
+      node.style.opacity = "1";
+      later(function () {
+        node.style.opacity = "0";
+        node.style.transform = "translateY(8px)";
+      }, 1700);
+    }
+    showNext();
+    var interval = window.setInterval(showNext, 2400);
+    window.addEventListener("pagehide", function () {
+      window.clearInterval(interval);
+      sceneTimers.forEach(window.clearTimeout);
+      sceneTimers.length = 0;
+    }, { once: true });
+  }
+
+  /* ── Копирование команды: Clipboard API + fallback выделением ── */
+  function initCopy() {
+    var button = document.getElementById("copy-command");
+    var code = document.getElementById("install-command");
+    var status = document.getElementById("copy-status");
+    if (!button || !code || !status) return;
+
+    var command = code.getAttribute("data-command") || code.textContent;
+
+    function done(message) {
+      status.textContent = message;
+      if (window.Motion && typeof window.Motion.animate === "function" && !reduced) {
+        window.Motion.animate(status, { opacity: [0, 1] }, { duration: 0.25 });
+      }
+    }
+
+    function selectCommand() {
+      try {
+        var range = document.createRange();
+        range.selectNodeContents(code);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    button.addEventListener("click", function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(command).then(function () {
+          done("Скопировано");
+        }).catch(function () {
+          done(selectCommand()
+            ? "Команда выделена — скопируйте её сочетанием Ctrl+C или Cmd+C"
+            : "Скопируйте команду из блока выше вручную");
+        });
+        return;
+      }
+      done(selectCommand()
+        ? "Команда выделена — скопируйте её сочетанием Ctrl+C или Cmd+C"
+        : "Скопируйте команду из блока выше вручную");
+    });
+  }
+
+  function initContactLinks() {
+    var status = document.getElementById("cta-status");
+    document.querySelectorAll("[data-cta-link]").forEach(function (link) {
+      var key = link.getAttribute("data-cta-link");
+      var value = window.DEMO_CTA_LINKS[key];
+      var configured = typeof value === "string" && /^https:\/\//.test(value);
+      if (configured) {
+        link.href = value;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        return;
+      }
+      link.setAttribute("aria-disabled", "true");
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        if (status) status.textContent = "Ссылка ещё не настроена владельцем";
+      });
+    });
+  }
+
+  /* ── Макроанимации: GSAP + ScrollTrigger ────────────────────── */
+  function initMacro() {
+    var gsap = window.gsap;
+    if (!gsap) return;
+
+    var scrollTrigger = window.ScrollTrigger;
+    if (scrollTrigger && typeof gsap.registerPlugin === "function") {
+      gsap.registerPlugin(scrollTrigger);
+    }
+
+    var hero = document.querySelector('#hero [data-anim="stack"]');
+    if (hero) {
+      gsap.timeline()
+        .from(hero.children, { y: 26, opacity: 0, duration: 0.6, stagger: 0.09, ease: "power2.out" })
+        .from("#hero .panel", { y: 34, opacity: 0, duration: 0.7, ease: "power2.out" }, "-=0.35");
+    }
+
+    if (!scrollTrigger) return;
+
+    document.querySelectorAll("main section:not(#hero)").forEach(function (section) {
+      var heading = section.querySelector(".eyebrow, h2");
+      var panels = section.querySelectorAll('[data-anim="panel"]');
+      var targets = [];
+      if (heading) targets.push(heading);
+      panels.forEach(function (panel) { targets.push(panel); });
+      if (!targets.length) return;
+
+      gsap.from(targets, {
+        y: 30,
+        opacity: 0,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: "power2.out",
+        scrollTrigger: { trigger: section, start: "top 78%", once: true }
+      });
+    });
+
+  }
+
+  /* ── Микроанимации: Motion (не пересекается с targets GSAP) ─── */
+  function initMicro() {
+    var motion = window.Motion;
+    if (!motion || typeof motion.inView !== "function" || typeof motion.animate !== "function") return;
+
+    document.querySelectorAll('[data-anim="card"], .chip, .kv').forEach(function (node) {
+      motion.inView(node, function () {
+        motion.animate(node, { opacity: [0, 1], transform: ["translateY(12px)", "translateY(0px)"] },
+          { duration: 0.45, easing: "ease-out" });
+      }, { amount: 0.3 });
+    });
+
+  }
+
+  function boot() {
+    document.documentElement.setAttribute("data-motion", reduced ? "reduced" : "full");
+    initCopy();
+    initContactLinks();
+    initScenes();
+    if (reduced) return;
+    initAmbient();
+    initMacro();
+    initMicro();
+  }
+
+  if (document.readyState === "loading") {
+    window.addEventListener("DOMContentLoaded", function () {
+      /* defer-скрипты библиотек уже выполнены к этому моменту. */
+      boot();
+    });
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

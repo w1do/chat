@@ -7,12 +7,19 @@ const ROOMS_KEY = ['chat', 'rooms'] as const;
 const roomKey = (roomId: string) => ['chat', 'rooms', roomId] as const;
 const membersKey = (roomId: string) => ['chat', 'rooms', roomId, 'members'] as const;
 
+/** Как часто список сам перечитывается, мс. */
+export const ROOMS_REFETCH_INTERVAL = 30_000;
+
 export function useRooms(search?: string) {
   const client = useChatClient();
 
   return useQuery({
     queryKey: [...ROOMS_KEY, { search: search ?? '' }],
     queryFn: () => roomsApi.list(client, search ? { search } : {}),
+    // Скрытый диалог возвращается с новым сообщением: события приходят только
+    // по комнатам из списка, поэтому список изредка перечитывается сам.
+    refetchInterval: ROOMS_REFETCH_INTERVAL,
+    refetchIntervalInBackground: true,
   });
 }
 
