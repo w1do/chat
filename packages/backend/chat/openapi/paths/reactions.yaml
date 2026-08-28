@@ -8,7 +8,7 @@
     operationId: toggleReaction
     tags: [messages]
     summary: Переключение реакции (добавляет либо снимает)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:

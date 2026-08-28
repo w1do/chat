@@ -6,6 +6,7 @@ import {
   resetImagePrewarm,
   useImagePrewarm,
 } from '../src/app/image-prewarm';
+import { clearAuthToken, storeAuthToken } from '../src/app/token';
 
 /** Сеть, которую можно держать открытой: так видно предел параллельности. */
 function heldNetwork() {
@@ -32,11 +33,13 @@ function heldNetwork() {
 describe('прогрев изображений', () => {
   beforeEach(() => {
     resetImagePrewarm();
+    storeAuthToken('secret-token');
     // requestIdleCallback в jsdom нет: прогрев стартует по таймеру-фолбэку.
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    clearAuthToken();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -115,6 +118,10 @@ describe('прогрев изображений', () => {
     await idle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/room-photos/p1/thumb', { credentials: 'include' });
+    // Прогрев идёт тем же заголовком, что и показ; cookie в схеме нет вовсе
+    // (ADR-012).
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/room-photos/p1/thumb', {
+      headers: { Authorization: 'Bearer secret-token' },
+    });
   });
 });

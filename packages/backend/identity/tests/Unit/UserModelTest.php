@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 use Vendor\Identity\Application\Commands\CreateInvitedUserCommand;
 use Vendor\Identity\Application\Handlers\Commands\CreateInvitedUserHandler;
 use Vendor\Identity\Domain\Models\User;
@@ -51,16 +52,20 @@ it('still requires a password to be present', function (): void {
     ])->assertStatus(422);
 });
 
-it('creates an account for an invited person with a readable login', function (): void {
-    $user = app(CreateInvitedUserHandler::class)
+it('creates an account for an invited person with a readable login and a token', function (): void {
+    $created = app(CreateInvitedUserHandler::class)
         ->handle(new CreateInvitedUserCommand('Надя'));
 
-    expect($user->name)->toBe('Надя')
-        ->and($user->username)->toContain('-')
-        ->and($user->email)->toBeNull();
+    expect($created->user->name)->toBe('Надя')
+        ->and($created->user->username)->toContain('-')
+        ->and($created->user->email)->toBeNull();
+
+    // Своего пароля у приглашённого нет — войти он может только этим токеном.
+    expect($created->token)->toBeString()->not->toBeEmpty();
+    expect(PersonalAccessToken::findToken($created->token)?->tokenable_id)->toBe($created->user->id);
 
     // Пароль выдан системой: подсказка «задайте свой» человеку понадобится.
-    expect(User::query()->whereKey($user->id)->value('password_set_at'))->toBeNull();
+    expect(User::query()->whereKey($created->user->id)->value('password_set_at'))->toBeNull();
 });
 
 it('keeps generated logins unique', function (): void {
@@ -70,5 +75,5 @@ it('keeps generated logins unique', function (): void {
     $first = $handler->handle($command);
     $second = $handler->handle($command);
 
-    expect($first->username)->not->toBe($second->username);
+    expect($first->user->username)->not->toBe($second->user->username);
 });

@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 
 const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-test('registers with a login only, keeps the session and logs out', async ({ page }) => {
+test('registers with a login only, keeps the login and logs out', async ({ browser, page }) => {
   const login = `auth${suffix}`;
 
   await page.goto('/login');
@@ -28,13 +28,30 @@ test('registers with a login only, keeps the session and logs out', async ({ pag
   await page.getByRole('button', { name: 'Настройки' }).click();
   await expect(page.getByText('Не указана — нужна для восстановления пароля')).toBeVisible();
 
-  // Сессия переживает перезагрузку.
+  // Вход переживает перезагрузку страницы.
   await page.reload();
   await expect(page.getByRole('button', { name: 'Настройки' })).toBeVisible();
+
+  // Вход держится на токене в localStorage, а не на cookie сессии (ADR-012).
+  const token = await page.evaluate(() => localStorage.getItem('chat.auth-token'));
+  expect(token).toBeTruthy();
+
+  // Новый контекст браузера с тем же хранилищем — тот же вошедший человек:
+  // серверного состояния входа не существует вовсе.
+  const restored = await browser.newContext({
+    storageState: { cookies: [], origins: [{ origin: new URL(page.url()).origin, localStorage: [{ name: 'chat.auth-token', value: token as string }] }] },
+  });
+  const restoredPage = await restored.newPage();
+  await restoredPage.goto('/');
+  await expect(restoredPage.getByRole('button', { name: 'Настройки' })).toBeVisible();
+  await restored.close();
 
   await page.getByRole('button', { name: 'Настройки' }).click();
   await page.getByRole('button', { name: 'Выйти' }).click();
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
+
+  // Выход стирает токен: возвращаться некуда даже с прежним хранилищем.
+  expect(await page.evaluate(() => localStorage.getItem('chat.auth-token'))).toBeNull();
 
   // Неверный пароль не пускает и не роняет экран.
   await page.getByRole('textbox', { name: 'Логин' }).fill(login);

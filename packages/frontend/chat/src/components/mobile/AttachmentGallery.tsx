@@ -1,3 +1,4 @@
+import { AuthorizedImage } from '@vendor/ui';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Attachment } from '../../schemas/message';
@@ -79,11 +80,18 @@ export function AttachmentGallery({ images, initialIndex, onClose }: AttachmentG
 
       <div className="relative flex-1 min-h-0 grid place-items-center px-2 pb-4">
         {/* В галерее открывается оригинал — единственное место, где он нужен. */}
-        <img
+        <AuthorizedImage
           src={image.url}
           alt={image.name}
           className="max-w-full max-h-full object-contain"
           style={{ borderRadius: 6 }}
+          // Без role="status": счётчик «N из M» в шапке уже занимает эту
+          // роль, а два живых региона в одном окне сбивают чтение с экрана.
+          fallback={
+            <span className="text-[13px]" style={{ color: 'rgba(255,255,255,.7)' }}>
+              Загружаем изображение…
+            </span>
+          }
         />
 
         {index > 0 ? (

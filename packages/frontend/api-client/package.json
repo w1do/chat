@@ -9,11 +9,13 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "generate": "openapi-typescript ../../../apps/chat-api/openapi/dist/openapi.json -o src/generated/schema.d.ts"
+    "generate": "openapi-typescript ../../../apps/chat-api/openapi/dist/openapi.json -o src/generated/schema.d.ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@vendor/tooling": "workspace:*",
+    "openapi-typescript": "^7.4.0",
     "typescript": "^5.9.0",
-    "openapi-typescript": "^7.4.0"
+    "vitest": "^2.1.0"
   }
 }

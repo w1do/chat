@@ -23,11 +23,11 @@
                 description: Отображаемое имя; по умолчанию совпадает с логином.
     responses:
       '201':
-        description: Пользователь создан, сессия начата.
+        description: Пользователь создан; в ответе — он сам и его токен доступа.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserEnvelope'
+              $ref: '#/components/schemas/AuthenticatedUser'
       '422':
         $ref: '#/components/responses/ValidationError'
       '429':
@@ -40,7 +40,7 @@
   post:
     operationId: login
     tags: [auth]
-    summary: Вход по логину (Sanctum cookie SPA)
+    summary: Вход по логину; ответ несёт токен доступа (ADR-012)
     requestBody:
       required: true
       content:
@@ -51,14 +51,15 @@
             properties:
               login: { type: string, maxLength: 64 }
               password: { type: string }
-              remember: { type: boolean, default: false }
     responses:
       '200':
-        description: Аутентифицирован; сессионная cookie обновлена.
+        description: >-
+          Аутентифицирован; в ответе новый бессрочный токен доступа. Cookie
+          аутентификации не выдаётся.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserEnvelope'
+              $ref: '#/components/schemas/AuthenticatedUser'
       '401':
         $ref: '#/components/responses/Unauthenticated'
       '422':
@@ -73,12 +74,14 @@
   post:
     operationId: logout
     tags: [auth]
-    summary: Выход
+    summary: Выход — отзывает токен текущего устройства
     security:
-      - sanctumCookie: []
+      - bearerAuth: []
     responses:
       '204':
-        description: Сессия завершена.
+        description: >-
+          Токен, которым выполнен запрос, отозван. Токены других устройств
+          продолжают действовать.
       '401':
         $ref: '#/components/responses/Unauthenticated'
 /auth/forgot-password:
@@ -117,7 +120,7 @@
   post:
     operationId: resetPassword
     tags: [auth]
-    summary: Установка нового пароля по токену
+    summary: Установка нового пароля по токену (отзывает все токены доступа)
     requestBody:
       required: true
       content:
@@ -131,7 +134,7 @@
               password: { type: string, minLength: 10 }
     responses:
       '204':
-        description: Пароль обновлён.
+        description: Пароль обновлён; все прежде выданные токены доступа отозваны.
       '422':
         $ref: '#/components/responses/ValidationError'
       '429':

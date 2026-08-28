@@ -1,16 +1,13 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Реальный Echo тянет pusher-js и открывает сокет: в тесте нам важно лишь то,
-// что приложение вовремя его гасит и поднимает.
+// что приложение вовремя его гасит.
 const suspendRealtime = vi.fn();
-const resumeRealtime = vi.fn();
 
 vi.mock('../src/app/echo', () => ({
   suspendRealtime,
-  resumeRealtime,
   realtimeAdapter: () => null,
   createRealtimeAdapter: () => null,
 }));
@@ -54,7 +51,13 @@ const server = {
   count(fragment: string): number {
     return this.calls.filter((url) => url.includes(fragment)).length;
   },
-  handler: vi.fn(async (input: unknown) => {
+  header(fragment: string, name: string): string | undefined {
+    const call = server.handler.mock.calls.find(([url]) => String(url).includes(fragment));
+    const headers = (call?.[1] as { headers?: Record<string, string> } | undefined)?.headers;
+
+    return headers?.[name];
+  },
+  handler: vi.fn(async (input: unknown, _init?: unknown) => {
     const url = String(input);
     server.calls.push(url);
 
@@ -63,13 +66,11 @@ const server = {
         apiBaseUrl: '/api/v1',
         reverb: { host: '', port: '', scheme: '', appKey: '' },
         ai: { enabled: 'false' },
-        auth: { silentRecovery: silentRecovery ? 'true' : 'false' },
         push: { publicKey: '' },
         password: { minLength: '1' },
         branding: { appName: 'Чат' },
       });
     }
-    if (url.includes('/sanctum/csrf-cookie')) return reply(204, null);
     if (url.includes('/auth/logout')) return reply(204, null);
     if (url.includes('/api/v1/me')) {
       return server.me === 200 ? reply(200, { data: { id: 'u1' } }) : reply(401, EXPIRED);
@@ -82,10 +83,9 @@ const server = {
   }),
 };
 
-let silentRecovery = false;
-
 interface Harness {
   session: typeof import('../src/app/session');
+  token: typeof import('../src/app/token');
   client: import('@vendor/api-client').ApiClient;
   AuthProvider: typeof import('../src/app/auth').AuthProvider;
   queryClient: QueryClient;
@@ -93,17 +93,17 @@ interface Harness {
 }
 
 /**
- * Состояние сессии живёт в модуле на время жизни страницы, поэтому каждый
+ * Состояние входа живёт в модуле на время жизни страницы, поэтому каждый
  * случай поднимает приложение заново.
  */
-async function boot(options: { recovery?: boolean; user?: { id: string } | null } = {}): Promise<Harness> {
+async function boot(options: { user?: { id: string } | null; token?: string | null } = {}): Promise<Harness> {
   vi.resetModules();
   suspendRealtime.mockClear();
-  resumeRealtime.mockClear();
   assign.mockClear();
   reload.mockClear();
   server.reset();
-  silentRecovery = options.recovery ?? false;
+  server.handler.mockClear();
+  localStorage.clear();
   currentUser = options.user === undefined ? { id: 'u1' } : options.user;
 
   vi.stubGlobal('fetch', server.handler);
@@ -115,6 +115,9 @@ async function boot(options: { recovery?: boolean; user?: { id: string } | null 
   const config = await import('../src/app/runtime-config');
   await config.loadRuntimeConfig();
 
+  const token = await import('../src/app/token');
+  if (options.token !== null) token.storeAuthToken(options.token ?? 'secret-token');
+
   const session = await import('../src/app/session');
   const { apiClient } = await import('../src/app/api');
   const { AuthProvider } = await import('../src/app/auth');
@@ -123,6 +126,7 @@ async function boot(options: { recovery?: boolean; user?: { id: string } | null 
 
   return {
     session,
+    token,
     client: apiClient(),
     AuthProvider,
     queryClient: createQueryClient(),
@@ -140,8 +144,6 @@ function renderApp({ AuthProvider, queryClient }: Harness) {
   );
 }
 
-const expiredDialog = () => screen.queryByRole('dialog', { name: 'Сессия истекла' });
-
 /** 401 меняет состояние провайдера, поэтому ответа ждём внутри act. */
 async function expect401(app: Harness, request: Promise<unknown>): Promise<void> {
   await act(async () => {
@@ -149,12 +151,46 @@ async function expect401(app: Harness, request: Promise<unknown>): Promise<void>
   });
 }
 
+describe('запрос вошедшего человека', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it('несёт токен заголовком и не несёт cookie и CSRF', async () => {
+    const app = await boot({ token: 'secret-token' });
+
+    await app.client.get('/rooms');
+
+    expect(server.header('/rooms', 'Authorization')).toBe('Bearer secret-token');
+    const init = server.handler.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(init.credentials).toBeUndefined();
+    expect((init.headers as Record<string, string>)['X-XSRF-TOKEN']).toBeUndefined();
+    // Токен уходит только заголовком: в адресе его нет (spec).
+    expect(server.calls.at(-1)).not.toContain('secret-token');
+  });
+
+  it('без токена не уходит в сеть вовсе', async () => {
+    const app = await boot({ token: null });
+    const before = server.count('/rooms');
+
+    await expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated);
+
+    expect(server.count('/rooms')).toBe(before);
+  });
+
+  it('публичные экраны работают и без токена', async () => {
+    const app = await boot({ token: null });
+
+    // Вход и приглашение открывают до входа: их запросы не подавляются.
+    await app.client.post('/auth/logout');
+
+    expect(server.count('/auth/logout')).toBe(1);
+  });
+});
+
 describe('первый 401', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it('до входа не считается истёкшей сессией', async () => {
+  it('до входа не считается недействительным входом', async () => {
     const app = await boot({ user: null });
-    app.session.markSessionEstablished; // вход ещё не состоялся
 
     server.me = 401;
     await expect(app.client.get('/me')).rejects.toBeInstanceOf(app.Unauthenticated);
@@ -164,7 +200,7 @@ describe('первый 401', () => {
     expect(assign).toHaveBeenCalledWith('/login');
   });
 
-  it('после входа переводит приложение в устойчивое «сессия истекла»', async () => {
+  it('после входа переводит приложение в «вход недействителен»', async () => {
     const app = await boot();
     app.session.markSessionEstablished();
 
@@ -172,12 +208,30 @@ describe('первый 401', () => {
     await expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated);
 
     expect(app.session.sessionStatus()).toBe('unauthorized');
-    // Экран входа не подменяет собой объяснение: человек остаётся на месте.
-    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('несколько одновременных 401 дают ровно один переход', async () => {
+    const app = await boot();
+    app.session.markSessionEstablished();
+
+    const changes = vi.fn();
+    app.session.subscribeSession(changes);
+
+    server.rooms = 401;
+    await act(async () => {
+      await Promise.all([
+        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
+        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
+        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
+      ]);
+    });
+
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(app.session.sessionStatus()).toBe('unauthorized');
   });
 });
 
-describe('пока сессия истекла', () => {
+describe('пока вход недействителен', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
   it('защищённые запросы не уходят в сеть', async () => {
@@ -195,7 +249,7 @@ describe('пока сессия истекла', () => {
     expect(server.count('/sanctum/csrf-cookie')).toBe(0);
   });
 
-  it('выход по-прежнему проходит: им пользуется сам экран', async () => {
+  it('выход по-прежнему проходит: им пользуется сам уход на форму входа', async () => {
     const app = await boot();
     app.session.markSessionEstablished();
     server.rooms = 401;
@@ -221,15 +275,15 @@ describe('пока сессия истекла', () => {
 describe('AuthProvider', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it('при живой сессии рисует приложение и ничего не перекрывает', async () => {
+  it('при годном входе рисует приложение и никуда не уводит', async () => {
     const app = await boot();
     renderApp(app);
 
     expect(screen.getByText('Лента чата')).toBeInTheDocument();
-    expect(expiredDialog()).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
   });
 
-  it('на 401 показывает экран поверх чата и гасит сокет', async () => {
+  it('на 401 стирает токен, гасит сокет и уводит на форму входа', async () => {
     const app = await boot();
     renderApp(app);
     await waitFor(() => expect(app.session.sessionStatus()).toBe('authorized'));
@@ -237,110 +291,23 @@ describe('AuthProvider', () => {
     server.rooms = 401;
     await expect401(app, app.client.get('/rooms'));
 
-    await waitFor(() => expect(expiredDialog()).toBeInTheDocument());
-    // Приложение не размонтировано — мигания нет, чат просто перекрыт.
-    expect(screen.getByText('Лента чата')).toBeInTheDocument();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login'));
+    expect(app.token.authToken()).toBeNull();
     expect(suspendRealtime).toHaveBeenCalled();
-    expect(resumeRealtime).not.toHaveBeenCalled();
-  });
-});
-
-describe('тихое восстановление', () => {
-  beforeEach(() => vi.unstubAllGlobals());
-
-  it('выключено установкой по умолчанию: экран показывается сразу', async () => {
-    const app = await boot();
-    renderApp(app);
-
-    server.rooms = 401;
-    await expect401(app, app.client.get('/rooms'));
-
-    await waitFor(() => expect(expiredDialog()).toBeInTheDocument());
-    // Ни handshake, ни повторной проверки `/me` — попытки не было.
+    // Восстанавливать нечего: автоматических попыток вернуть вход нет.
     expect(server.count('/sanctum/csrf-cookie')).toBe(0);
   });
 
-  it('успех возвращает работу без экрана и поднимает сокет', async () => {
-    const app = await boot({ recovery: true });
-    renderApp(app);
-
-    server.rooms = 401;
-    await expect401(app, app.client.get('/rooms'));
-
-    await waitFor(() => expect(app.session.sessionStatus()).toBe('authorized'));
-    expect(expiredDialog()).toBeNull();
-    await waitFor(() => expect(resumeRealtime).toHaveBeenCalled());
-  });
-
-  it('неудача показывает экран и делает ровно одну попытку', async () => {
-    const app = await boot({ recovery: true });
-    renderApp(app);
-
-    server.rooms = 401;
-    server.me = 401;
-    await act(async () => {
-      await Promise.all([
-        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
-        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
-        expect(app.client.get('/rooms')).rejects.toBeInstanceOf(app.Unauthenticated),
-      ]);
-    });
-
-    await waitFor(() => expect(expiredDialog()).toBeInTheDocument());
-    // Три ответа 401 — один инцидент и одна попытка восстановления.
-    expect(server.count('/sanctum/csrf-cookie')).toBe(1);
-  });
-});
-
-describe('экран «Сессия истекла»', () => {
-  beforeEach(() => vi.unstubAllGlobals());
-
-  async function openExpired() {
+  it('выход в соседней вкладке уводит и эту', async () => {
     const app = await boot();
     renderApp(app);
-    server.rooms = 401;
-    await expect401(app, app.client.get('/rooms'));
-    await waitFor(() => expect(expiredDialog()).toBeInTheDocument());
+    await waitFor(() => expect(app.session.sessionStatus()).toBe('authorized'));
 
-    return app;
-  }
-
-  it('забирает фокус и не закрывается по Escape', async () => {
-    await openExpired();
-
-    expect(screen.getByRole('button', { name: 'Войти снова' })).toHaveFocus();
-
-    await userEvent.keyboard('{Escape}');
-
-    expect(expiredDialog()).toBeInTheDocument();
-  });
-
-  it('держит фокус внутри: за последней кнопкой снова первая', async () => {
-    await openExpired();
-
-    screen.getByRole('button', { name: 'Обновить страницу' }).focus();
-    await userEvent.tab();
-
-    expect(screen.getByRole('button', { name: 'Войти снова' })).toHaveFocus();
-  });
-
-  it('«Войти снова» завершает сессию, чистит кэш и уводит на вход', async () => {
-    const app = await openExpired();
-    app.queryClient.setQueryData(['identity', 'me'], { id: 'u1' });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Войти снова' }));
+    await act(async () => {
+      localStorage.removeItem('chat.auth-token');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'chat.auth-token', newValue: null }));
+    });
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/login'));
-    expect(server.count('/auth/logout')).toBe(1);
-    expect(app.queryClient.getQueryData(['identity', 'me'])).toBeUndefined();
-    expect(suspendRealtime).toHaveBeenCalled();
-  });
-
-  it('«Обновить страницу» перезагружает приложение', async () => {
-    await openExpired();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Обновить страницу' }));
-
-    expect(reload).toHaveBeenCalled();
   });
 });

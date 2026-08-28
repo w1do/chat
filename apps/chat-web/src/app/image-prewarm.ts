@@ -4,8 +4,12 @@
  * worker'а (spec platform/image-cache). Это обычный fetch из приложения — он
  * проходит через worker и попадает в тот же кеш, а без установленного
  * worker'а просто греет HTTP-кеш.
+ *
+ * Файлы защищены, поэтому прогрев идёт с тем же заголовком авторизации, что и
+ * их показ (ADR-012).
  */
 import { useEffect } from 'react';
+import { authToken } from './token';
 
 /** Больше трёх одновременных запросов начинают соперничать с живой лентой. */
 export const PREWARM_CONCURRENCY = 3;
@@ -55,7 +59,7 @@ function pump(): void {
     const url = queue.shift() as string;
     running += 1;
 
-    void fetch(url, { credentials: 'include' })
+    void fetch(url, { headers: authHeaders() })
       // Неудачный прогрев ничего не значит: адрес просто загрузится при показе.
       .catch(() => undefined)
       .finally(() => {
@@ -78,4 +82,11 @@ export function resetImagePrewarm(): void {
   queue.length = 0;
   running = 0;
   scheduled = false;
+}
+
+/** Тот же заголовок, которым картинка потом показывается (ADR-012). */
+function authHeaders(): Record<string, string> {
+  const token = authToken();
+
+  return token === null ? {} : { Authorization: `Bearer ${token}` };
 }

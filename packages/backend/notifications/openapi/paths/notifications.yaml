@@ -3,7 +3,7 @@
     operationId: listNotifications
     tags: [notifications]
     summary: Лента уведомлений и счётчик непрочитанного
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: unread
         in: query
@@ -34,7 +34,7 @@
     operationId: markNotificationsRead
     tags: [notifications]
     summary: Отметить прочитанными (без списка — все)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: false
       content:

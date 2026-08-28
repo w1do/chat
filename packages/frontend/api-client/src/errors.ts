@@ -26,11 +26,8 @@ export class ApiError extends Error {
   }
 }
 
-/** 401 — сессия отсутствует или истекла: приложение уводит на вход. */
+/** 401 — токена нет или он отозван: приложение уводит на вход. */
 export class UnauthenticatedError extends ApiError {}
-
-/** 419 — CSRF token mismatch: клиент должен обновить cookie и повторить. */
-export class CsrfTokenMismatchError extends ApiError {}
 
 /** 429 — rate limit: повтор не раньше retryAfterSeconds. */
 export class RateLimitedError extends ApiError {

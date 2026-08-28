@@ -18,9 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Sanctum cookie SPA auth: stateful-запросы фронтенда проходят
-        // session/CSRF стек (ADR-005).
-        $middleware->statefulApi();
+        // Sanctum token auth (ADR-012): API не читает сессию и не проверяет
+        // CSRF — идентичность целиком в заголовке Authorization.
 
         // Выключатели администратора применяются к каждому запросу API.
         $middleware->appendToGroup('api', ApplyRuntimeSettings::class);

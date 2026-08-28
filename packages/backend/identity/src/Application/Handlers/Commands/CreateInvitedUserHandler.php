@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Vendor\Identity\Application\Handlers\Commands;
 
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Contracts\Auth\StatefulGuard;
-use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Str;
 use Vendor\Identity\Application\Commands\CreateInvitedUserCommand;
+use Vendor\Identity\Application\DTOs\AuthenticatedUserData;
 use Vendor\Identity\Application\DTOs\UserData;
 use Vendor\Identity\Domain\Models\User;
 use Vendor\Identity\Infrastructure\Auth\UserModel;
@@ -24,11 +22,9 @@ final readonly class CreateInvitedUserHandler
         // Резолвер, а не базовая модель: приложение подставляет свой класс
         // пользователя, и именно его ждут политики и Gate (STRUCTURE.md §2).
         private UserModel $userModel,
-        private AuthFactory $auth,
-        private Repository $config,
     ) {}
 
-    public function handle(CreateInvitedUserCommand $command): UserData
+    public function handle(CreateInvitedUserCommand $command): AuthenticatedUserData
     {
         $name = trim($command->name);
 
@@ -42,11 +38,12 @@ final readonly class CreateInvitedUserHandler
 
         $user->refresh();
 
-        /** @var StatefulGuard $guard */
-        $guard = $this->auth->guard($this->config->get('identity.guard', 'web'));
-        $guard->login($user);
-
-        return UserData::fromModel($user);
+        return new AuthenticatedUserData(
+            user: UserData::fromModel($user),
+            // Приглашённый входит тем же способом, что и все: своего пароля он
+            // не знает, поэтому токен — его единственный вход (ADR-012).
+            token: $user->createToken('client', ['*'])->plainTextToken,
+        );
     }
 
     /** Логин узнаваем: его человек увидит в настройках, когда решит поменять. */

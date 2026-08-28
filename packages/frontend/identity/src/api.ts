@@ -1,4 +1,5 @@
 import type { ApiClient } from '@vendor/api-client';
+import { authTokenStore } from './token-store';
 import type {
   EmailInput,
   ForgotPasswordInput,
@@ -40,6 +41,11 @@ interface UserEnvelope {
   data: AuthUser;
 }
 
+/** Ответ входа: пользователь и его новый токен доступа (ADR-012). */
+interface AuthenticatedEnvelope extends UserEnvelope {
+  token: string;
+}
+
 function imageBody(file: File): FormData {
   const body = new FormData();
   body.append('image', file);
@@ -73,13 +79,19 @@ export const identityApi = {
     await client.delete('/me/wallpaper');
   },
   async login(client: ApiClient, input: LoginInput): Promise<AuthUser> {
-    return ((await client.post('/auth/login', { body: input })) as UserEnvelope).data;
+    return authenticated((await client.post('/auth/login', { body: input })) as AuthenticatedEnvelope);
   },
   async register(client: ApiClient, input: RegisterInput): Promise<AuthUser> {
-    return ((await client.post('/auth/register', { body: input })) as UserEnvelope).data;
+    return authenticated((await client.post('/auth/register', { body: input })) as AuthenticatedEnvelope);
   },
   async logout(client: ApiClient): Promise<void> {
-    await client.post('/auth/logout');
+    try {
+      await client.post('/auth/logout');
+    } finally {
+      // Токен стирается в любом исходе: сервер мог его уже отозвать, а
+      // оставленное значение только притворялось бы входом.
+      authTokenStore().clear();
+    }
   },
   async forgotPassword(client: ApiClient, input: ForgotPasswordInput): Promise<void> {
     await client.post('/auth/forgot-password', { body: input });
@@ -103,3 +115,10 @@ export const identityApi = {
     await client.patch('/me/password', { body: input });
   },
 };
+
+/** Вход состоялся: с этого момента клиент представляется выданным токеном. */
+function authenticated(envelope: AuthenticatedEnvelope): AuthUser {
+  authTokenStore().save(envelope.token);
+
+  return envelope.data;
+}

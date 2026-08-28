@@ -8,7 +8,7 @@
     operationId: getMessage
     tags: [messages]
     summary: Сообщение по идентификатору
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Сообщение.
@@ -30,7 +30,7 @@
     operationId: editMessage
     tags: [messages]
     summary: Редактирование своего сообщения в пределах окна
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -57,7 +57,7 @@
     operationId: deleteMessage
     tags: [messages]
     summary: Мягкое удаление (автор или owner/admin комнаты)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Сообщение помечено удалённым; ответы сохраняются. }
       '401': { $ref: '#/components/responses/Unauthenticated' }

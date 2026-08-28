@@ -35,5 +35,12 @@ final readonly class ChangePasswordHandler
             'password_set_at' => now(),
             'remember_token' => Str::random(60),
         ])->save();
+
+        // Остальные устройства теряют доступ; тот, с которого меняли пароль,
+        // остаётся вошедшим — иначе человек разлогинивал бы себя посреди
+        // настроек (spec identity/token-authentication).
+        $user->tokens()
+            ->when($command->currentAccessTokenId !== null, fn ($query) => $query->whereKeyNot($command->currentAccessTokenId))
+            ->delete();
     }
 }

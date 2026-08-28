@@ -1,11 +1,10 @@
 // Обёртка над fetch для API: единый error envelope, trace_id,
-// спец-обработка 401/419/429. Приложение создаёт один клиент и передаёт
+// спец-обработка 401/429. Приложение создаёт один клиент и передаёт
 // его feature-пакетам (§4.2); baseUrl приходит из runtime-конфига.
 
 import {
   ApiError,
   type ApiErrorEnvelope,
-  CsrfTokenMismatchError,
   NetworkError,
   RateLimitedError,
   UnauthenticatedError,
@@ -13,14 +12,18 @@ import {
 
 export interface ApiClientOptions {
   baseUrl: string;
-  /** Путь CSRF-handshake Sanctum (ADR-005); null отключает handshake. */
-  csrfCookiePath?: string | null;
+  /**
+   * Токен доступа текущего клиента (ADR-012). Геттер, а не значение: после
+   * повторного входа запросы обязаны уходить с новым токеном, а хранилище
+   * принадлежит приложению.
+   */
+  authToken?: () => string | null;
   /** Хук на 401 — например, редирект на страницу входа. */
   onUnauthenticated?: () => void;
   /**
-   * Приложение сообщает, что сессия истекла и защищённые запросы отправлять
-   * бессмысленно. Такой запрос не уходит в сеть: иначе каждая перерисовка
-   * порождает новый 401, а с ним — повторы и мигание интерфейса.
+   * Приложение сообщает, что представляться нечем и защищённый запрос
+   * отправлять бессмысленно. Такой запрос не уходит в сеть: иначе каждая
+   * перерисовка порождает новый 401, а с ним — повторы и мигание интерфейса.
    */
   sessionSuspended?: (path: string) => boolean;
   fetchFn?: typeof fetch;
@@ -36,32 +39,7 @@ export interface RequestOptions {
 }
 
 export class ApiClient {
-  private csrfReady: Promise<void> | null = null;
-
   constructor(private readonly options: ApiClientOptions) {}
-
-  /**
-   * Sanctum SPA: перед первой мутацией нужен XSRF-TOKEN cookie.
-   * Handshake выполняется один раз и переигрывается при 419.
-   */
-  private async ensureCsrfCookie(force = false): Promise<void> {
-    const path = this.options.csrfCookiePath ?? '/sanctum/csrf-cookie';
-    if (path === null) return;
-    if (force) this.csrfReady = null;
-    // Cookie уже есть — лишний запрос не нужен.
-    if (!force && readCookie('XSRF-TOKEN')) return;
-
-    this.csrfReady ??= (async () => {
-      const fetchFn = this.options.fetchFn ?? fetch;
-      await fetchFn(path, { credentials: 'include', headers: { Accept: 'application/json' } });
-    })().catch(() => {
-      // Неудачный handshake не кэшируется и не блокирует мутацию:
-      // отсутствие токена приведёт к 419 и одному повтору ниже.
-      this.csrfReady = null;
-    });
-
-    await this.csrfReady;
-  }
 
   get(path: string, options: RequestOptions = {}): Promise<unknown> {
     return this.request('GET', path, options);
@@ -79,28 +57,32 @@ export class ApiClient {
     return this.request('DELETE', path, options);
   }
 
-  /** Принудительно обновить XSRF-cookie: нужна попытке восстановить сессию. */
-  refreshCsrfCookie(): Promise<void> {
-    return this.ensureCsrfCookie(true);
+  /**
+   * Заголовки авторизованного запроса. Нужны и тем, кто ходит мимо клиента:
+   * загрузке защищённых картинок и авторизации канала real-time.
+   */
+  authHeaders(): Record<string, string> {
+    const token = this.options.authToken?.() ?? null;
+
+    return token === null ? {} : { Authorization: `Bearer ${token}` };
   }
 
-  async request(method: string, path: string, options: RequestOptions = {}, isRetry = false): Promise<unknown> {
-    // Сессия истекла: запрос обрывается здесь, до сети и до CSRF-handshake.
+  absoluteUrl(path: string): string {
+    return new URL(this.options.baseUrl + path, origin()).toString();
+  }
+
+  async request(method: string, path: string, options: RequestOptions = {}): Promise<unknown> {
+    // Представляться нечем: запрос обрывается здесь, до сети.
     if (this.options.sessionSuspended?.(path)) {
       throw new UnauthenticatedError(401, {
-        code: 'session_expired',
-        message: 'Session expired',
+        code: 'unauthenticated',
+        message: 'Unauthenticated',
         details: {},
         trace_id: null,
       });
     }
 
-    const isMutation = method !== 'GET' && method !== 'HEAD';
-    if (isMutation) {
-      await this.ensureCsrfCookie();
-    }
-
-    const url = new URL(this.options.baseUrl + path, globalThis.location?.origin ?? 'http://localhost');
+    const url = new URL(this.options.baseUrl + path, origin());
     for (const [key, value] of Object.entries(options.query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
     }
@@ -108,10 +90,9 @@ export class ApiClient {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
+      ...this.authHeaders(),
       ...options.headers,
     };
-    const xsrfToken = readCookie('XSRF-TOKEN');
-    if (isMutation && xsrfToken) headers['X-XSRF-TOKEN'] = xsrfToken;
     // FormData несёт свою границу multipart: заголовок ставит сам браузер,
     // а заданный вручную сломал бы разбор файла на сервере.
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -124,7 +105,6 @@ export class ApiClient {
       response = await fetchFn(url.toString(), {
         method,
         headers,
-        credentials: 'include',
         body: options.body === undefined
           ? undefined
           : isFormData
@@ -147,15 +127,6 @@ export class ApiClient {
     if (response.status === 401) {
       this.options.onUnauthenticated?.();
       throw new UnauthenticatedError(response.status, envelope);
-    }
-    if (response.status === 419) {
-      // Токен устарел (перезапуск сессии): обновляем cookie и повторяем один раз.
-      if (!isRetry) {
-        await this.ensureCsrfCookie(true);
-
-        return this.request(method, path, options, true);
-      }
-      throw new CsrfTokenMismatchError(response.status, envelope);
     }
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
@@ -185,9 +156,6 @@ async function parseEnvelope(response: Response): Promise<ApiErrorEnvelope> {
   }
 }
 
-function readCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.split('; ').find((row) => row.startsWith(`${name}=`));
-
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+function origin(): string {
+  return globalThis.location?.origin ?? 'http://localhost';
 }

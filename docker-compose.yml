@@ -38,10 +38,9 @@ x-api-env: &api-env
     SESSION_DRIVER: redis
     QUEUE_CONNECTION: redis
     BROADCAST_CONNECTION: reverb
-    # Один origin: SPA, API и WebSocket приходят через proxy.
-    SANCTUM_STATEFUL_DOMAINS: ${APP_DOMAIN:-localhost}
+    # Один origin: SPA, API и WebSocket приходят через proxy. Авторизация —
+    # bearer-токен (ADR-012), cookie-сессии в схеме нет.
     CORS_ALLOWED_ORIGINS: ${APP_URL:-http://localhost}
-    SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
     TRUSTED_PROXIES: "*"
     REVERB_APP_ID: ${REVERB_APP_ID:-1001}
     REVERB_APP_KEY: ${REVERB_APP_KEY:-chatkey}
@@ -132,9 +131,6 @@ services:
       REVERB_SCHEME: ""
       REVERB_APP_KEY: ${REVERB_APP_KEY:-chatkey}
       AI_ENABLED: ${AI_ENABLED:-false}
-      # Тихое восстановление сессии выключено по умолчанию: истёкший вход
-      # человек подтверждает сам.
-      AUTH_SILENT_RECOVERY: ${AUTH_SILENT_RECOVERY:-false}
       # Требование к паролю в интерфейсе — то же, по которому проверяет сервер.
       PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-1}
       # Публичный ключ уезжает в SPA через /config.json.

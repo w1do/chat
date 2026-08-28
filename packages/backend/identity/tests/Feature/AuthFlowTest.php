@@ -3,14 +3,35 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
+use Orchestra\Testbench\TestCase;
 use Vendor\Identity\Domain\Models\User;
 
-it('registers with a login only and starts a session', function (): void {
+/** Вход и токен, которым дальше представляется клиент. */
+function login(string $login = 'alice', string $password = 'correct-horse-battery'): string
+{
+    return test()->postJson('/api/v1/auth/login', ['login' => $login, 'password' => $password])
+        ->assertOk()
+        ->json('token');
+}
+
+/**
+ * Следующий запрос приходит как с нового соединения: guard'ы сбрасываются так
+ * же, как между запросами у worker'а в бою. Внутри одного теста контейнер
+ * живёт дальше, и без сброса пользователь прошлого запроса остался бы в
+ * памяти guard'а. Пустой токен означает запрос без заголовка.
+ */
+function device(string $token = ''): TestCase
+{
+    app('auth')->forgetGuards();
+
+    return test()->withToken($token);
+}
+
+it('registers with a login only and issues a token', function (): void {
     $response = $this->postJson('/api/v1/auth/register', [
         'login' => 'alice',
         'password' => 'correct-horse-battery',
@@ -26,8 +47,12 @@ it('registers with a login only and starts a session', function (): void {
         ->assertJsonPath('data.locale', 'en')
         ->assertJsonPath('data.timezone', 'UTC');
 
-    $this->assertAuthenticated();
+    expect($response->json('token'))->toBeString()->not->toBeEmpty();
     $this->assertDatabaseHas('users', ['username' => 'alice', 'email' => null]);
+
+    // Регистрация — тот же вход: ни cookie, ни сессии (ADR-012).
+    expect($response->headers->getCookies())->toBeEmpty();
+    expect(app('session.store')->isStarted())->toBeFalse();
 });
 
 it('rejects a taken login and names the field', function (): void {
@@ -48,42 +73,73 @@ it('rejects malformed logins', function (): void {
     ])->assertStatus(422);
 });
 
-it('logs in with login and password', function (): void {
+it('logs in with login and password and answers with a token, not a cookie', function (): void {
     $user = User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
-    $this->postJson('/api/v1/auth/login', [
+    $response = $this->postJson('/api/v1/auth/login', [
         'login' => 'alice',
         'password' => 'correct-horse-battery',
     ])->assertOk()->assertJsonPath('data.id', $user->externalId());
 
-    $this->assertAuthenticatedAs($user);
+    expect($response->json('token'))->toBeString()->not->toBeEmpty();
+
+    // Ни одной cookie аутентификации и ни одной начатой сессии: вход больше
+    // не серверное состояние (spec identity/token-authentication).
+    expect($response->headers->getCookies())->toBeEmpty();
+    expect(app('session.store')->isStarted())->toBeFalse();
+    $this->assertGuest('web');
 });
 
-it('restores the logged-in user from browser cookies after the Laravel session is lost', function (): void {
+it('issues a token without an expiry and leaves other devices alone', function (): void {
     $user = User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
 
-    $login = $this->postJson('/api/v1/auth/login', [
+    $first = login();
+    $second = login();
+
+    expect($first)->not->toBe($second);
+    $this->assertDatabaseCount('personal_access_tokens', 2);
+    expect(PersonalAccessToken::query()->whereNotNull('expires_at')->count())->toBe(0);
+    expect(PersonalAccessToken::findToken($first)?->tokenable_id)->toBe($user->getKey());
+
+    // Оба устройства авторизованы своим токеном.
+    device($first)->getJson('/api/v1/me')->assertOk();
+    device($second)->getJson('/api/v1/me')->assertOk();
+});
+
+it('ignores a remember flag that is no longer part of the contract', function (): void {
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+
+    $this->postJson('/api/v1/auth/login', [
         'login' => 'alice',
         'password' => 'correct-horse-battery',
+        'remember' => true,
     ])->assertOk();
+});
 
-    $browserToken = collect($login->headers->getCookies())
-        ->first(fn ($cookie) => $cookie->getName() === config('identity.browser_token.cookie'));
+it('restores the logged-in user by token after the server state is gone', function (): void {
+    $user = User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+    $token = login();
 
-    expect($browserToken)->not->toBeNull();
-    expect(PersonalAccessToken::findToken($browserToken->getValue()))->not->toBeNull();
-
-    Auth::guard('web')->logout();
-    $this->assertGuest();
-
-    $this->call(
-        method: 'GET',
-        uri: '/api/v1/me',
-        cookies: [$browserToken->getName() => $browserToken->getValue()],
-        server: ['HTTP_ACCEPT' => 'application/json'],
-    )
+    // Серверного состояния входа нет вовсе: у клиента только токен.
+    device($token)->getJson('/api/v1/me')
         ->assertOk()
         ->assertJsonPath('data.id', $user->externalId());
+});
+
+it('rejects a protected request without an Authorization header', function (): void {
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+    login();
+
+    device()->getJson('/api/v1/me')->assertStatus(401);
+});
+
+it('does not authorize a revoked token', function (): void {
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+    $token = login();
+
+    PersonalAccessToken::findToken($token)->delete();
+
+    device($token)->getJson('/api/v1/me')->assertStatus(401);
 });
 
 it('rejects invalid credentials without revealing whether the login exists', function (): void {
@@ -95,19 +151,25 @@ it('rejects invalid credentials without revealing whether the login exists', fun
         ->assertStatus(401);
 
     expect($known->json('code'))->toBe($unknown->json('code'))
-        ->and($known->json('message'))->toBe($unknown->json('message'));
+        ->and($known->json('message'))->toBe($unknown->json('message'))
+        ->and($known->json('token'))->toBeNull();
 
-    $this->assertGuest();
+    $this->assertDatabaseCount('personal_access_tokens', 0);
 });
 
-it('logs out and invalidates the session', function (): void {
-    $user = User::factory()->create();
+it('logs out only the device that asked and survives a repeat', function (): void {
+    User::factory()->create(['username' => 'alice', 'password' => 'correct-horse-battery']);
+    $phone = login();
+    $desktop = login();
 
-    $this->actingAs($user)->postJson('/api/v1/auth/logout')->assertNoContent();
+    device($phone)->postJson('/api/v1/auth/logout')->assertNoContent();
 
-    // Новый запрос без сессии — доступ к /me закрыт.
-    $this->refreshApplication();
-    $this->getJson('/api/v1/me')->assertStatus(401);
+    // Телефон вышел, компьютер остался вошедшим.
+    device($phone)->getJson('/api/v1/me')->assertStatus(401);
+    device($desktop)->getJson('/api/v1/me')->assertOk();
+
+    // Повтор выхода уже недействительным токеном — отказ, а не ошибка сервера.
+    device($phone)->postJson('/api/v1/auth/logout')->assertStatus(401);
 });
 
 it('returns the authenticated user on /me and rejects guests', function (): void {
@@ -118,6 +180,15 @@ it('returns the authenticated user on /me and rejects guests', function (): void
         ->assertJsonPath('data.id', $user->externalId());
 
     $this->refreshApplication();
+    $this->getJson('/api/v1/me')->assertStatus(401);
+});
+
+it('does not fall back to a browser session when no token is presented', function (): void {
+    $user = User::factory()->create();
+
+    // Человек «вошёл» session-guard'ом — для API это ничего не значит.
+    $this->actingAs($user, 'web');
+
     $this->getJson('/api/v1/me')->assertStatus(401);
 });
 
@@ -173,6 +244,24 @@ it('resets the password with a valid token and rejects a bad token', function ()
     expect(Hash::check('brand-new-password-1', $user->refresh()->password))->toBeTrue();
 });
 
+it('revokes every token of the person whose password was reset', function (): void {
+    $user = User::factory()->withEmail()->create([
+        'username' => 'alice',
+        'password' => 'correct-horse-battery',
+    ]);
+    $phone = login();
+    $desktop = login();
+
+    $this->postJson('/api/v1/auth/reset-password', [
+        'email' => $user->email,
+        'token' => Password::broker()->createToken($user),
+        'password' => 'brand-new-password-1',
+    ])->assertNoContent();
+
+    device($phone)->getJson('/api/v1/me')->assertStatus(401);
+    device($desktop)->getJson('/api/v1/me')->assertStatus(401);
+});
+
 it('does not send recovery mail for an account without an email', function (): void {
     Notification::fake();
     $user = User::factory()->create(['username' => 'nomail']);
@@ -221,6 +310,21 @@ it('changes the password only with the correct current one', function (): void {
     ])->assertNoContent();
 
     expect(Hash::check('brand-new-password-1', $user->refresh()->password))->toBeTrue();
+});
+
+it('keeps the current device signed in and drops the others on a password change', function (): void {
+    User::factory()->create(['username' => 'alice', 'password' => 'old-password-value']);
+    $desktop = login('alice', 'old-password-value');
+    $phone = login('alice', 'old-password-value');
+
+    device($desktop)->patchJson('/api/v1/me/password', [
+        'current_password' => 'old-password-value',
+        'password' => 'brand-new-password-1',
+    ])->assertNoContent();
+
+    // Инициатор остаётся вошедшим, второе устройство — нет.
+    device($desktop)->getJson('/api/v1/me')->assertOk();
+    device($phone)->getJson('/api/v1/me')->assertStatus(401);
 });
 
 it('accepts a short password when the installation asks for nothing more', function (): void {

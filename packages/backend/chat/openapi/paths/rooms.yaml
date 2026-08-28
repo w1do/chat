@@ -3,7 +3,7 @@
     operationId: listRooms
     tags: [rooms]
     summary: Список видимых комнат (публичные + свои приватные)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: visibility
         in: query
@@ -28,7 +28,7 @@
     operationId: createRoom
     tags: [rooms]
     summary: Создание комнаты (создатель становится owner)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -62,7 +62,7 @@
     operationId: getRoom
     tags: [rooms]
     summary: Комната по идентификатору
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Комната.
@@ -84,7 +84,7 @@
     operationId: updateRoom
     tags: [rooms]
     summary: Изменение названия и описания комнаты (owner/admin)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -115,7 +115,7 @@
       Комната, её сообщения, реакции, приглашения и участие удаляются
       безвозвратно; восстановление возможно только из резервной копии базы.
       Постороннему отвечаем 404: существование комнаты ему не показываем.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Комната удалена навсегда. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -138,7 +138,7 @@
     description: >-
       Архивная комната сохраняет переписку и доступна для чтения. Действие
       отделено от удаления собственным адресом.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Комната архивирована. }
       '401': { $ref: '#/components/responses/Unauthenticated' }

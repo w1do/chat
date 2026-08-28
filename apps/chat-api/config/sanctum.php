@@ -2,11 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
-use Laravel\Sanctum\Sanctum;
-
 return [
 
     /*
@@ -20,12 +15,22 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
+    // Пусто: stateful-схемы в приложении нет — клиент авторизуется токеном
+    // (ADR-012), поэтому ни один домен не получает session-cookie.
+    'stateful' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sanctum Routes
+    |--------------------------------------------------------------------------
+    |
+    | CSRF-handshake `GET /sanctum/csrf-cookie` — часть удалённой cookie-схемы
+    | (ADR-012). Маршрут выключен, чтобы приложение не отдавало наружу вход в
+    | механизм, которого больше нет.
+    |
+    */
+
+    'routes' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -39,7 +44,9 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Пусто намеренно: непустой список вернул бы молчаливый fallback на
+    // session-guard, когда bearer-токена в запросе нет (ADR-012).
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -68,22 +75,5 @@ return [
     */
 
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sanctum Middleware
-    |--------------------------------------------------------------------------
-    |
-    | When authenticating your first-party SPA with Sanctum you may need to
-    | customize some of the middleware Sanctum uses while processing the
-    | request. You may change the middleware listed below as required.
-    |
-    */
-
-    'middleware' => [
-        'authenticate_session' => AuthenticateSession::class,
-        'encrypt_cookies' => EncryptCookies::class,
-        'validate_csrf_token' => ValidateCsrfToken::class,
-    ],
 
 ];

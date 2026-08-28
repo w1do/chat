@@ -13,7 +13,7 @@
       списком идентификаторов. Право — то же, что на отправку сообщения.
       Принимаются только типы из белого списка установки; исполняемые файлы
       отклоняются. Не отправленное вложение убирается по расписанию.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -56,7 +56,7 @@
       Доступен тем, кто вправе читать сообщение. Ответ уходит с заголовком
       «Content-Disposition: attachment» — браузер не исполняет содержимое.
       Вложения удалённого сообщения не отдаются.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Содержимое файла.
@@ -76,7 +76,7 @@
     tags: [messages]
     summary: Миниатюра изображения-вложения (webp)
     description: Есть только у изображений и только когда конверсия готова.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Миниатюра.

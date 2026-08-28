@@ -29,9 +29,13 @@ abstract class TestCase extends TestbenchTestCase
         $app['config']->set('database.default', 'testing');
         $app['config']->set('session.driver', 'array');
         $app['config']->set('cache.default', 'array');
-        // В testbench-приложении нет полного 'api' стека: используем 'web',
-        // чтобы session-based SPA auth работал как в приложении.
-        $app['config']->set('identity.routes.middleware', ['web']);
+        // Авторизация целиком в заголовке Authorization (ADR-012): сессия,
+        // cookie и CSRF в стек маршрутов не входят. Пустой sanctum.guard и
+        // guard по умолчанию — те же, что и в приложении: fallback на
+        // session-guard отсутствует и здесь.
+        $app['config']->set('identity.routes.middleware', ['api']);
+        $app['config']->set('sanctum.guard', []);
+        $app['config']->set('auth.defaults.guard', 'sanctum');
 
         // Медиа в тестах пакета: диск подменяется Storage::fake, конверсии
         // выполняются синхронно. Раскладка бакета — забота приложения.

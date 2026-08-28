@@ -30,6 +30,10 @@ final readonly class ResetPasswordHandler
                     'password_set_at' => now(),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                // Пароль сбрасывают, когда доступ мог быть потерян: ни один
+                // прежде выданный токен больше не действует (ADR-012).
+                $user->tokens()->delete();
             },
         );
 

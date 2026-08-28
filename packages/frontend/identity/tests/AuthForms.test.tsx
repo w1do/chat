@@ -34,6 +34,13 @@ describe('LoginForm', () => {
     expect(screen.queryByLabelText(/Почта/)).toBeNull();
   });
 
+  it('не предлагает «запомнить меня»: токен и так бессрочен', () => {
+    render(<LoginForm theme={LIGHT} onSubmit={vi.fn()} />);
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByLabelText(/Запомнить/i)).toBeNull();
+  });
+
   it('shows a single message for invalid credentials', async () => {
     const onSubmit = vi.fn().mockRejectedValue(
       new ApiError(401, { code: 'unauthenticated', message: 'x', details: {}, trace_id: null }),

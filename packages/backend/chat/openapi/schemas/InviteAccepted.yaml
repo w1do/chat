@@ -1,12 +1,17 @@
-InviteAccepted:
-  type: object
-  required: [data]
-  properties:
-    data:
-      type: object
-      required: [room_id, created_account]
-      properties:
-        room_id: { type: string }
-        created_account:
-          type: boolean
-          description: true — для гостя был создан новый аккаунт.
+type: object
+required: [data]
+properties:
+  data:
+    type: object
+    required: [room_id, created_account]
+    properties:
+      room_id: { type: string }
+      created_account:
+        type: boolean
+        description: true — для гостя был создан новый аккаунт.
+  token:
+    type: string
+    description: >-
+      Токен доступа созданного аккаунта. Есть только при
+      `created_account: true`: своего пароля у приглашённого нет, и войти он
+      может только этим значением (ADR-012).

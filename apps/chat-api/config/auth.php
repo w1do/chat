@@ -18,7 +18,9 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        // Токен, а не сессия (ADR-012): guard по умолчанию — sanctum, чтобы
+        // ни одна ветка приложения не определяла человека по cookie.
+        'guard' => env('AUTH_GUARD', 'sanctum'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 

@@ -44,13 +44,18 @@ final class InviteAcceptController extends Controller
             ]);
         }
 
-        [$roomId] = DB::transaction(function () use ($createUser, $join, $name, $token): array {
+        [$roomId, $accessToken] = DB::transaction(function () use ($createUser, $join, $name, $token): array {
             $created = $createUser->handle(new CreateInvitedUserCommand($name));
-            $member = $join->handle(new JoinByInviteCommand($token, $created->id));
+            $member = $join->handle(new JoinByInviteCommand($token, $created->user->id));
 
-            return [$member->roomId];
+            return [$member->roomId, $created->token];
         });
 
-        return new JsonResponse(['data' => ['room_id' => $roomId, 'created_account' => true]], 201);
+        // Своего пароля у приглашённого нет: единственный его вход — токен,
+        // выданный здесь же (ADR-012).
+        return new JsonResponse([
+            'data' => ['room_id' => $roomId, 'created_account' => true],
+            'token' => $accessToken,
+        ], 201);
     }
 }
