@@ -1267,8 +1267,12 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
 
     var text = typing.getAttribute("data-text") || typing.textContent;
     typing.textContent = "";
+    // Дрожание ритма не должно дотягиваться до соседнего символа: при разбросе
+    // в 11 мс на шаге в 32 мс таймеры перекрывались, и строка печаталась
+    // переставленной («Марниа епчаатет…»). Держим разброс меньше шага, а текст
+    // берём срезом — тогда порядок не зависит от порядка срабатывания.
     Array.prototype.forEach.call(text, function (character, index) {
-      later(function () { typing.textContent += character; }, 32 * index + (index % 4) * 11);
+      later(function () { typing.textContent = text.slice(0, index + 1); }, 32 * index + (index % 4) * 7);
     });
     var typingDuration = 32 * text.length + 160;
     messages.forEach(function (message, index) {

@@ -123,7 +123,12 @@ test.describe('demo.html', () => {
     expect(effects.every(({ state }) => state === 'idle' || state === 'running' || state === 'complete')).toBe(true);
 
     await expect(page.locator('#hero [data-sequence="typing"]')).toHaveText('Марина печатает…');
-    await expect(page.locator('#hero [data-sequence="message"]')).toHaveAttribute('data-sequence-state', 'arrived');
+    // Реплик в сцене три — доехать должна каждая, иначе локатор неоднозначен.
+    const heroMessages = page.locator('#hero [data-sequence="message"]');
+    await expect(heroMessages).toHaveCount(3);
+    for (const index of [0, 1, 2]) {
+      await expect(heroMessages.nth(index)).toHaveAttribute('data-sequence-state', 'arrived');
+    }
     await expect(page.locator('#hero .reaction')).toHaveAttribute('data-reaction-state', 'set');
   });
 
@@ -143,7 +148,11 @@ test.describe('demo.html', () => {
     await expect(messages.nth(1)).toHaveAttribute('data-sequence-state', 'arrived');
     await expect(page.locator('#messages [data-sequence="typing"]')).toHaveText('Тимур печатает…');
     await expect(messages.nth(2)).toHaveAttribute('data-sequence-state', 'arrived');
-    await expect(page.locator('#messages .reaction')).toHaveAttribute('data-reaction-state', 'set');
+    // Реакций в сцене две — проверяем обе, иначе локатор неоднозначен.
+    const reactions = page.locator('#messages .reaction');
+    await expect(reactions).toHaveCount(2);
+    await expect(reactions.nth(0)).toHaveAttribute('data-reaction-state', 'set');
+    await expect(reactions.nth(1)).toHaveAttribute('data-reaction-state', 'set');
   });
 
   test('переиспользует ограниченный декоративный ambient-пул', async ({ page }) => {
@@ -189,7 +198,10 @@ test.describe('demo.html', () => {
     await expect(page.locator('#install-output')).toContainText('Применяем миграции');
     const contact = page.getByRole('link', { name: 'Связаться с разработчиком' });
     await expect(contact).toHaveAttribute('aria-disabled', 'true');
-    await contact.click();
+    // `aria-disabled` — обещание для вспомогательных технологий, а не блокировка:
+    // мышью по ссылке кликнуть можно, и обработчик обязан погасить переход.
+    // Playwright по умолчанию такой элемент кликать отказывается, поэтому force.
+    await contact.click({ force: true });
     await expect(page.locator('#cta-status')).toHaveText('Ссылка ещё не настроена владельцем');
     expect(page.url()).toBe(DEMO_URL);
   });
