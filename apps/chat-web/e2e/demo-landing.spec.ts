@@ -196,12 +196,19 @@ test.describe('demo.html', () => {
     await page.goto(DEMO_URL);
 
     await expect(page.locator('#install-output')).toContainText('Применяем миграции');
+
+    // Ссылка разработчика настроена (w1do.ru) и ведёт наружу как обычная внешняя.
     const contact = page.getByRole('link', { name: 'Связаться с разработчиком' });
-    await expect(contact).toHaveAttribute('aria-disabled', 'true');
+    await expect(contact).toHaveAttribute('href', 'https://w1do.ru');
+    await expect(contact).toHaveAttribute('rel', 'noopener noreferrer');
+
+    // Ненастроенная остаётся безопасной заглушкой.
+    const community = page.getByRole('link', { name: 'Вступить в группу' });
+    await expect(community).toHaveAttribute('aria-disabled', 'true');
     // `aria-disabled` — обещание для вспомогательных технологий, а не блокировка:
     // мышью по ссылке кликнуть можно, и обработчик обязан погасить переход.
     // Playwright по умолчанию такой элемент кликать отказывается, поэтому force.
-    await contact.click({ force: true });
+    await community.click({ force: true });
     await expect(page.locator('#cta-status')).toHaveText('Ссылка ещё не настроена владельцем');
     expect(page.url()).toBe(DEMO_URL);
   });
