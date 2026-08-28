@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Avatar } from '../src/components/Avatar';
+import { clearAuthorizedImages } from '../src/hooks/useAuthorizedImage';
 import { Confetti } from '../src/components/Confetti';
 import { Segmented } from '../src/components/Segmented';
 import { Sheet } from '../src/components/Sheet';
@@ -118,36 +119,45 @@ describe('Avatar', () => {
     expect(screen.queryByRole('img', { hidden: true })).not.toBeInTheDocument();
   });
 
-  it('показывает загруженную картинку вместо буквы', () => {
+  it('показывает загруженную картинку вместо буквы', async () => {
     const { container } = render(
       <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/abc/thumb" theme={LIGHT} />,
     );
 
-    const image = container.querySelector('img');
-    expect(image).toHaveAttribute('src', '/api/v1/avatars/abc/thumb');
+    // Адрес защищённый, поэтому картинка приходит через fetch и показывается
+    // из blob: (ADR-012).
+    await waitFor(() => expect(container.querySelector('img')?.getAttribute('src')).toMatch(/^blob:/));
     expect(screen.queryByText('А')).not.toBeInTheDocument();
   });
 
-  it('возвращается к букве, если картинка не загрузилась', () => {
+  it('возвращается к букве, если картинка не загрузилась', async () => {
+    clearAuthorizedImages();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('нет доступа', { status: 403 })));
+
     const { container } = render(
       <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/broken" theme={LIGHT} />,
     );
 
-    fireEvent.error(container.querySelector('img')!);
-
-    expect(screen.getByText('А')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('А')).toBeInTheDocument());
     expect(container.querySelector('img')).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
   });
 
-  it('пробует снова, когда адрес сменился', () => {
+  it('пробует снова, когда адрес сменился', async () => {
+    clearAuthorizedImages();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('нет доступа', { status: 403 })));
+
     const { container, rerender } = render(
       <Avatar userId="u1" name="Алиса" src="/api/v1/avatars/broken" theme={LIGHT} />,
     );
-    fireEvent.error(container.querySelector('img')!);
-    expect(screen.getByText('А')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('А')).toBeInTheDocument());
 
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['image']))));
     rerender(<Avatar userId="u1" name="Алиса" src="/api/v1/avatars/fresh" theme={LIGHT} />);
 
-    expect(container.querySelector('img')).toHaveAttribute('src', '/api/v1/avatars/fresh');
+    await waitFor(() => expect(container.querySelector('img')?.getAttribute('src')).toMatch(/^blob:/));
+
+    vi.unstubAllGlobals();
   });
 });

@@ -8,6 +8,7 @@ final readonly class AuthenticatedUserData
 {
     public function __construct(
         public UserData $user,
-        public ?BrowserTokenCookieData $browserTokenCookie = null,
+        /** Plaintext-значение выдаётся один раз — в ответе входа (ADR-012). */
+        public string $token,
     ) {}
 }

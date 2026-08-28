@@ -11,7 +11,7 @@
     description: >
       Создаёт любой участник комнаты. Токен возвращается один раз — в этом
       ответе: в базе хранится только его хэш.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '201':
         description: Приглашение создано.
@@ -36,7 +36,7 @@
     tags: [membership]
     summary: Отозвать приглашение
     description: Ссылка перестаёт работать немедленно.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Приглашение отозвано. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -80,8 +80,9 @@
     summary: Принять приглашение
     description: >
       Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются,
-      меняются в настройках) и открывается сессия. Вошедший пользователь просто
-      вступает в комнату, второй аккаунт не создаётся.
+      меняются в настройках), и вместе с комнатой он получает токен доступа.
+      Вошедший пользователь просто вступает в комнату: второй аккаунт не
+      создаётся и токен не выдаётся.
     requestBody:
       required: false
       content:
@@ -100,7 +101,7 @@
           application/json:
             schema: { $ref: '#/components/schemas/InviteAccepted' }
       '201':
-        description: Гостю создан аккаунт, он в комнате.
+        description: Гостю создан аккаунт с токеном доступа, он в комнате.
         content:
           application/json:
             schema: { $ref: '#/components/schemas/InviteAccepted' }

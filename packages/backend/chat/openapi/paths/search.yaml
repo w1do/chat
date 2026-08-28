@@ -8,7 +8,7 @@
       PostgreSQL после проверки членства. Удалённые и системные записи
       не возвращаются. Если индекс недоступен, ответ — 503, а чат
       продолжает работать.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: q
         in: query

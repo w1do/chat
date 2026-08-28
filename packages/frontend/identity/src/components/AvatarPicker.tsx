@@ -1,4 +1,4 @@
-import { Avatar, RADIUS, type ThemeTokens } from '@vendor/ui';
+import { AuthorizedImage, Avatar, RADIUS, type ThemeTokens } from '@vendor/ui';
 import { useRef, useState } from 'react';
 import type { ProfileImage } from '../api';
 
@@ -121,13 +121,25 @@ export function AvatarPicker({
                       boxShadow: avatar.current ? `0 0 0 2.5px ${theme.text}` : 'none',
                     }}
                   >
-                    <img
+                    <AuthorizedImage
                       src={avatar.thumb_url ?? avatar.url}
                       alt=""
                       width={56}
                       height={56}
                       className="object-cover"
                       style={{ width: 56, height: 56, borderRadius: RADIUS.sm, background: theme.surfaceAlt }}
+                      fallback={
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            display: 'block',
+                            width: 56,
+                            height: 56,
+                            borderRadius: RADIUS.sm,
+                            background: theme.surfaceAlt,
+                          }}
+                        />
+                      }
                     />
                   </button>
                   <button

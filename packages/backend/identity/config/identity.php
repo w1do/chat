@@ -7,9 +7,6 @@ return [
     // Конкретный класс пользователя подставляет приложение (STRUCTURE.md §2).
     'user_model' => null,
 
-    // Session guard для SPA cookie auth.
-    'guard' => 'web',
-
     // Политика паролей.
     'password' => [
         // Семейный чат, а не платёжная система: длинный пароль отпугивает тех,
@@ -33,18 +30,6 @@ return [
     'presence' => [
         'online_window_seconds' => (int) env('PRESENCE_ONLINE_WINDOW_SECONDS', 120),
         'touch_throttle_seconds' => (int) env('PRESENCE_TOUCH_THROTTLE_SECONDS', 60),
-    ],
-
-    'browser_token' => [
-        'enabled' => (bool) env('AUTH_BROWSER_TOKEN_ENABLED', true),
-        'cookie' => env('AUTH_BROWSER_TOKEN_COOKIE', '__Host-chat_browser_token'),
-        'ability' => env('AUTH_BROWSER_TOKEN_ABILITY', 'browser'),
-        'ttl_minutes' => (int) env('AUTH_BROWSER_TOKEN_TTL_MINUTES', 1440),
-        'remember_ttl_minutes' => (int) env('AUTH_BROWSER_TOKEN_REMEMBER_TTL_MINUTES', 43200),
-        'secure' => (bool) env('AUTH_BROWSER_TOKEN_SECURE', env('APP_ENV') === 'production'),
-        'same_site' => env('AUTH_BROWSER_TOKEN_SAME_SITE', 'lax'),
-        'path' => '/',
-        'domain' => env('AUTH_BROWSER_TOKEN_DOMAIN'),
     ],
 
     // Изображения профиля: аватарки и обои (ADR-011). Хранятся только

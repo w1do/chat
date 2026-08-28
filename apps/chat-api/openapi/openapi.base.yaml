@@ -9,11 +9,12 @@ servers:
   - url: /api/v1
 components:
   securitySchemes:
-    sanctumCookie:
-      type: apiKey
-      in: cookie
-      name: laravel_session
-      description: Sanctum cookie-based SPA session.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Personal access token Sanctum без срока истечения, выданный
+        /auth/login, /auth/register или /invites/{token}/accept (ADR-012).
   schemas:
     ApiError:
       type: object

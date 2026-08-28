@@ -4,7 +4,7 @@
     tags: [administration]
     summary: Состояние зависимостей и включённых возможностей
     description: Требует права `administration.system.view`.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Сводка состояния.
@@ -41,7 +41,7 @@
     tags: [administration]
     summary: Текущие выключатели
     description: Требует права `administration.system.view`.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Значения выключателей.
@@ -65,7 +65,7 @@
     description: >
       Требует права `administration.settings.update`. Выключение помощника не
       влияет на переписку: чат работает как обычно.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -98,7 +98,7 @@
     tags: [administration]
     summary: Журнал административных и AI-действий
     description: Требует права `administration.audit.view`.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: action
         in: query

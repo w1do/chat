@@ -170,16 +170,21 @@ export const invitesApi = {
   async show(client: ApiClient, token: string): Promise<Invite> {
     return ((await client.get(`/invites/${token}`)) as { data: Invite }).data;
   },
+  /**
+   * Приём приглашения. Гостю вместе с комнатой выдаётся токен доступа: своего
+   * пароля у созданного аккаунта нет, и войти он может только им (ADR-012).
+   * Вошедший человек просто вступает в комнату и токена не получает.
+   */
   async accept(
     client: ApiClient,
     token: string,
     name?: string,
-  ): Promise<{ room_id: string; created_account: boolean }> {
+  ): Promise<{ room_id: string; created_account: boolean; token?: string }> {
     const response = (await client.post(`/invites/${token}/accept`, {
       body: name === undefined ? {} : { name },
-    })) as { data: { room_id: string; created_account: boolean } };
+    })) as { data: { room_id: string; created_account: boolean }; token?: string };
 
-    return response.data;
+    return { ...response.data, token: response.token };
   },
 };
 

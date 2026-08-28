@@ -1,0 +1,11 @@
+type: object
+required: [data, token]
+properties:
+  data:
+    $ref: '#/components/schemas/User'
+  token:
+    type: string
+    description: >-
+      Plaintext personal access token без срока истечения. Возвращается один
+      раз; клиент хранит его и предъявляет заголовком
+      `Authorization: Bearer <token>` (ADR-012).

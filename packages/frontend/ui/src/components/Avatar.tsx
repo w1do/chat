@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { ONLINE, voiceHue, type ThemeTokens } from '../styles/tokens';
+import { AuthorizedImage } from './AuthorizedImage';
 
 interface AvatarProps {
   /** Идентификатор задаёт постоянный оттенок голоса. */
@@ -20,44 +20,36 @@ interface AvatarProps {
 export function Avatar({ userId, name, src, size = 44, theme, online }: AvatarProps) {
   const hue = voiceHue(userId);
   const initial = name.trim().charAt(0).toUpperCase() || '·';
-  const [failed, setFailed] = useState(false);
 
-  // Новый адрес — новая попытка: прежняя неудача не должна прятать картинку,
-  // которую человек только что поставил.
-  useEffect(() => setFailed(false), [src]);
-
-  const showImage = Boolean(src) && !failed;
+  const letter = (
+    <span
+      aria-hidden="true"
+      className="flex items-center justify-center w-full h-full font-semibold"
+      style={{
+        borderRadius: size * 0.36,
+        background: `${hue}1F`,
+        boxShadow: `inset 0 0 0 1.5px ${hue}44`,
+        color: hue,
+        fontSize: size * 0.4,
+      }}
+    >
+      {initial}
+    </span>
+  );
 
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
-      {showImage ? (
-        <img
-          src={src ?? undefined}
-          alt=""
-          aria-hidden="true"
-          width={size}
-          height={size}
-          loading="lazy"
-          decoding="async"
-          onError={() => setFailed(true)}
-          className="w-full h-full object-cover"
-          style={{ borderRadius: size * 0.36, background: `${hue}1F` }}
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="flex items-center justify-center w-full h-full font-semibold"
-          style={{
-            borderRadius: size * 0.36,
-            background: `${hue}1F`,
-            boxShadow: `inset 0 0 0 1.5px ${hue}44`,
-            color: hue,
-            fontSize: size * 0.4,
-          }}
-        >
-          {initial}
-        </span>
-      )}
+      <AuthorizedImage
+        src={src}
+        fallback={letter}
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        decoding="async"
+        className="w-full h-full object-cover"
+        style={{ borderRadius: size * 0.36, background: `${hue}1F` }}
+      />
       {online ? (
         <span
           aria-label="в сети"

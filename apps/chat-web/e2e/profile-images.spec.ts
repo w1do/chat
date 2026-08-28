@@ -73,9 +73,15 @@ test('a person sets an avatar and the room gets a photo', async ({ browser }) =>
   await guest.getByRole('button', { name: new RegExp(roomName) }).click({ timeout: 20_000 });
   await guest.getByRole('heading', { name: roomName }).click();
 
-  // Аватарка владельца пришла картинкой, а не буквой.
-  const avatar = guest.locator('img[src*="/api/v1/avatars/"]').first();
+  // Аватарка владельца пришла картинкой, а не буквой. Файл защищён, поэтому
+  // приходит авторизованным запросом и показывается из blob: (ADR-012).
+  const avatar = guest.locator('img[src^="blob:"]').first();
   await expect(avatar).toBeVisible({ timeout: 20_000 });
+
+  // Повторный показ картинки её не теряет: адрес файла не изменился, и
+  // устройство берёт его тем же путём.
+  await guest.reload();
+  await expect(guest.locator('img[src^="blob:"]').first()).toBeVisible({ timeout: 20_000 });
 
   await contextA.close();
   await contextB.close();

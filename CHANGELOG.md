@@ -7,6 +7,43 @@
 
 ### Changed
 
+- **BREAKING**: клиент авторизуется бессрочным bearer-токеном Sanctum вместо
+  cookie-сессии (изменение `replace-session-auth-with-sanctum-token`, ADR-012
+  заменяет ADR-005). Прежняя схема не пережила реальную установку: стек
+  отдаётся по `http`, cookie `__Host-chat_browser_token` браузер обязан
+  отбросить без атрибута `Secure`, авторизация фактически оставалась
+  сессионной, и через `SESSION_LIFETIME` человека раз за разом просили войти
+  заново.
+  Теперь `POST /auth/login` и `POST /auth/register` возвращают plaintext-токен
+  без срока истечения в поле `token`; `POST /invites/{token}/accept` отдаёт его
+  же, когда создаёт аккаунт гостю. Клиент хранит токен в
+  `localStorage['chat.auth-token']` и шлёт заголовком `Authorization: Bearer`
+  в каждый запрос к API и к `/broadcasting/auth`. Вход переживает перезапуск
+  браузера и контейнера `api`; вход со второго устройства не трогает первое.
+  Ушли: `statefulApi()`, `sanctum.stateful`, маршрут
+  `GET /sanctum/csrf-cookie` (`sanctum.routes => false`) вместе со
+  stateful-middleware Sanctum, заголовок `X-XSRF-TOKEN`, `credentials:
+  'include'`, вся обвязка browser-token cookie, read-only модель
+  `Vendor\Identity\Domain\Models\Session`, экран «Сессия истекла» и тихое
+  восстановление. `sanctum.guard` пуст: fallback на session-guard `web`
+  исключён по построению. Поле `remember` удалено из `POST /auth/login` — при
+  бессрочном токене оно ничего не обещало. Схема безопасности в OpenAPI:
+  `bearerAuth` вместо `sanctumCookie`.
+  Отзыв: выход отзывает токен текущего устройства, сброс пароля — все токены
+  человека, смена пароля в настройках — все, кроме текущего. `401` после входа
+  означает отозванный токен: клиент один раз стирает токен, гасит сокет,
+  чистит кеш изображений и уходит на `/login`.
+  Аватарки, фото комнат, миниатюры и оригиналы вложений грузятся авторизованным
+  `fetch` и показываются из `blob:`-адреса (`<AuthorizedImage>` в
+  `@vendor/ui`); адреса не изменились, поэтому кеш изображений service
+  worker'а продолжает работать (`cache.match` получает `{ ignoreVary: true }`).
+  Скачивание файла — тоже авторизованный запрос, а не обычная ссылка.
+  Принятый риск записан явно: токен в `localStorage` доступен JS и не истекает
+  сам (ADR-012, `docs/security/threat-model.md`).
+  При обновлении все входят заново один раз; из окружения уходят
+  `SANCTUM_STATEFUL_DOMAINS`, `SESSION_SECURE_COOKIE`, `AUTH_BROWSER_TOKEN_*` и
+  `AUTH_SILENT_RECOVERY` — порядок в `docs/operations/upgrade.md`.
+
 - **BREAKING**: объектное хранилище стало обязательным компонентом установки
   (изменение `add-object-storage-foundation`, ADR-011). Раньше оно включалось
   необязательным профилем `s3` и никуда не было подключено — ни переменных в

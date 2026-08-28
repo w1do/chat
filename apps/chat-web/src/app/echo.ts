@@ -4,6 +4,7 @@ import { EchoAdapter, type RealtimeAdapter } from '@vendor/chat';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import type { RuntimeConfig } from './runtime-config';
+import { authToken } from './token';
 
 declare global {
   interface Window {
@@ -35,8 +36,7 @@ export function createRealtimeAdapter(config: RuntimeConfig): RealtimeAdapter | 
   window.Pusher = Pusher;
   const socket = socketEndpoint(config);
 
-  // Sanctum SPA: /broadcasting/auth — stateful-маршрут, требует XSRF-токен
-  // (Echo не читает cookie самостоятельно).
+  // Канал авторизуется тем же токеном, что и HTTP (ADR-012).
   const echo = new Echo({
     broadcaster: 'reverb',
     key: config.reverb.appKey,
@@ -49,8 +49,12 @@ export function createRealtimeAdapter(config: RuntimeConfig): RealtimeAdapter | 
     auth: {
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
-        get 'X-XSRF-TOKEN'() {
-          return readCookie('XSRF-TOKEN') ?? '';
+        // Геттер, а не значение: после повторного входа сокет обязан
+        // авторизоваться новым токеном, а не тем, что был при создании Echo.
+        get Authorization() {
+          const token = authToken();
+
+          return token === null ? '' : `Bearer ${token}`;
         },
       },
     },
@@ -66,7 +70,7 @@ export function realtimeAdapter(): RealtimeAdapter | null {
 }
 
 /**
- * Сессия истекла — сокет замолкает. Без этого Reverb бесконечно переспрашивает
+ * Вход недействителен — сокет замолкает. Без этого Reverb бесконечно переспрашивает
  * `/broadcasting/auth`, получает 401 и переподключается по кругу: в консоли
  * шум, в интерфейсе мигание, на сервере лишняя нагрузка.
  */
@@ -74,16 +78,3 @@ export function suspendRealtime(): void {
   connection?.disconnect();
 }
 
-/**
- * Вход восстановлен: подключаемся заново. Подписки на комнаты и личный канал
- * Echo восстанавливает сам — каналы он помнит между подключениями.
- */
-export function resumeRealtime(): void {
-  connection?.connect();
-}
-
-function readCookie(name: string): string | null {
-  const match = document.cookie.split('; ').find((row) => row.startsWith(`${name}=`));
-
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
-}

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { LIGHT } from '@vendor/ui';
-import { describe, expect, it, vi } from 'vitest';
+import { clearAuthorizedImages, LIGHT } from '@vendor/ui';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RoomGlyph } from '../src/components/RoomGlyph';
 import { RoomManagePanel } from '../src/components/mobile/RoomManagePanel';
 import type { Room } from '../src/schemas/room';
@@ -42,6 +42,11 @@ function setupPanel(extra: Partial<Room> = {}) {
 }
 
 describe('RoomGlyph', () => {
+  afterEach(() => {
+    clearAuthorizedImages();
+    vi.unstubAllGlobals();
+  });
+
   it('рисует эмодзи из названия, пока фотографии нет', () => {
     const { container } = render(<RoomGlyph name="Кухня" size={46} radius={16} theme={LIGHT} />);
 
@@ -49,23 +54,29 @@ describe('RoomGlyph', () => {
     expect(container.textContent).not.toBe('');
   });
 
-  it('показывает фотографию вместо эмодзи', () => {
+  it('показывает фотографию вместо эмодзи', async () => {
+    const fetchMock = vi.fn(async () => new Response(new Blob(['image'])));
+    vi.stubGlobal('fetch', fetchMock);
+
     const { container } = render(
       <RoomGlyph name="Кухня" photoUrl="/api/v1/room-photos/p1/thumb" size={46} radius={16} theme={LIGHT} />,
     );
 
-    expect(container.querySelector('img')).toHaveAttribute('src', '/api/v1/room-photos/p1/thumb');
+    // Адрес защищённый: картинка приходит авторизованным запросом и
+    // показывается из blob: (ADR-012).
+    await waitFor(() => expect(container.querySelector('img')?.getAttribute('src')).toMatch(/^blob:/));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/room-photos/p1/thumb', { headers: {} });
   });
 
-  it('возвращается к эмодзи, если фотография не загрузилась', () => {
+  it('возвращается к эмодзи, если фотография не загрузилась', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('нет доступа', { status: 403 })));
+
     const { container } = render(
       <RoomGlyph name="Кухня" photoUrl="/api/v1/room-photos/broken" size={46} radius={16} theme={LIGHT} />,
     );
 
-    const image = container.querySelector('img')!;
-    image.dispatchEvent(new Event('error'));
-
-    return waitFor(() => expect(container.querySelector('img')).not.toBeInTheDocument());
+    await waitFor(() => expect(container.querySelector('img')).not.toBeInTheDocument());
+    expect(container.textContent).not.toBe('');
   });
 });
 

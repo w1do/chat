@@ -9,6 +9,7 @@ export { ProfileForm } from './components/ProfileForm';
 export { RecoveryForm } from './components/RecoveryForm';
 export { RegisterForm } from './components/RegisterForm';
 export { IdentityProvider, useApiClient, useAuth } from './hooks/useAuth';
+export { authTokenStore, setAuthTokenStore, type AuthTokenStore } from './token-store';
 export { useAvatars, useProfileImageActions } from './hooks/useProfileImages';
 export { AvatarPicker } from './components/AvatarPicker';
 export { WallpaperPicker } from './components/WallpaperPicker';

@@ -9,9 +9,6 @@
   "ai": {
     "enabled": "${AI_ENABLED}"
   },
-  "auth": {
-    "silentRecovery": "${AUTH_SILENT_RECOVERY}"
-  },
   "push": {
     "publicKey": "${VAPID_PUBLIC_KEY}"
   },

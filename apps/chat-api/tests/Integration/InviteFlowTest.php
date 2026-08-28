@@ -72,8 +72,14 @@ it('creates an account and puts the person straight into the room', function ():
         ->and($guest->password_set_at)->toBeNull()
         ->and($guest->email)->toBeNull();
 
-    // Сессия уже открыта: гость сразу пишет в комнату.
-    $this->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'Привет всем!'])->assertCreated();
+    // Своего пароля у приглашённого нет: вход ему даёт токен из ответа
+    // (ADR-012) — с ним он сразу пишет в комнату.
+    expect($response->json('token'))->toBeString()->not->toBeEmpty();
+
+    app('auth')->forgetGuards();
+    $this->withToken($response->json('token'))
+        ->postJson("/api/v1/rooms/{$room->id}/messages", ['body' => 'Привет всем!'])
+        ->assertCreated();
 
     expect($response->json('data.room_id'))->toBe($room->id);
 });

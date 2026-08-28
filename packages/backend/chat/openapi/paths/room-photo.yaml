@@ -8,7 +8,7 @@
     operationId: setRoomPhoto
     tags: [rooms]
     summary: Фотография комнаты (owner/admin); новая вытесняет прежнюю
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -41,7 +41,7 @@
     operationId: clearRoomPhoto
     tags: [rooms]
     summary: Снять фотографию комнаты (owner/admin)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Комната снова показана эмодзи. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -62,7 +62,7 @@
     tags: [rooms]
     summary: Файл фотографии комнаты (webp)
     description: Доступен тем же, кому доступна сама комната.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Изображение.
@@ -81,7 +81,7 @@
     operationId: showRoomPhotoThumb
     tags: [rooms]
     summary: Файл фотографии комнаты в мелком размере (webp)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Изображение.

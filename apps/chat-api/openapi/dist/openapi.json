@@ -12,11 +12,10 @@
     ],
     "components": {
         "securitySchemes": {
-            "sanctumCookie": {
-                "type": "apiKey",
-                "in": "cookie",
-                "name": "laravel_session",
-                "description": "Sanctum cookie-based SPA session."
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Personal access token Sanctum без срока истечения, выданный /auth/login, /auth/register или /invites/{token}/accept (ADR-012)."
             }
         },
         "schemas": {
@@ -152,6 +151,22 @@
                             "type": "string",
                             "format": "date-time"
                         }
+                    }
+                }
+            },
+            "AuthenticatedUser": {
+                "type": "object",
+                "required": [
+                    "data",
+                    "token"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/User"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "Plaintext personal access token без срока истечения. Возвращается один раз; клиент хранит его и предъявляет заголовком `Authorization: Bearer <token>` (ADR-012)."
                     }
                 }
             },
@@ -338,28 +353,30 @@
                 }
             },
             "InviteAccepted": {
-                "InviteAccepted": {
-                    "type": "object",
-                    "required": [
-                        "data"
-                    ],
-                    "properties": {
-                        "data": {
-                            "type": "object",
-                            "required": [
-                                "room_id",
-                                "created_account"
-                            ],
-                            "properties": {
-                                "room_id": {
-                                    "type": "string"
-                                },
-                                "created_account": {
-                                    "type": "boolean",
-                                    "description": "true — для гостя был создан новый аккаунт."
-                                }
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": [
+                            "room_id",
+                            "created_account"
+                        ],
+                        "properties": {
+                            "room_id": {
+                                "type": "string"
+                            },
+                            "created_account": {
+                                "type": "boolean",
+                                "description": "true — для гостя был создан новый аккаунт."
                             }
                         }
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "Токен доступа созданного аккаунта. Есть только при `created_account: true`: своего пароля у приглашённого нет, и войти он может только этим значением (ADR-012)."
                     }
                 }
             },
@@ -1119,7 +1136,7 @@
                 "description": "Требует права `administration.audit.view`.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -1211,7 +1228,7 @@
                 "description": "Требует права `administration.system.view`.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -1258,7 +1275,7 @@
                 "description": "Требует права `administration.settings.update`. Выключение помощника не влияет на переписку: чат работает как обычно.\n",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -1328,7 +1345,7 @@
                 "description": "Требует права `administration.system.view`.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -1415,7 +1432,7 @@
                 "description": "Ответ с токеном `@ai` на сообщение с приложенным документом. Обработка асинхронная: возвращается операция, черновик приходит событием `ai.file_summary.updated.v1` и читается через GET. Пересказ виден только запросившему и не публикуется без подтверждения.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -1531,7 +1548,7 @@
                 "description": "Ресинхронизация после переподключения: клиент не зависит от того, застал ли он real-time событие. Черновик отдаётся только запросившему.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -1582,7 +1599,7 @@
                 "description": "Единственный способ показать пересказ комнате. Сообщение обычное и авторство — у человека, а не у помощника.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -1646,7 +1663,7 @@
                 "description": "Возвращает предложение, а не публикует его. В запросе к поставщику уходит только присланный текст — история комнаты не передаётся.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -1770,7 +1787,7 @@
                 "description": "Доступен тем, кто вправе читать сообщение. Ответ уходит с заголовком «Content-Disposition: attachment» — браузер не исполняет содержимое. Вложения удалённого сообщения не отдаются.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -1814,7 +1831,7 @@
                 "description": "Есть только у изображений и только когда конверсия готова.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -1905,7 +1922,7 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Вход по логину (Sanctum cookie SPA)",
+                "summary": "Вход по логину; ответ несёт токен доступа (ADR-012)",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1923,10 +1940,6 @@
                                     },
                                     "password": {
                                         "type": "string"
-                                    },
-                                    "remember": {
-                                        "type": "boolean",
-                                        "default": false
                                     }
                                 }
                             }
@@ -1935,11 +1948,11 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Аутентифицирован; сессионная cookie обновлена.",
+                        "description": "Аутентифицирован; в ответе новый бессрочный токен доступа. Cookie аутентификации не выдаётся.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/UserEnvelope"
+                                    "$ref": "#/components/schemas/AuthenticatedUser"
                                 }
                             }
                         }
@@ -1969,15 +1982,15 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Выход",
+                "summary": "Выход — отзывает токен текущего устройства",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": "Сессия завершена."
+                        "description": "Токен, которым выполнен запрос, отозван. Токены других устройств продолжают действовать."
                     },
                     "401": {
                         "$ref": "#/components/responses/Unauthenticated"
@@ -2025,11 +2038,11 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Пользователь создан, сессия начата.",
+                        "description": "Пользователь создан; в ответе — он сам и его токен доступа.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/UserEnvelope"
+                                    "$ref": "#/components/schemas/AuthenticatedUser"
                                 }
                             }
                         }
@@ -2056,7 +2069,7 @@
                 "tags": [
                     "auth"
                 ],
-                "summary": "Установка нового пароля по токену",
+                "summary": "Установка нового пароля по токену (отзывает все токены доступа)",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -2087,7 +2100,7 @@
                 },
                 "responses": {
                     "204": {
-                        "description": "Пароль обновлён."
+                        "description": "Пароль обновлён; все прежде выданные токены доступа отозваны."
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"
@@ -2125,7 +2138,7 @@
                 "description": "Файл отдаёт приложение: бакет закрыт. Адрес меняется вместе с изображением, поэтому ответ кэшируется надолго.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2168,7 +2181,7 @@
                 "summary": "Файл аватарки в мелком размере (webp)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2202,7 +2215,7 @@
                 "description": "Тот же поиск по началу ника, что и у приглашений, с теми же правилами и частотой; сам ищущий в выдачу не попадает. Отметка already_member здесь всегда false — комнаты нет.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -2263,7 +2276,7 @@
                 "description": "Начинает диалог с человеком или открывает уже существующий: между одной парой людей переписка только одна, порядок участников не важен. Оба собеседника — обычные участники, владельца у диалога нет. Частота ограничена как у приглашений.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -2361,7 +2374,7 @@
                 "description": "Убирает диалог из списка только у скрывшего: переписка и собеседник не затрагиваются, история сохраняется целиком, новое сообщение возвращает диалог в список. Комнату скрыть нельзя — из неё выходят. Постороннему отвечаем 404: существование чужого диалога не показываем.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2407,7 +2420,7 @@
                 "description": "Ссылка перестаёт работать немедленно.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2489,7 +2502,7 @@
                     "membership"
                 ],
                 "summary": "Принять приглашение",
-                "description": "Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются, меняются в настройках) и открывается сессия. Вошедший пользователь просто вступает в комнату, второй аккаунт не создаётся.\n",
+                "description": "Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются, меняются в настройках), и вместе с комнатой он получает токен доступа. Вошедший пользователь просто вступает в комнату: второй аккаунт не создаётся и токен не выдаётся.\n",
                 "requestBody": {
                     "required": false,
                     "content": {
@@ -2519,7 +2532,7 @@
                         }
                     },
                     "201": {
-                        "description": "Гостю создан аккаунт, он в комнате.",
+                        "description": "Гостю создан аккаунт с токеном доступа, он в комнате.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2549,7 +2562,7 @@
                 "summary": "Текущий пользователь",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2578,7 +2591,7 @@
                 "summary": "Снять текущую аватарку, сохранив набор",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2601,7 +2614,7 @@
                 "description": "Набор видит только его владелец: остальным доступна лишь текущая аватарка в представлении человека.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2639,7 +2652,7 @@
                 "summary": "Загрузка аватарки (сразу становится текущей)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -2721,7 +2734,7 @@
                 "summary": "Сделать текущей аватарку из набора",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2760,7 +2773,7 @@
                 "description": "Если удалена текущая, показываться начинает другая из набора; когда набор опустел — возвращается буква имени.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -2785,7 +2798,7 @@
                 "summary": "Добавление, смена или удаление почты",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -2850,7 +2863,7 @@
                 "summary": "Смена пароля с подтверждением текущего",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -2908,7 +2921,7 @@
                 "summary": "Обновление профиля",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -2965,7 +2978,7 @@
                 "description": "Обои видит только их владелец; новые вытесняют прежние.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3025,7 +3038,7 @@
                 "summary": "Вернуть обычный фон",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3057,7 +3070,7 @@
                 "summary": "Сообщение по идентификатору",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3105,7 +3118,7 @@
                 "summary": "Редактирование своего сообщения в пределах окна",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3165,7 +3178,7 @@
                 "summary": "Мягкое удаление (автор или owner/admin комнаты)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3200,7 +3213,7 @@
                 "summary": "Переключение реакции (добавляет либо снимает)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3263,7 +3276,7 @@
                 "summary": "Настройки каналов уведомлений",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3301,7 +3314,7 @@
                 "summary": "Изменение настроек каналов",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3394,7 +3407,7 @@
                 "summary": "Лента уведомлений и счётчик непрочитанного",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -3466,7 +3479,7 @@
                 "summary": "Отметить прочитанными (без списка — все)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3536,7 +3549,7 @@
                 "description": "Подписка приходит от браузера. Повторный вызов с тем же endpoint обновляет существующую запись, а не создаёт вторую.\n",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3619,7 +3632,7 @@
                 "description": "Удаляет подписку текущего пользователя. Чужая подписка не затрагивается; ответ одинаков и когда подписки уже не было.\n",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3675,7 +3688,7 @@
                 "description": "Доступен тем же, кому доступна сама комната.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3718,7 +3731,7 @@
                 "summary": "Файл фотографии комнаты в мелком размере (webp)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3751,7 +3764,7 @@
                 "summary": "Список видимых комнат (публичные + свои приватные)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -3809,7 +3822,7 @@
                 "summary": "Создание комнаты (создатель становится owner)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -3893,7 +3906,7 @@
                 "summary": "Комната по идентификатору",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -3941,7 +3954,7 @@
                 "summary": "Изменение названия и описания комнаты (owner/admin)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -4007,7 +4020,7 @@
                 "description": "Комната, её сообщения, реакции, приглашения и участие удаляются безвозвратно; восстановление возможно только из резервной копии базы. Постороннему отвечаем 404: существование комнаты ему не показываем.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4053,7 +4066,7 @@
                 "description": "Архивная комната сохраняет переписку и доступна для чтения. Действие отделено от удаления собственным адресом.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4099,7 +4112,7 @@
                 "description": "Файл загружается отдельным запросом; сообщение затем отправляется со списком идентификаторов. Право — то же, что на отправку сообщения. Принимаются только типы из белого списка установки; исполняемые файлы отклоняются. Не отправленное вложение убирается по расписанию.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -4185,7 +4198,7 @@
                 "description": "Создаёт любой участник комнаты. Токен возвращается один раз — в этом ответе: в базе хранится только его хэш.\n",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4239,7 +4252,7 @@
                 "description": "Совпадение с начала ника без учёта регистра; ведущий `@` необязателен. Запрос короче двух символов не ищет ничего, ответ ограничен десятью людьми и той же частотой, что и приглашения.",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -4309,7 +4322,7 @@
                 "summary": "Участники комнаты",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4350,7 +4363,7 @@
                 "summary": "Приглашение пользователя (owner/admin)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -4432,7 +4445,7 @@
                 "summary": "Вступление в публичную комнату",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4470,7 +4483,7 @@
                 "summary": "Выход из комнаты (owner не может выйти)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4513,7 +4526,7 @@
                 "summary": "Смена роли участника (только owner; роль owner не назначается)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -4586,7 +4599,7 @@
                 "summary": "Исключение участника: владелец — любого, кроме себя; админ — только участника с обычной ролью",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4631,7 +4644,7 @@
                 "summary": "История сообщений комнаты (cursor-пагинация, новые → старые)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -4707,7 +4720,7 @@
                 "summary": "Отправка сообщения (идемпотентна по Idempotency-Key)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -4828,7 +4841,7 @@
                 "summary": "Фотография комнаты (owner/admin); новая вытесняет прежнюю",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -4901,7 +4914,7 @@
                 "summary": "Снять фотографию комнаты (owner/admin)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {
@@ -4946,7 +4959,7 @@
                 "summary": "Отметка прочтения (не двигается назад)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -5002,7 +5015,7 @@
                 "summary": "Сигнал набора текста (транслируется в presence-канал)",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "requestBody": {
@@ -5049,7 +5062,7 @@
                 "description": "Индекс отдаёт только идентификаторы; тела сообщений читаются из PostgreSQL после проверки членства. Удалённые и системные записи не возвращаются. Если индекс недоступен, ответ — 503, а чат продолжает работать.\n",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "parameters": [
@@ -5135,7 +5148,7 @@
                 "summary": "Файл обоев (webp); доступен только владельцу",
                 "security": [
                     {
-                        "sanctumCookie": []
+                        "bearerAuth": []
                     }
                 ],
                 "responses": {

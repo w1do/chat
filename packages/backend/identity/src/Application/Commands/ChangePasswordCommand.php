@@ -10,5 +10,7 @@ final readonly class ChangePasswordCommand
         public string $userId,
         public string $currentPassword,
         public string $newPassword,
+        /** Токен запроса переживает смену пароля: остальные отзываются. */
+        public ?int $currentAccessTokenId = null,
     ) {}
 }

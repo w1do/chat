@@ -11,6 +11,7 @@ use Vendor\Identity\Application\Commands\UpdateProfileCommand;
 use Vendor\Identity\Application\Handlers\Commands\ChangePasswordHandler;
 use Vendor\Identity\Application\Handlers\Commands\UpdateEmailHandler;
 use Vendor\Identity\Application\Handlers\Commands\UpdateProfileHandler;
+use Vendor\Identity\Application\Support\CurrentAccessToken;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\ChangePasswordRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\UpdateEmailRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\UpdateProfileRequest;
@@ -46,6 +47,7 @@ final class ProfileController
             userId: (string) $request->user()->getKey(),
             currentPassword: $validated['current_password'],
             newPassword: $validated['password'],
+            currentAccessTokenId: CurrentAccessToken::id($request),
         ));
 
         return response()->noContent();

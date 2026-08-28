@@ -10,7 +10,6 @@ const login = z
 export const loginSchema = z.object({
   login: z.string().min(1, 'Заполните это поле'),
   password: z.string().min(1, 'Заполните это поле'),
-  remember: z.boolean().optional(),
 });
 
 /**

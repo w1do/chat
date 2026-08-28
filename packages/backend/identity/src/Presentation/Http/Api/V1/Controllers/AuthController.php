@@ -7,7 +7,6 @@ namespace Vendor\Identity\Presentation\Http\Api\V1\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Symfony\Component\HttpFoundation\Cookie;
 use Vendor\Identity\Application\Commands\LoginCommand;
 use Vendor\Identity\Application\Commands\LogoutCommand;
 use Vendor\Identity\Application\Commands\RegisterUserCommand;
@@ -19,7 +18,7 @@ use Vendor\Identity\Application\Handlers\Commands\LogoutHandler;
 use Vendor\Identity\Application\Handlers\Commands\RegisterUserHandler;
 use Vendor\Identity\Application\Handlers\Commands\RequestPasswordResetHandler;
 use Vendor\Identity\Application\Handlers\Commands\ResetPasswordHandler;
-use Vendor\Identity\Application\Support\BrowserTokenConfig;
+use Vendor\Identity\Application\Support\CurrentAccessToken;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\ForgotPasswordRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\LoginRequest;
 use Vendor\Identity\Presentation\Http\Api\V1\Requests\RegisterRequest;
@@ -38,14 +37,7 @@ final class AuthController
             name: $validated['name'] ?? null,
         ));
 
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
-
-        return $this->withBrowserTokenCookie(
-            UserResource::make($result->user)->response()->setStatusCode(201),
-            $result,
-        );
+        return $this->authenticated($result, 201);
     }
 
     public function login(LoginRequest $request, LoginHandler $handler): JsonResponse
@@ -55,36 +47,16 @@ final class AuthController
         $result = $handler->handle(new LoginCommand(
             username: $validated['login'],
             password: $validated['password'],
-            remember: (bool) ($validated['remember'] ?? false),
         ));
 
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
-
-        return $this->withBrowserTokenCookie(UserResource::make($result->user)->response(), $result);
+        return $this->authenticated($result);
     }
 
-    public function logout(Request $request, LogoutHandler $handler, BrowserTokenConfig $browserTokenConfig): Response
+    public function logout(Request $request, LogoutHandler $handler): Response
     {
-        $handler->handle(new LogoutCommand(currentAccessTokenId: $request->user()?->currentAccessToken()?->getKey()));
+        $handler->handle(new LogoutCommand(currentAccessTokenId: CurrentAccessToken::id($request)));
 
-        if ($request->hasSession()) {
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-        }
-
-        $response = response()->noContent();
-        $response->headers->clearCookie(
-            name: $browserTokenConfig->cookieName(),
-            path: $browserTokenConfig->path(),
-            domain: $browserTokenConfig->domain(),
-            secure: $browserTokenConfig->secure(),
-            httpOnly: true,
-            sameSite: $browserTokenConfig->sameSite(),
-        );
-
-        return $response;
+        return response()->noContent();
     }
 
     public function forgotPassword(ForgotPasswordRequest $request, RequestPasswordResetHandler $handler): JsonResponse
@@ -108,25 +80,15 @@ final class AuthController
         return response()->noContent();
     }
 
-    private function withBrowserTokenCookie(JsonResponse $response, AuthenticatedUserData $result): JsonResponse
+    /**
+     * Ответ входа: пользователь в прежнем envelope и plaintext-токен рядом с
+     * ним. Cookie не ставится — токен хранит и предъявляет клиент (ADR-012).
+     */
+    private function authenticated(AuthenticatedUserData $result, int $status = 200): JsonResponse
     {
-        if ($result->browserTokenCookie === null) {
-            return $response;
-        }
-
-        $cookie = $result->browserTokenCookie;
-        $response->headers->setCookie(new Cookie(
-            name: $cookie->name,
-            value: $cookie->plainTextToken,
-            expire: $cookie->expiresAt,
-            path: $cookie->path,
-            domain: $cookie->domain,
-            secure: $cookie->secure,
-            httpOnly: true,
-            raw: false,
-            sameSite: $cookie->sameSite,
-        ));
-
-        return $response;
+        return UserResource::make($result->user)
+            ->additional(['token' => $result->token])
+            ->response()
+            ->setStatusCode($status);
     }
 }

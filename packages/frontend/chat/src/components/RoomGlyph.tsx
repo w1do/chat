@@ -1,5 +1,4 @@
-import { roomEmoji, type ThemeTokens } from '@vendor/ui';
-import { useEffect, useState } from 'react';
+import { AuthorizedImage, roomEmoji, type ThemeTokens } from '@vendor/ui';
 
 interface RoomGlyphProps {
   name: string;
@@ -16,30 +15,7 @@ interface RoomGlyphProps {
  * списке переписок быть не должно.
  */
 export function RoomGlyph({ name, photoUrl, size, radius, theme }: RoomGlyphProps) {
-  const [failed, setFailed] = useState(false);
-
-  // Новый адрес — новая попытка: прежняя неудача не должна прятать только
-  // что поставленную фотографию.
-  useEffect(() => setFailed(false), [photoUrl]);
-
-  if (photoUrl && !failed) {
-    return (
-      <img
-        src={photoUrl}
-        alt=""
-        aria-hidden="true"
-        width={size}
-        height={size}
-        loading="lazy"
-        decoding="async"
-        onError={() => setFailed(true)}
-        className="shrink-0 object-cover"
-        style={{ width: size, height: size, borderRadius: radius, background: theme.surfaceAlt }}
-      />
-    );
-  }
-
-  return (
+  const emoji = (
     <span
       aria-hidden="true"
       className="grid place-items-center shrink-0"
@@ -53,5 +29,19 @@ export function RoomGlyph({ name, photoUrl, size, radius, theme }: RoomGlyphProp
     >
       {roomEmoji(name)}
     </span>
+  );
+
+  return (
+    <AuthorizedImage
+      src={photoUrl}
+      fallback={emoji}
+      alt=""
+      aria-hidden="true"
+      width={size}
+      height={size}
+      decoding="async"
+      className="shrink-0 object-cover"
+      style={{ width: size, height: size, borderRadius: radius, background: theme.surfaceAlt }}
+    />
   );
 }

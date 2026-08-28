@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UnauthenticatedError, type ApiClient } from '@vendor/api-client';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { identityApi, type AuthUser } from '../api';
+import { authTokenStore } from '../token-store';
 import type { EmailInput, LoginInput, PasswordChangeInput, ProfileInput, RegisterInput } from '../schemas/auth';
 
 // ApiClient приходит от приложения через провайдер (§4.2) — пакет не создаёт
@@ -20,9 +21,24 @@ export function useApiClient(): ApiClient {
 
 const ME_KEY = ['identity', 'me'] as const;
 
+/**
+ * Есть ли чем представиться. Через `useSyncExternalStore`, чтобы выход в
+ * соседней вкладке доходил и до этой (ADR-012).
+ */
+function useHasToken(): boolean {
+  const subscribe = useCallback(
+    (listener: () => void) => authTokenStore().subscribe?.(listener) ?? (() => {}),
+    [],
+  );
+  const read = useCallback(() => authTokenStore().read() !== null, []);
+
+  return useSyncExternalStore(subscribe, read, read);
+}
+
 export function useAuth() {
   const client = useApiClient();
   const queryClient = useQueryClient();
+  const hasToken = useHasToken();
 
   const me = useQuery<AuthUser | null>({
     queryKey: ME_KEY,
@@ -34,6 +50,8 @@ export function useAuth() {
         throw error;
       }
     },
+    // Токена нет — представляться нечем, и запрос не уходит в сеть (spec).
+    enabled: hasToken,
     staleTime: 60_000,
     retry: false,
   });
@@ -67,10 +85,12 @@ export function useAuth() {
     mutationFn: (input: PasswordChangeInput) => identityApi.changePassword(client, input),
   });
 
+  const user = hasToken ? (me.data ?? null) : null;
+
   return {
-    user: me.data ?? null,
-    isLoading: me.isLoading,
-    isAuthenticated: me.data != null,
+    user,
+    isLoading: hasToken && me.isLoading,
+    isAuthenticated: user != null,
     login,
     register,
     logout,

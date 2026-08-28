@@ -8,7 +8,7 @@
     operationId: listMembers
     tags: [members]
     summary: Участники комнаты
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Список участников.
@@ -27,7 +27,7 @@
     operationId: inviteMember
     tags: [members]
     summary: Приглашение пользователя (owner/admin)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -65,7 +65,7 @@
     operationId: joinRoom
     tags: [members]
     summary: Вступление в публичную комнату
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '201':
         description: Вступление выполнено.
@@ -82,7 +82,7 @@
     operationId: leaveRoom
     tags: [members]
     summary: Выход из комнаты (owner не может выйти)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Выход выполнен. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -101,7 +101,7 @@
     operationId: changeMemberRole
     tags: [members]
     summary: Смена роли участника (только owner; роль owner не назначается)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -135,7 +135,7 @@
     summary: >-
       Исключение участника: владелец — любого, кроме себя; админ — только
       участника с обычной ролью
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '204': { description: Участник исключён. }
       '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -159,7 +159,7 @@
       Совпадение с начала ника без учёта регистра; ведущий `@` необязателен.
       Запрос короче двух символов не ищет ничего, ответ ограничен десятью
       людьми и той же частотой, что и приглашения.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: query
         in: query

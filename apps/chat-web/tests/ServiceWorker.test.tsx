@@ -33,8 +33,12 @@ function imageResponse(options: { ok?: boolean; kilobytes?: number; tag?: string
  */
 class FakeCache {
   readonly entries = new Map<string, unknown>();
+  /** Параметры последнего поиска: worker обязан просить `ignoreVary`. */
+  matchOptions: unknown = undefined;
 
-  async match(request: { url: string }) {
+  async match(request: { url: string }, options?: unknown) {
+    this.matchOptions = options;
+
     return this.entries.get(request.url);
   }
 
@@ -208,6 +212,10 @@ describe('service worker: кеш изображений', () => {
     // Повторный показ идёт из хранилища: сеть больше не тревожим.
     expect(second.responded).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Запрос за картинкой несёт заголовок авторизации (ADR-012), а ответ —
+    // Vary. Без ignoreVary совпадение по заголовкам разрушало бы кеш.
+    expect(stores.get(IMAGES)!.matchOptions).toEqual({ ignoreVary: true });
   });
 
   it('кеширует картинки профиля и комнаты, но не оригинал вложения', async () => {
@@ -362,7 +370,7 @@ describe('service worker: перевыпуск подписки', () => {
     });
   }
 
-  it('подписывается заново и отдаёт новую подписку серверу', async () => {
+  it('перевыпускает подписку, но не отправляет её сам', async () => {
     const fetchMock = fakeFetch();
     vi.stubGlobal('fetch', fetchMock);
     const subscribe = vi.fn().mockResolvedValue(fresh);
@@ -376,12 +384,14 @@ describe('service worker: перевыпуск подписки', () => {
 
     expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({ userVisibleOnly: true }));
 
-    const [url, options] = fetchMock.mock.calls.at(-1) as [string, Record<string, unknown>];
-    expect(url).toBe('/api/v1/push-subscriptions');
-    expect(options.method).toBe('POST');
-    // Сессия ходит cookie'ами, значит нужен CSRF-заголовок.
-    expect((options.headers as Record<string, string>)['X-XSRF-TOKEN']).toBe('csrf-token');
-    expect(JSON.parse(String(options.body)).endpoint).toBe('https://push.example.com/fresh');
+    // Токен доступа лежит в localStorage страницы: worker им не располагает и
+    // второго хранилища учётных данных не заводит (ADR-012). Подписку донесёт
+    // приложение при следующем запуске — POST /push-subscriptions идемпотентен.
+    const posts = fetchMock.mock.calls.filter(
+      ([, options]) => (options as Record<string, unknown> | undefined)?.method === 'POST',
+    );
+    expect(posts).toHaveLength(0);
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes('/config.json'))).toBe(true);
 
     vi.unstubAllGlobals();
   });

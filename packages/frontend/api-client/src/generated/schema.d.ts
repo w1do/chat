@@ -218,7 +218,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вход по логину (Sanctum cookie SPA) */
+        /** Вход по логину; ответ несёт токен доступа (ADR-012) */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -235,7 +235,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Выход */
+        /** Выход — отзывает токен текущего устройства */
         post: operations["logout"];
         delete?: never;
         options?: never;
@@ -269,7 +269,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Установка нового пароля по токену */
+        /** Установка нового пароля по токену (отзывает все токены доступа) */
         post: operations["resetPassword"];
         delete?: never;
         options?: never;
@@ -437,7 +437,7 @@ export interface paths {
         put?: never;
         /**
          * Принять приглашение
-         * @description Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются, меняются в настройках) и открывается сессия. Вошедший пользователь просто вступает в комнату, второй аккаунт не создаётся.
+         * @description Гостю создаётся аккаунт по указанному имени (логин и пароль генерируются, меняются в настройках), и вместе с комнатой он получает токен доступа. Вошедший пользователь просто вступает в комнату: второй аккаунт не создаётся и токен не выдаётся.
          */
         post: operations["acceptRoomInvite"];
         delete?: never;
@@ -1092,6 +1092,11 @@ export interface components {
             height: number | null;
         };
         AuditEntry: unknown;
+        AuthenticatedUser: {
+            data: components["schemas"]["User"];
+            /** @description Plaintext personal access token без срока истечения. Возвращается один раз; клиент хранит его и предъявляет заголовком `Authorization: Bearer <token>` (ADR-012). */
+            token: string;
+        };
         /** @description Собеседник личной переписки: этого достаточно, чтобы подписать диалог и решить, какие действия показывать, без дополнительных запросов. */
         Counterpart: {
             /** @description ULID собеседника. */
@@ -1138,7 +1143,15 @@ export interface components {
             created_at: string;
         };
         Invite: unknown;
-        InviteAccepted: unknown;
+        InviteAccepted: {
+            data: {
+                room_id: string;
+                /** @description true — для гостя был создан новый аккаунт. */
+                created_account: boolean;
+            };
+            /** @description Токен доступа созданного аккаунта. Есть только при `created_account: true`: своего пароля у приглашённого нет, и войти он может только этим значением (ADR-012). */
+            token?: string;
+        };
         Member: {
             /** @description ULID записи членства. */
             id: string;
@@ -1815,19 +1828,17 @@ export interface operations {
                 "application/json": {
                     login: string;
                     password: string;
-                    /** @default false */
-                    remember?: boolean;
                 };
             };
         };
         responses: {
-            /** @description Аутентифицирован; сессионная cookie обновлена. */
+            /** @description Аутентифицирован; в ответе новый бессрочный токен доступа. Cookie аутентификации не выдаётся. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserEnvelope"];
+                    "application/json": components["schemas"]["AuthenticatedUser"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -1852,7 +1863,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Сессия завершена. */
+            /** @description Токен, которым выполнен запрос, отозван. Токены других устройств продолжают действовать. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1880,13 +1891,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Пользователь создан, сессия начата. */
+            /** @description Пользователь создан; в ответе — он сам и его токен доступа. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserEnvelope"];
+                    "application/json": components["schemas"]["AuthenticatedUser"];
                 };
             };
             422: components["responses"]["ValidationError"];
@@ -1919,7 +1930,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Пароль обновлён. */
+            /** @description Пароль обновлён; все прежде выданные токены доступа отозваны. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -2178,7 +2189,7 @@ export interface operations {
                     "application/json": components["schemas"]["InviteAccepted"];
                 };
             };
-            /** @description Гостю создан аккаунт, он в комнате. */
+            /** @description Гостю создан аккаунт с токеном доступа, он в комнате. */
             201: {
                 headers: {
                     [name: string]: unknown;

@@ -1,37 +1,34 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { identityApi, useAuth } from '@vendor/identity';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { SessionExpiredScreen } from '../pages/SessionExpiredScreen';
-import { apiClient } from './api';
-import { resumeRealtime, suspendRealtime } from './echo';
-import { silentRecoveryEnabled } from './runtime-config';
+import { useAuth } from '@vendor/identity';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { suspendRealtime } from './echo';
 import { clearImageCache, forgetImagesOfAnotherUser } from './service-worker';
 import {
   markSessionEstablished,
+  reportUnauthenticated,
   sessionStatus,
-  setSilentRecovery,
   subscribeSession,
   type SessionStatus,
 } from './session';
+import { authToken, clearAuthToken, subscribeAuthToken } from './token';
 
-/** Состояние сессии для интерфейса: экран «Сессия истекла» рисует провайдер. */
+/** Состояние входа для интерфейса. */
 export function useSessionStatus(): SessionStatus {
   return useSyncExternalStore(subscribeSession, sessionStatus, sessionStatus);
 }
 
 /**
- * Владелец состояния сессии. Первый 401 после успешного входа переводит
- * приложение в устойчивое «сессия истекла»: повторы запросов гасятся, сокет
- * замолкает, поверх чата встаёт экран с одним понятным действием.
+ * Владелец состояния входа. Первый 401 после успешного входа означает, что
+ * токен отозван: восстанавливать нечего (ADR-012). Клиент стирает токен,
+ * гасит сокет, убирает приватные данные с устройства и уходит на форму входа;
+ * повторы 401 при этом уже подавлены, поэтому экран не мигает.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const status = useSessionStatus();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [leaving, setLeaving] = useState(false);
-  const wasSuspended = useRef(false);
 
-  // Вход состоялся — дальше 401 означает именно истёкшую сессию. Заодно
+  // Вход состоялся — дальше 401 означает именно отозванный токен. Заодно
   // сверяем, тот же ли это человек: на общем устройстве кеш изображений
   // прежнего аккаунта не должен достаться следующему.
   useEffect(() => {
@@ -40,79 +37,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     forgetImagesOfAnotherUser(user.id);
   }, [user]);
 
-  // Тихое восстановление включается установкой и по умолчанию выключено:
-  // неверно настроенное, оно прячет настоящий выход (design.md, «Risks»).
+  // Выход в соседней вкладке гасит и эту: значение токена общее на браузер
+  // (design 6), а опрашивать сервер ради этого незачем.
+  useEffect(() => subscribeAuthToken(() => {
+    if (authToken() === null) reportUnauthenticated();
+  }), []);
+
   useEffect(() => {
-    if (!silentRecoveryEnabled()) {
-      setSilentRecovery(null);
+    if (status !== 'unauthorized') return;
 
-      return;
-    }
+    // Снимаем висящие запросы и гасим сокет: иначе TanStack Query повторяет
+    // их, а Reverb бесконечно переспрашивает /broadcasting/auth.
+    void queryClient.cancelQueries();
+    suspendRealtime();
+    clearAuthToken();
 
-    const client = apiClient();
-    setSilentRecovery(async () => {
-      try {
-        // Sanctum SPA: истёкший XSRF-токен — обычная причина 401 после долгого
-        // простоя вкладки. Handshake и одна проверка `/me` — вся попытка.
-        await client.refreshCsrfCookie();
-        await identityApi.me(client);
-
-        return true;
-      } catch {
-        return false;
-      }
-    });
-
-    return () => setSilentRecovery(null);
-  }, []);
-
-  // Инцидент открыт: снимаем висящие запросы и гасим сокет. Иначе TanStack
-  // Query повторяет их, Reverb бесконечно переспрашивает /broadcasting/auth,
-  // и приложение мигает вместо того, чтобы объяснить, что произошло.
-  useEffect(() => {
-    if (status !== 'authorized') {
-      wasSuspended.current = true;
-      void queryClient.cancelQueries();
-      suspendRealtime();
-      // Сессия истекла — изображения прежнего аккаунта не остаются на
-      // устройстве доступными, в том числе без сети (spec).
-      if (status === 'unauthorized') void clearImageCache();
-
-      return;
-    }
-
-    // Возвращение из инцидента: сокет подключается заново (подписки на личные
-    // каналы восстанавливает сам Echo), данные перечитываются.
-    if (wasSuspended.current) {
-      wasSuspended.current = false;
-      resumeRealtime();
-      void queryClient.invalidateQueries();
-    }
+    // Полная перезагрузка страницы, а не переход роутером: так гарантированно
+    // не остаётся ни устаревшего кэша, ни живого сокета. Изображения прежнего
+    // аккаунта не остаются доступными, в том числе без сети (spec).
+    void clearImageCache().finally(() => window.location.assign('/login'));
   }, [status, queryClient]);
 
-  const logoutAndRedirect = useCallback(async () => {
-    setLeaving(true);
-    try {
-      await identityApi.logout(apiClient());
-    } catch {
-      // Сессии уже нет — выходу и нечего инвалидировать. Чистим своё и уходим.
-    }
-    queryClient.clear();
-    suspendRealtime();
-    await clearImageCache();
-    // Полная перезагрузка страницы, а не переход роутером: так гарантированно
-    // не остаётся ни устаревшего кэша, ни живого сокета.
-    window.location.assign('/login');
-  }, [queryClient]);
-
-  const reload = useCallback(() => window.location.reload(), []);
-
-  return (
-    <>
-      {children}
-      {status === 'unauthorized' ? (
-        <SessionExpiredScreen busy={leaving} onLogin={() => void logoutAndRedirect()} onReload={reload} />
-      ) : null}
-    </>
-  );
+  return <>{children}</>;
 }

@@ -6,7 +6,7 @@
     description: >
       Подписка приходит от браузера. Повторный вызов с тем же endpoint обновляет
       существующую запись, а не создаёт вторую.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -45,7 +45,7 @@
     description: >
       Удаляет подписку текущего пользователя. Чужая подписка не затрагивается;
       ответ одинаков и когда подписки уже не было.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:

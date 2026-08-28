@@ -88,7 +88,10 @@ async function imageFirstFromCache(event) {
 
   try {
     cache = await caches.open(IMAGE_CACHE);
-    const hit = await cache.match(request);
+    // Запрос за картинкой несёт заголовок авторизации (ADR-012), а ответ —
+    // Vary. Без ignoreVary совпадение по заголовкам разрушало бы кеш, и
+    // картинка скачивалась бы заново при каждом показе.
+    const hit = await cache.match(request, { ignoreVary: true });
 
     if (hit) {
       // Копию снимаем сразу: отданный ответ читает браузер, и клонировать
@@ -194,7 +197,14 @@ self.addEventListener('notificationclick', (event) => {
    регулярно. Пока это событие никто не слушал, устройство молча выпадало из
    рассылки навсегда: сервер удалял подписку по ответу 410, а новая никуда не
    уходила. Приложение в этот момент может быть закрыто, поэтому ключ берём не
-   из его памяти, а из той же /config.json. */
+   из его памяти, а из той же /config.json.
+
+   Worker только перевыпускает подписку и не отправляет её сам: токен доступа
+   лежит в localStorage страницы, а дублировать его в worker значило бы
+   завести второе хранилище учётных данных (ADR-012). Отправку берёт на себя
+   приложение — при следующем запуске оно сверяет подписку с сервером
+   авторизованным запросом, а POST /push-subscriptions идемпотентен по
+   endpoint, поэтому повтор ничего не ломает. */
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(resubscribe());
 });
@@ -207,34 +217,10 @@ async function resubscribe() {
   const key = config?.push?.publicKey;
   if (!key) return;
 
-  const subscription = await self.registration.pushManager.subscribe({
+  await self.registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: applicationServerKey(key),
   });
-
-  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-  // Сессия ходит cookie'ами, поэтому нужен и CSRF-заголовок. Прочитать cookie
-  // из worker можно только Cookie Store API; где его нет, подписку донесёт
-  // приложение при следующем запуске — оно сверяет её с сервером.
-  const token = await xsrfToken();
-  if (token) headers['X-XSRF-TOKEN'] = token;
-
-  await fetch(`${config.apiBaseUrl ?? '/api/v1'}/push-subscriptions`, {
-    method: 'POST',
-    credentials: 'include',
-    headers,
-    body: JSON.stringify(subscription.toJSON ? subscription.toJSON() : subscription),
-  });
-}
-
-async function xsrfToken() {
-  try {
-    const cookie = await self.cookieStore?.get('XSRF-TOKEN');
-
-    return cookie ? decodeURIComponent(cookie.value) : null;
-  } catch {
-    return null;
-  }
 }
 
 /** base64url из конфигурации → формат, который ждёт браузер. */

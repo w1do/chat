@@ -1,4 +1,4 @@
-import { RADIUS, overlayOnOwn, type ThemeTokens } from '@vendor/ui';
+import { AuthorizedImage, downloadAuthorizedFile, RADIUS, overlayOnOwn, type ThemeTokens } from '@vendor/ui';
 import { Download, FileText, ImageIcon, ImageOff } from 'lucide-react';
 import { useState } from 'react';
 import { formatFileSize } from '../../format';
@@ -67,12 +67,51 @@ export function MessageAttachments({
       ) : null}
 
       {files.map((file) => (
-        <a
-          key={file.id}
-          href={file.url}
-          download={file.name}
+        <FileRow key={file.id} file={file} own={own} theme={theme} fontSize={fontSize} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Файл сохраняется авторизованным запросом, а не обычной ссылкой: к ней
+ * браузер не приложит заголовок, и вместо файла на устройство лёг бы ответ
+ * об отказе (ADR-012).
+ */
+function FileRow({
+  file,
+  own,
+  theme,
+  fontSize,
+}: {
+  file: Attachment;
+  own: boolean;
+  theme: ThemeTokens;
+  fontSize: number;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await downloadAuthorizedFile(file.url, file.name);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void save()}
           aria-label={`Скачать ${file.name}`}
-          className="flex items-center gap-2 px-2 py-1.5 tap no-underline"
+          className="w-full flex items-center gap-2 px-2 py-1.5 tap text-left"
           style={{
             background: own ? overlayOnOwn(theme) : theme.surfaceAlt,
             borderRadius: 10,
@@ -89,9 +128,13 @@ export function MessageAttachments({
             </span>
           </span>
           <Download size={16} className="shrink-0" aria-hidden="true" style={{ opacity: 0.85 }} />
-        </a>
-      ))}
-    </div>
+        </button>
+      {failed ? (
+        <span role="alert" className="text-[11.5px] px-2" style={{ color: theme.danger }}>
+          Не удалось скачать файл. Попробуйте ещё раз.
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -127,7 +170,15 @@ function ImageTile({
       >
         {image.thumb_url !== null ? (
           // Лента грузит миниатюру; оригинал — только в галерее (spec).
-          <img src={image.thumb_url} alt={image.name} loading="lazy" className="w-full h-full object-cover" />
+          <AuthorizedImage
+            src={image.thumb_url}
+            alt={image.name}
+            className="w-full h-full object-cover"
+            // Пока идёт загрузка — пустая плитка своего цвета, как у обычной
+            // картинки до отрисовки. Состояние ожидания говорит о другом: что
+            // миниатюры ещё нет на сервере (spec chat/attachments).
+            fallback={<span aria-hidden="true" className="block w-full h-full" />}
+          />
         ) : givenUp ? (
           // Честное объяснение вместо вечного ожидания: нажатие открывает
           // оригинал, за миниатюрой больше не ходим (spec chat/attachments).

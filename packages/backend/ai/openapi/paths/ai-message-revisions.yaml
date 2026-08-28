@@ -6,7 +6,7 @@
     description: >-
       Возвращает предложение, а не публикует его. В запросе к поставщику уходит
       только присланный текст — история комнаты не передаётся.
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:

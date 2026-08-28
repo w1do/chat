@@ -8,7 +8,7 @@
     operationId: listMessages
     tags: [messages]
     summary: История сообщений комнаты (cursor-пагинация, новые → старые)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: cursor
         in: query
@@ -40,7 +40,7 @@
     operationId: sendMessage
     tags: [messages]
     summary: Отправка сообщения (идемпотентна по Idempotency-Key)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     parameters:
       - name: Idempotency-Key
         in: header
@@ -100,7 +100,7 @@
     operationId: markRoomRead
     tags: [messages]
     summary: Отметка прочтения (не двигается назад)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:
@@ -125,7 +125,7 @@
     operationId: setTyping
     tags: [messages]
     summary: Сигнал набора текста (транслируется в presence-канал)
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:

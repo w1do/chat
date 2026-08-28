@@ -19,7 +19,6 @@ final class LoginRequest extends FormRequest
         return [
             'login' => ['required', 'string', 'max:64'],
             'password' => ['required', 'string'],
-            'remember' => ['sometimes', 'boolean'],
         ];
     }
 }

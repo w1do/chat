@@ -264,3 +264,44 @@ it('sets typing through the API endpoint for members only', function (): void {
     $this->actingAs($outsider)->postJson("/api/v1/rooms/{$room->id}/typing", ['is_typing' => true])
         ->assertStatus(403);
 });
+
+it('authorizes a private channel by bearer token and refuses a foreign room', function (): void {
+    $room = Room::factory()->privateRoom()->create();
+    $member = chatMember($room);
+    $outsider = User::factory()->create();
+
+    $token = $member->createToken('client', ['*'])->plainTextToken;
+    $outsiderToken = $outsider->createToken('client', ['*'])->plainTextToken;
+
+    app('auth')->forgetGuards();
+    $this->withToken($token)->postJson('/broadcasting/auth', [
+        'channel_name' => "private-room.{$room->id}",
+        'socket_id' => '123.456',
+    ])->assertOk();
+
+    app('auth')->forgetGuards();
+    $this->withToken($outsiderToken)->postJson('/broadcasting/auth', [
+        'channel_name' => "private-room.{$room->id}",
+        'socket_id' => '123.456',
+    ])->assertStatus(403);
+});
+
+it('refuses channel authorization without a token and after the token is revoked', function (): void {
+    $room = Room::factory()->privateRoom()->create();
+    $member = chatMember($room);
+    $token = $member->createToken('client', ['*'])->plainTextToken;
+
+    app('auth')->forgetGuards();
+    $this->postJson('/broadcasting/auth', [
+        'channel_name' => "private-room.{$room->id}",
+        'socket_id' => '123.456',
+    ])->assertStatus(401);
+
+    $member->tokens()->delete();
+
+    app('auth')->forgetGuards();
+    $this->withToken($token)->postJson('/broadcasting/auth', [
+        'channel_name' => "private-room.{$room->id}",
+        'socket_id' => '123.456',
+    ])->assertStatus(401);
+});

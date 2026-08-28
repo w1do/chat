@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Vendor\Identity;
 
+use Illuminate\Auth\AuthManager;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Vendor\Identity\Application\Handlers\Commands\LoginHandler;
 use Vendor\Identity\Domain\Models\User;
 
 final class IdentityServiceProvider extends ServiceProvider
@@ -16,6 +19,19 @@ final class IdentityServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/identity.php', 'identity');
+
+        // Вход сверяет пароль провайдером пользователей, а не guard'ом: сессии
+        // в схеме больше нет (ADR-012). Binding контекстный — пакет не
+        // навязывает приложению собственный UserProvider.
+        $this->app->when(LoginHandler::class)
+            ->needs(UserProvider::class)
+            ->give(static function ($app): UserProvider {
+                /** @var AuthFactory&AuthManager $auth */
+                $auth = $app->make(AuthFactory::class);
+
+                /** @var UserProvider */
+                return $auth->createUserProvider('users');
+            });
     }
 
     public function boot(): void
@@ -23,7 +39,6 @@ final class IdentityServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         $this->configureRateLimiters();
-        EncryptCookies::except((string) config('identity.browser_token.cookie', '__Host-chat_browser_token'));
 
         // Провайдер пользователей auth использует настроенный класс приложения
         // либо базовую модель пакета.

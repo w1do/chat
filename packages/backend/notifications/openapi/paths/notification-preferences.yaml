@@ -3,7 +3,7 @@
     operationId: listNotificationPreferences
     tags: [notifications]
     summary: Настройки каналов уведомлений
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     responses:
       '200':
         description: Полный список настроек с учётом значений по умолчанию.
@@ -21,7 +21,7 @@
     operationId: updateNotificationPreferences
     tags: [notifications]
     summary: Изменение настроек каналов
-    security: [{ sanctumCookie: [] }]
+    security: [{ bearerAuth: [] }]
     requestBody:
       required: true
       content:

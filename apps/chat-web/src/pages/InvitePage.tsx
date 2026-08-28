@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../app/api';
 import { useSettings } from '../app/settings';
+import { storeAuthToken } from '../app/token';
 
 /** Экран перехода по приглашению: куда зовут, кто зовёт и как войти. */
 export function InvitePage() {
@@ -38,8 +39,12 @@ export function InvitePage() {
     try {
       const result = await invitesApi.accept(apiClient(), token, user ? undefined : name.trim());
 
-      // Полный переход, а не маршрутизация: сессия только что появилась, и
-      // приложение должно перечитать вход, иначе guard уведёт на форму входа.
+      // Гостю аккаунт только что создали: свой вход он получает вместе с
+      // ответом и ничего больше не вводит (ADR-012).
+      if (result.token) storeAuthToken(result.token);
+
+      // Полный переход, а не маршрутизация: вход только что появился, и
+      // приложение должно перечитать его, иначе guard уведёт на форму входа.
       window.location.assign(`/rooms/${result.room_id}`);
     } catch {
       setError('Не удалось присоединиться. Возможно, ссылка больше не действует.');

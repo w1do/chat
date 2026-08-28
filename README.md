@@ -19,7 +19,6 @@
    ```
    APP_URL=https://chat.вашдомен.ru
    APP_DOMAIN=chat.вашдомен.ru
-   SESSION_SECURE_COOKIE=true
    REVERB_ALLOWED_ORIGINS=https://chat.вашдомен.ru
    DB_PASSWORD=…
    REDIS_PASSWORD=…
@@ -38,10 +37,10 @@ entrypoint или резолвер сертификатов — задайте `
 Стек не публикует порты наружу: 80 и 443 остаются у вашей панели, а домен на
 контейнер направляет её Traefik. Наружу смотрит единственный сервис `web` — он
 отдаёт приложение и проксирует API и WebSocket внутрь, поэтому всё живёт на
-одном адресе (этого требует аутентификация по cookie).
+одном адресе.
 
-`APP_DOMAIN` — то же, что `APP_URL`, но без `https://`. Если он не совпадёт с
-адресом в браузере, вход не удержится.
+`APP_DOMAIN` — то же, что `APP_URL`, но без `https://`. Он должен совпадать с
+доменом в панели: по нему Traefik находит контейнер.
 
 ### На своём VPS без панели
 
@@ -158,7 +157,8 @@ Compose: `git pull && docker compose up -d --build`. Нет Kubernetes, нет
   worker'ы вместо перезапуска на каждый запрос
 - [Laravel Reverb](https://reverb.laravel.com) — свой WebSocket-сервер
 - [Laravel Horizon](https://laravel.com/docs/horizon) — очереди на Redis
-- [Laravel Sanctum](https://laravel.com/docs/sanctum) — cookie-аутентификация SPA
+- [Laravel Sanctum](https://laravel.com/docs/sanctum) — bearer-токен доступа
+  без срока истечения (ADR-012)
 - [spatie/laravel-permission](https://spatie.be/docs/laravel-permission) — роли и права
 - PostgreSQL 18, Redis 8, [Typesense 29](https://typesense.org) — поиск
 - [Pest](https://pestphp.com), PHPStan (Larastan), Laravel Pint

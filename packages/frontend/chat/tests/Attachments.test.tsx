@@ -264,37 +264,53 @@ describe('вложения в сообщении', () => {
     return onOpenImage;
   };
 
-  it('показывает одно изображение крупно', () => {
+  it('показывает одно изображение крупно', async () => {
     renderTiles([image('a1')]);
 
     const tile = screen.getByLabelText('Открыть изображение a1.jpg');
-    expect(within(tile).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
+    // Адреса защищены, поэтому картинка приходит авторизованным запросом и
+    // показывается из blob: (ADR-012) — узнаём её по имени вложения.
+    expect(await within(tile).findByRole('img', { name: 'a1.jpg' })).toBeInTheDocument();
   });
 
-  it('раскладывает два–четыре изображения сеткой', () => {
+  it('раскладывает два–четыре изображения сеткой', async () => {
     renderTiles([image('a1'), image('a2'), image('a3')]);
 
-    expect(screen.getAllByRole('img')).toHaveLength(3);
+    await waitFor(() => expect(screen.getAllByRole('img')).toHaveLength(3));
   });
 
   it('сворачивает больше четырёх до плиток с «Показать ещё»', async () => {
     renderTiles([1, 2, 3, 4, 5, 6, 7].map((n) => image(`a${n}`)));
 
-    expect(screen.getAllByRole('img')).toHaveLength(4);
+    await waitFor(() => expect(screen.getAllByRole('img')).toHaveLength(4));
     const more = screen.getByRole('button', { name: /Показать ещё/ });
     expect(more).toHaveTextContent('+3');
 
     await userEvent.click(more);
-    expect(screen.getAllByRole('img')).toHaveLength(7);
+    await waitFor(() => expect(screen.getAllByRole('img')).toHaveLength(7));
   });
 
-  it('показывает документ строкой с именем, размером и скачиванием', () => {
+  it('показывает документ строкой с именем, размером и скачиванием', async () => {
+    // Обычная ссылка не годится: к ней браузер не приложит заголовок и вместо
+    // файла сохранится ответ об отказе (ADR-012).
+    const fetchMock = vi.fn(async () => new Response(new Blob(['pdf'])));
+    vi.stubGlobal('fetch', fetchMock);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
     renderTiles([document('d1')]);
 
     const row = screen.getByLabelText('Скачать договор.pdf');
-    expect(row).toHaveAttribute('href', '/api/v1/attachments/d1');
+    expect(row.tagName).toBe('BUTTON');
     expect(row).toHaveTextContent('договор.pdf');
     expect(row).toHaveTextContent('86 КБ');
+
+    await userEvent.click(row);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/attachments/d1', { headers: {} }));
+    expect(click).toHaveBeenCalled();
+
+    click.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it('смешанное сообщение держит и плитки, и строку файла', () => {
@@ -308,11 +324,16 @@ describe('вложения в сообщении', () => {
     expect(screen.getByLabelText('Скачать договор.pdf')).toBeInTheDocument();
   });
 
-  it('грузит миниатюру, а не оригинал, и ждёт неготовую', () => {
+  it('грузит миниатюру, а не оригинал, и ждёт неготовую', async () => {
+    const fetchMock = vi.fn(async () => new Response(new Blob(['image'])));
+    vi.stubGlobal('fetch', fetchMock);
+
     renderTiles([image('a1'), image('a2', { thumb_url: null })]);
 
     // Готовая плитка смотрит на миниатюру; оригинал в ленту не тянется.
-    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/attachments/a1/thumb', { headers: {} }));
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/attachments/a1', { headers: {} });
+    vi.unstubAllGlobals();
     // Неготовая — видимое состояние ожидания, а не сломанная картинка.
     expect(screen.getByTestId('attachment-waiting')).toHaveAccessibleName('a2.jpg: миниатюра готовится');
   });
@@ -331,24 +352,24 @@ describe('галерея', () => {
     return screen.getByRole('dialog');
   }
 
-  it('открывает именно нажатое изображение в полный размер', () => {
+  it('открывает именно нажатое изображение в полный размер', async () => {
     const dialog = openGallery(2);
 
     // В галерее — оригинал, а не миниатюра.
-    expect(within(dialog).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a2');
+    expect(await within(dialog).findByRole('img', { name: 'a2.jpg' })).toBeInTheDocument();
     expect(within(dialog).getByRole('status')).toHaveTextContent('2 из 4');
   });
 
-  it('листает стрелками и не выходит за края', () => {
+  it('листает стрелками и не выходит за края', async () => {
     const dialog = openGallery(4);
 
     // Последнее: кнопки «дальше» нет, стрелка вправо ничего не меняет.
     expect(within(dialog).queryByLabelText('Следующее изображение')).toBeNull();
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    expect(within(dialog).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a4');
+    expect(await within(dialog).findByRole('img', { name: 'a4.jpg' })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
-    expect(within(dialog).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a3');
+    expect(await within(dialog).findByRole('img', { name: 'a3.jpg' })).toBeInTheDocument();
   });
 
   it('закрывается по Esc и оставляет ленту на месте', () => {
@@ -361,13 +382,13 @@ describe('галерея', () => {
     expect(screen.getByLabelText('Открыть изображение a1.jpg')).toBeInTheDocument();
   });
 
-  it('листается свайпом', () => {
+  it('листается свайпом', async () => {
     const dialog = openGallery(1);
 
     fireEvent.touchStart(dialog, { touches: [{ clientX: 220 }] });
     fireEvent.touchEnd(dialog, { changedTouches: [{ clientX: 120 }] });
 
-    expect(within(dialog).getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a2');
+    expect(await within(dialog).findByRole('img', { name: 'a2.jpg' })).toBeInTheDocument();
   });
 });
 
@@ -419,7 +440,12 @@ describe('догоняющий запрос миниатюры', () => {
 
     // Перезагрузка приложения для этого не нужна: та же смонтированная плитка.
     expect(screen.queryByTestId('attachment-waiting')).not.toBeInTheDocument();
-    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
+    // Картинка приходит авторизованным запросом; таймеры поддельные, поэтому
+    // ждём не waitFor'ом, а прокруткой очереди микрозадач.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByRole('img', { name: 'a1.jpg' })).toBeInTheDocument();
     expect(get).toHaveBeenCalledTimes(1);
     expect(get).toHaveBeenCalledWith('/messages/m1');
   });
@@ -518,7 +544,10 @@ describe('догоняющий запрос миниатюры', () => {
 
     expect(get).toHaveBeenCalledWith('/messages/m2');
     expect(screen.queryByTestId('attachment-waiting')).not.toBeInTheDocument();
-    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/attachments/a1/thumb');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByRole('img', { name: 'a1.jpg' })).toBeInTheDocument();
   });
 });
 
