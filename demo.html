@@ -679,10 +679,11 @@
     <div class="shell grid grid--split">
       <div data-anim="stack">
         <p class="eyebrow">self-hosted messenger</p>
-        <h1 id="hero-title">Свой мессенджер.<br>В один клик.</h1>
-        <p class="lede">Self-hosted веб-чат для семьи и команды: одна документированная команда
-          поднимает ваш экземпляр на VPS. Он открывается в браузере на телефоне и компьютере,
-          а переписка остаётся на вашем сервере.</p>
+        <h1 id="hero-title">Свой мини-Telegram.<br>На своём сервере.</h1>
+        <p class="lede">Мессенджер для семьи, друзей, команды и сотрудников: одна
+          документированная команда поднимает ваш экземпляр на VPS. Забудьте про блокировки —
+          он открывается в браузере на телефоне и компьютере и работает, пока работает ваш
+          сервер.</p>
         <ul class="chips">
           <li class="chip chip--cyan">Комнаты и роли</li>
           <li class="chip chip--violet">Сообщения в реальном времени</li>
@@ -1187,7 +1188,8 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
         <h2 id="cta-title">Один клик до своего мессенджера</h2>
         <p class="lede" style="margin: 0 auto var(--space-3);">Код, тесты, документация и честные
           статусы функций открыты. Возьмите репозиторий, выполните документированную команду
-          и оставьте переписку на своём сервере.</p>
+          и поднимите собственный мессенджер для своих — семьи, друзей, команды или
+          сотрудников.</p>
         <div class="cta-actions">
           <a class="btn btn--primary" href="#install">К команде установки</a>
           <a class="btn" href="#" data-cta-link="developerContact">Связаться с разработчиком</a>
@@ -1220,7 +1222,7 @@ docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --bu
 
   /* Настройте обе HTTPS-ссылки здесь; пустые значения остаются безопасными placeholder. */
   window.DEMO_CTA_LINKS = window.DEMO_CTA_LINKS || {
-    developerContact: "",
+    developerContact: "https://w1do.ru",
     communityGroup: ""
   };
 
