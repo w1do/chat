@@ -14,7 +14,7 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - postgres-dev-data:/var/lib/postgresql/data
+      - postgres-dev-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -58,7 +58,8 @@ services:
 
   minio:
     # Хранилище обязательно и в development: тесты и smoke ходят в него же.
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # SILO — поддерживаемый форк MinIO (публичных образов minio/minio нет).
+    image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:

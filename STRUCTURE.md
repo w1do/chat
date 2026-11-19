@@ -344,7 +344,7 @@ infra/
 | `scheduler` | `schedule:work` | `horizon:snapshot` по расписанию |
 | `reverb` | `reverb:start` | явный `allowed_origins`, wildcard запрещён |
 | `postgres` · `redis` | official, закреплённые теги | |
-| `minio` | опционально | S3-совместимое хранилище |
+| `minio` (SILO) | форк MinIO, закреплённый тег | S3-совместимое хранилище, обязательно (ADR-011) |
 
 `infra/supervisor/*` входят в self-hosted bundle даже при Compose-развёртывании: они нужны для
 поддерживаемого Linux/VM-профиля. В Compose при этом остаётся один основной процесс на контейнер.

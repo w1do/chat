@@ -56,6 +56,44 @@ docker compose exec api php artisan tinker --execute='echo config("database.redi
 Если сборка всё же падает на этом шаге, значит используется старый образ —
 обновите репозиторий (`git pull`) и пересоберите с `--build`.
 
+## `pull access denied for minio/minio`
+
+MinIO убрал публичные образы сервера: репозиторий `minio/minio` на Docker Hub
+удалён (API отдаёт `404 object not found`), копия на `quay.io` требует
+аутентификации. `docker compose pull` падает на первом же образе, остальные
+помечает `Interrupted`, а следом печатает `No such image:
+postgres:18.1-alpine` — это следствие обрыва, а не отдельная проблема: теги
+`postgres:18.1-alpine`, `redis:8.4-alpine` и `typesense/typesense:29.0`
+существуют и скачиваются.
+
+В поставке вместо `minio/minio` используется `pgsty/silo` — поддерживаемый
+форк MinIO с тем же S3 API, теми же переменными `MINIO_ROOT_*` и той же
+командой `server`. Убедитесь, что в compose-файле стоит
+`image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z`, и передеплойте.
+
+Если образ закреплён на старый `minio/minio` (например, в форке репозитория),
+варианты: обновить файл поставки; положить образ в свой реестр
+(`docker pull <registry>/minio/minio:<tag>`, затем `docker tag` под нужное
+имя); либо подключить внешнее S3 через `S3_ENDPOINT` и убрать сервис.
+
+Внутри контейнера клиент называется `mcli`: `docker compose exec minio mcli ls local`.
+
+## PostgreSQL не стартует: `in 18+, these Docker images are configured to store database data...`
+
+`postgres:18` держит данные в `/var/lib/postgresql/<major>/docker`, а том,
+смонтированный в старый путь `/var/lib/postgresql/data`, считает остатком
+прежней версии и завершает запуск этой ошибкой. Точка монтирования в
+compose-файлах — `/var/lib/postgresql`:
+
+```yaml
+volumes:
+  - postgres-data:/var/lib/postgresql
+```
+
+Если том уже создан в старом пути, новая раскладка его не читает: перенесите
+данные (`pg_dump`/`pg_restore`) или начните с пустого тома — до первого
+успешного запуска данных в нём нет.
+
 ## Dokploy: `lstat /etc/dokploy/compose/<app>/code/infra: no such file or directory`
 
 Собирать не из чего: в рабочем каталоге Dokploy лежит только compose-файл, а

@@ -7,7 +7,7 @@
 | Данные | Где | Как |
 |---|---|---|
 | PostgreSQL | volume `postgres-data` | `pg_dump` (см. ниже) |
-| Загруженные файлы | бакет объектного хранилища (`minio-data`) | `mc mirror` или снапшот volume |
+| Загруженные файлы | бакет объектного хранилища (`minio-data`) | `mcli mirror` или снапшот volume |
 | Environment | `.env` | зашифрованная копия вне сервера |
 | Typesense | volume `typesense-data` | необязательно: индекс восстановим reindex-командой (этап 9) |
 
@@ -22,9 +22,10 @@
 docker compose -p chat exec postgres pg_dump -U "$DB_USERNAME" -Fc "$DB_DATABASE" > chat-$(date +%F).dump
 
 # 2. Файлы: зеркало бакета на диск
+# Клиент в образе хранилища называется mcli (в MinIO он назывался mc).
 docker compose -p chat exec minio \
-  mc alias set local http://127.0.0.1:9000 "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY"
-docker compose -p chat exec minio mc mirror --overwrite local/chat /data/backup-$(date +%F)
+  mcli alias set local http://127.0.0.1:9000 "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY"
+docker compose -p chat exec minio mcli mirror --overwrite local/chat /data/backup-$(date +%F)
 ```
 
 Для внешнего S3-хранилища вместо встроенного берите его собственный механизм
@@ -38,8 +39,10 @@ docker compose -p chat stop api worker scheduler reverb
 # 1. База
 docker compose -p chat exec -T postgres pg_restore -U "$DB_USERNAME" -d "$DB_DATABASE" --clean < chat-YYYY-MM-DD.dump
 
-# 2. Файлы
-docker compose -p chat exec minio mc mirror --overwrite /data/backup-YYYY-MM-DD local/chat
+# 2. Файлы (алиас local живёт в контейнере недолго — задайте его заново)
+docker compose -p chat exec minio \
+  mcli alias set local http://127.0.0.1:9000 "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY"
+docker compose -p chat exec minio mcli mirror --overwrite /data/backup-YYYY-MM-DD local/chat
 
 docker compose -p chat start api worker scheduler reverb
 ```
