@@ -325,12 +325,14 @@ infra/
 │   ├── compose.dev.yaml
 │   ├── compose.override.example.yaml
 │   └── .env.example                    все параметры с безопасными комментариями
-└── supervisor/
-    ├── supervisord.conf
-    ├── octane.conf                     octane:start
-    ├── horizon.conf                    stopwaitsecs > самой долгой job
-    ├── scheduler.conf                  schedule:work
-    └── reverb.conf                     reverb:start
+├── supervisor/
+│   ├── supervisord.conf
+│   ├── octane.conf                     octane:start
+│   ├── horizon.conf                    stopwaitsecs > самой долгой job
+│   ├── scheduler.conf                  schedule:work
+│   └── reverb.conf                     reverb:start
+└── scripts/
+    └── recover-postgres.sh             восстановление базы из тома прежней установки
 ```
 
 ### Процессы production-стека
